@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { Brain, Eye, EyeOff, Mail, Lock, ChevronLeft, Shield, Users, BookOpen } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ChevronLeft, Shield, Users, BookOpen } from "lucide-react";
+import { ALSenseLogo } from "../shared/ALSenseLogo";
 
 const roleOptions = [
-  { value: "learner", label: "Learner", desc: "ALS Student", icon: BookOpen },
-  { value: "facilitator", label: "Facilitator", desc: "AIS Teacher", icon: Users },
-  { value: "admin", label: "Admin", desc: "System Admin", icon: Shield },
+  { value: "learner",     label: "Learner",      desc: "ALS Student",           icon: BookOpen },
+  { value: "facilitator", label: "Facilitator",  desc: "AIS Teacher",           icon: Users    },
+  { value: "admin",       label: "Coordinator",  desc: "CCES Principal / Admin",icon: Shield   },
 ];
 
 const demoAccounts = [
-  { email: "learner@als.edu", name: "Maria Santos", role: "learner", label: "Demo Learner" },
-  { email: "teacher@als.edu", name: "Jose Reyes", role: "facilitator", label: "Demo Facilitator" },
-  { email: "admin@als.edu", name: "Admin User", role: "admin", label: "Demo Admin" },
+  { email: "learner@als.edu",      name: "Maria Santos",    role: "learner",      label: "Demo Learner"      },
+  { email: "teacher@als.edu",      name: "Jose Reyes",      role: "facilitator",  label: "Demo Facilitator"  },
+  { email: "coordinator@als.edu",  name: "Dr. Ana Mendoza", role: "admin",        label: "Demo Coordinator"  },
 ];
 
 export function LoginPage({ navigate, onLogin }) {
@@ -43,15 +44,7 @@ export function LoginPage({ navigate, onLogin }) {
     <div className="min-h-screen flex bg-gradient-to-br from-[#0B1F3A] via-[#1a3a5c] to-[#0B1F3A]">
       {/* Left Panel */}
       <div className="hidden lg:flex w-1/2 flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-xl flex items-center justify-center">
-            <Brain className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <span className="text-white font-semibold text-lg block leading-none">ALS Readiness</span>
-            <span className="text-blue-300 text-xs">Empowering Adult Learners</span>
-          </div>
-        </div>
+        <ALSenseLogo size="md" light showSub subText="Empowering Adult Learners" />
         <div>
           <h2 className="text-white mb-4" style={{ fontSize: "2.5rem", fontWeight: 700, lineHeight: 1.2 }}>
             Welcome back to your learning journey
@@ -70,7 +63,7 @@ export function LoginPage({ navigate, onLogin }) {
             ))}
           </div>
         </div>
-        <div className="text-blue-400 text-sm">Empowering Adult Learners &copy; 2026</div>
+        <div className="text-blue-400 text-sm">ALSense &copy; 2026</div>
       </div>
 
       {/* Right Panel */}

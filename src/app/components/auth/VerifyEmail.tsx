@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Brain, Mail, ChevronLeft, ShieldCheck, RotateCcw } from "lucide-react";
+import { Mail, ChevronLeft, ShieldCheck, RotateCcw } from "lucide-react";
+import { ALSenseLogo } from "../shared/ALSenseLogo";
 
 export function VerifyEmail({ navigate, email }) {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -64,14 +65,8 @@ export function VerifyEmail({ navigate, email }) {
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] flex flex-col items-center justify-center p-6">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center shadow">
-          <Brain className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <span className="text-gray-800 font-bold text-lg leading-none block">ALS Readiness</span>
-          <span className="text-gray-400 text-xs">Empowering Adult Learners</span>
-        </div>
+      <div className="mb-8">
+        <ALSenseLogo size="md" showSub subText="Empowering Adult Learners" />
       </div>
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
@@ -143,7 +138,7 @@ export function VerifyEmail({ navigate, email }) {
         </button>
       </div>
 
-      <p className="text-gray-400 text-xs mt-6">ALS Readiness &copy; 2026</p>
+      <p className="text-gray-400 text-xs mt-6">ALSense &copy; 2026</p>
     </div>
   );
 }

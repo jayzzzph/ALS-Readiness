@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { Brain, ChevronRight, Camera, Calendar, Phone, MapPin, Briefcase, BookOpen, Check, User } from "lucide-react";
+import { ChevronRight, Camera, Calendar, Phone, MapPin, Briefcase, BookOpen, Check, User } from "lucide-react";
+import { ALSenseLogo } from "../shared/ALSenseLogo";
 
 const municipalities = [
   "Biñan, Laguna", "Cabuyao, Laguna", "Calamba, Laguna", "Los Baños, Laguna",
@@ -76,14 +77,8 @@ export function ProfileSetup({ navigate, onComplete }) {
   return (
     <div className="min-h-screen bg-[#F5F7FA] flex flex-col items-center justify-center p-6">
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center shadow">
-          <Brain className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <span className="text-gray-800 font-bold text-lg leading-none block">ALS Readiness</span>
-          <span className="text-gray-400 text-xs">Empowering Adult Learners</span>
-        </div>
+      <div className="mb-8">
+        <ALSenseLogo size="md" showSub subText="Empowering Adult Learners" />
       </div>
 
       {/* Card */}
@@ -107,7 +102,7 @@ export function ProfileSetup({ navigate, onComplete }) {
         {step === 1 && (
           <div className="px-8 pb-8">
             <h2 className="text-gray-800 mb-1" style={{ fontSize: "1.2rem", fontWeight: 700 }}>Welcome! Let's get you set up.</h2>
-            <p className="text-gray-400 text-sm mb-6">How will you use ALS Readiness?</p>
+            <p className="text-gray-400 text-sm mb-6">How will you use ALSense?</p>
             <div className="space-y-3 mb-6">
               {[
                 { val: "learner", label: "Learner / ALS Student", desc: "I want to take diagnostic tests and learn", icon: BookOpen },
@@ -310,7 +305,7 @@ export function ProfileSetup({ navigate, onComplete }) {
         )}
       </div>
 
-      <p className="text-gray-400 text-xs mt-6">ALS Readiness &copy; 2026 — Empowering Adult Learners</p>
+      <p className="text-gray-400 text-xs mt-6">ALSense &copy; 2026 — Empowering Adult Learners</p>
     </div>
   );
 }

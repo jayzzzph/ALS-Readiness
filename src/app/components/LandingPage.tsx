@@ -1,4 +1,5 @@
-import { BookOpen, Brain, BarChart3, Users, ChevronRight, Zap, Shield, Target } from "lucide-react";
+import { BookOpen, BarChart3, Users, ChevronRight, Zap, Shield, Target, Brain } from "lucide-react";
+import { ALSenseLogo } from "./shared/ALSenseLogo";
 
 const modules = [
   { id: "M01", title: "User Authentication & Role Management", desc: "Secure multi-role access for learners, facilitators, and admins with profile setup wizard.", icon: Shield, tag: "Core" },
@@ -20,15 +21,7 @@ export function LandingPage({ navigate }) {
     <div className="min-h-screen bg-gradient-to-br from-[#0B1F3A] via-[#1a3a5c] to-[#0B1F3A]">
       {/* Navbar */}
       <nav className="flex items-center justify-between px-8 py-5 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg">
-            <Brain className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <span className="text-white font-semibold text-lg leading-none block">ALS Readiness</span>
-            <span className="text-blue-300 text-xs">Empowering Adult Learners</span>
-          </div>
-        </div>
+        <ALSenseLogo size="md" light showSub subText="Empowering Adult Learners" />
         <div className="flex items-center gap-3">
           <button onClick={() => navigate("login")} className="px-5 py-2 text-blue-200 hover:text-white border border-blue-400/30 hover:border-blue-300 rounded-lg transition-all duration-200">
             Sign In
@@ -109,8 +102,8 @@ export function LandingPage({ navigate }) {
             );
           })}
           <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-400/30 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-xl flex items-center justify-center mb-4">
-              <Zap className="w-6 h-6 text-white" />
+            <div className="mb-4">
+              <ALSenseLogo iconOnly size="lg" />
             </div>
             <h3 className="text-white mb-2" style={{ fontWeight: 600 }}>Ready to begin?</h3>
             <p className="text-blue-200 text-sm mb-4">Join thousands of ALS learners on their journey</p>
@@ -122,7 +115,7 @@ export function LandingPage({ navigate }) {
       </div>
 
       <div className="border-t border-white/10 px-8 py-6 text-center text-blue-400 text-sm">
-        ALS Readiness — Empowering Adult Learners &copy; 2026
+        ALSense — Empowering Adult Learners &copy; 2026
       </div>
     </div>
   );

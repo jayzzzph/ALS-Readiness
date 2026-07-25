@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { ClipboardList, ChevronRight, ChevronLeft, Clock, CheckCircle, BookOpen, Calculator, FlaskConical, Globe, FileText, Star, X, RotateCcw, Zap } from "lucide-react";
+import { ClipboardList, ChevronRight, ChevronLeft, Clock, CheckCircle, BookOpen, Calculator, FlaskConical, Globe, FileText, Star, X, RotateCcw } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
+import { ALSenseLogo } from "../shared/ALSenseLogo";
 
 const subjects = [
   { id: "english",  label: "English",             strandCode: "LS1", nextCode: "LS2", icon: BookOpen,     color: "blue",   questions: 20, status: "available",  score: null },
@@ -55,11 +56,8 @@ function BreakScreen({ completedSubject, onContinue, completedCount, totalCount 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
-            <Zap className="w-4 h-4 text-black" />
-          </div>
-          <span className="text-white font-semibold">ALS Readiness</span>
-          <span className="text-gray-500 text-sm">Diagnostic test</span>
+          <ALSenseLogo size="sm" light showSub={false} />
+          <span className="text-gray-500 text-sm">· Diagnostic test</span>
         </div>
         <div className="flex items-center gap-1.5 text-gray-400 text-sm">
           <Clock className="w-4 h-4" />
@@ -447,7 +445,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
         </div>
 
         <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-2xl p-5 flex items-start gap-3">
-          <Zap className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+          <ALSenseLogo iconOnly size="sm" className="flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="text-yellow-800 font-semibold mb-1">Break screens between strands</h4>
             <p className="text-yellow-700 text-sm">After completing each strand you'll see a short break screen with a mood check-in. You can take a 2-minute break or continue directly to the next strand.</p>

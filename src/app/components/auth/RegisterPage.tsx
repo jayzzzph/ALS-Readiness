@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Brain, Eye, EyeOff, Mail, Lock, User, ChevronLeft, BookOpen, Users, Shield } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, ChevronLeft, BookOpen, Users, Shield } from "lucide-react";
+import { ALSenseLogo } from "../shared/ALSenseLogo";
 
 const roleOptions = [
   { value: "learner", label: "Learner", desc: "I am an ALS student seeking to learn", icon: BookOpen },
@@ -38,15 +39,7 @@ export function RegisterPage({ navigate, onRegister }) {
     <div className="min-h-screen flex bg-gradient-to-br from-[#0B1F3A] via-[#1a3a5c] to-[#0B1F3A]">
       {/* Left Panel */}
       <div className="hidden lg:flex w-1/2 flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-xl flex items-center justify-center">
-            <Brain className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <span className="text-white font-semibold text-lg block leading-none">ALS Readiness</span>
-            <span className="text-blue-300 text-xs">Empowering Adult Learners</span>
-          </div>
-        </div>
+        <ALSenseLogo size="md" light showSub subText="Empowering Adult Learners" />
         <div>
           <h2 className="text-white mb-4" style={{ fontSize: "2.5rem", fontWeight: 700, lineHeight: 1.2 }}>
             Begin your personalized learning journey
@@ -70,7 +63,7 @@ export function RegisterPage({ navigate, onRegister }) {
             ))}
           </div>
         </div>
-        <div className="text-blue-400 text-sm">ALS Readiness &copy; 2026</div>
+        <div className="text-blue-400 text-sm">ALSense &copy; 2026</div>
       </div>
 
       {/* Right Panel */}
@@ -152,7 +145,7 @@ export function RegisterPage({ navigate, onRegister }) {
 
             {step === 3 && (
               <div className="space-y-4">
-                <p className="text-blue-200 text-sm">How will you use ALS Readiness?</p>
+                <p className="text-blue-200 text-sm">How will you use ALSense?</p>
                 <div className="space-y-3">
                   {roleOptions.map((role) => {
                     const Icon = role.icon;
