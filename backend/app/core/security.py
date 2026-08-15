@@ -1,6 +1,14 @@
+import secrets
+import string
+
 from pwdlib import PasswordHash
 
 password_hash = PasswordHash.recommended()
+
+
+def generate_temp_password(length: int = 8) -> str:
+    chars = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(chars) for _ in range (length))
 
 
 def hash_password(password: str) -> str:

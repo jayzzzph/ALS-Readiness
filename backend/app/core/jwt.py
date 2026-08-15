@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Type
 
 import jwt
 from jwt import InvalidTokenError
@@ -31,7 +31,7 @@ def create_refresh_token(payload: dict[str, Any]) -> str:
     return create_token(payload, REFRESH_TOKEN_SECRET_KEY)
 
 
-def decode_token(token: str, secret_key: str) -> dict[str, Any]:
+def decode_token(token: str, secret_key: str, invalid_token_error: Type[Exception]) -> dict[str, Any]:
     try:
         return jwt.decode(
             jwt=token,

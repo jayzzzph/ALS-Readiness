@@ -1,5 +1,6 @@
 from datetime import date
 
+from pydantic import EmailStr
 from sqlmodel import Field, SQLModel
 
 from app.enums.user import Gender
@@ -18,3 +19,4 @@ class UserProfile(SQLModel, table=True):
     gender: Gender | None = Field(default=None)
     address: str | None = Field(default=None)
     contact_number: str | None = Field(default=None, max_length=20)
+    contact_email: EmailStr | None = Field(default=None, max_length=254)

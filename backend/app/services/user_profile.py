@@ -1,3 +1,4 @@
+from app.models.user_profile import UserProfile
 from app.repositories.user_profile import UserProfileRepository
 from app.schemas.user_profile import UserProfileCreate
 
@@ -8,20 +9,16 @@ class UserProfileService:
 
     # ============ Public Methods ============
 
-    async def create(self, user_id: int, data: UserProfileCreate):
-        existing = self._profile_repository.get_by_user_id(user_id)
-
-        if existing is not None:
-            pass
-
-
+    async def create(self, user_id: int, profile_create: UserProfileCreate) -> UserProfile:
+        return await self._profile_repository.create(
+            UserProfile(
+                user_id=user_id,
+                **profile_create.model_dump(),
+            )
+        )
+        
     async def get_by_user_id(self):
         pass
 
     async def update(self):
-        pass
-
-    # ============ Public Methods ============
-
-    async def _get_or_raise(self, user_id: int):
         pass

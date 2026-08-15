@@ -1,23 +1,25 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel
 
-from .user import UserResponse
+from app.enums.user import UserRole
+
 from .user_profile import UserProfileCreate, UserProfileResponse
 
 
-class AdminRequestBase(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=64)
+class AdminUserCreateBase(UserProfileCreate):
+    pass 
 
 
-class AdminCreateLearnerRequest(AdminRequestBase):
-    cohort_id: int | None
-    profile: UserProfileCreate
+class AdminLearnerCreate(AdminUserCreateBase):
+    pass
 
 
-class AdminCreateFacilitatorRequest(AdminRequestBase):
-    profile: UserProfileCreate
+class AdminFacilitatorCreate(AdminUserCreateBase):
+    pass
 
 
-class AdminCreateUserResponse(BaseModel):
+class AdminUserCreateResponse(BaseModel):
+    user_id: int
+    id_no: str
+    password: str
+    role: UserRole
     profile: UserProfileResponse
-    user:UserResponse

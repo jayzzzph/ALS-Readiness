@@ -1,12 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import ValidationError
-
 from app.core.constants import REFRESH_TOKEN_EXPIRE_DAYS
 from app.core.exceptions.auth import InvalidCredentialsError, InvalidRefreshTokenError
 from app.schemas.auth import LoginRequest, TokenResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import ValidationError
 
 from ..deps import AuthServiceDep
 
@@ -20,9 +19,9 @@ async def login(
     auth_service: AuthServiceDep,
 ):
     try:
-        access_token, refresh_token = await auth_service.login(
+        auth_tokens = await auth_service.login(
             LoginRequest(
-                email=form_data.username,
+                id_no=form_data.username,
                 password=form_data.password,
             ),
         )
@@ -36,7 +35,7 @@ async def login(
 
     response.set_cookie(
         key="refresh_token",
-        value=refresh_token,
+        value=auth_tokens.refresh_token,
         httponly=True,
         secure=False,
         samesite="lax",
@@ -44,7 +43,7 @@ async def login(
     )
 
     return TokenResponse(
-        access_token=access_token,
+        access_token=auth_tokens.access_token,
         token_type="bearer",
     )
 
@@ -58,7 +57,7 @@ async def refresh(
     refresh_token = request.cookies.get("refresh_token")
     
     try:
-        access_token, refresh_token = await auth_service.refresh(refresh_token)
+        auth_tokens = await auth_service.refresh(refresh_token)
     except InvalidRefreshTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -67,7 +66,7 @@ async def refresh(
 
     response.set_cookie(
             key="refresh_token",
-            value=refresh_token,
+            value=auth_tokens.refresh_token,
             httponly=True,
             secure=False,
             samesite="lax",
@@ -75,7 +74,7 @@ async def refresh(
         )
     
     return TokenResponse(
-        access_token=access_token,
+        access_token=auth_tokens.access_token,
         token_type="bearer",
     )
 

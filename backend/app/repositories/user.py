@@ -8,27 +8,38 @@ from app.models.user import User
 
 class UserRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self._session = session
 
     async def create(self, user: User) -> User:
-        self.session.add(user)
+        self._session.add(user)
 
-        await self.session.commit()
-        await self.session.refresh(user)
+        await self._session.flush()
+        await self._session.refresh(user)
 
         return user
 
     async def get_by_id(self, id: int) -> User | None:
-        return await self.session.get(User, id)
+        return await self._session.get(User, id)
 
     async def get_by_email(self, email: str) -> User | None:
         statement = select(User).where(User.email == email)
-        result = await self.session.execute(statement)
+        result = await self._session.execute(statement)
+
+        return result.scalar_one_or_none()
+
+    async def get_by_id_no(self, id_no: str) -> User | None:
+        statement = select(User).where(User.id_no == id_no)
+        result = await self._session.execute(statement)
 
         return result.scalar_one_or_none()
     
     async def update(self, user: User, fields: dict[str, Any]) -> User:
         user.sqlmodel_update(fields)
+
+        await self._session.flush()
+        await self._session.refresh(user)
+
+        return user
     
 """
 async def update(

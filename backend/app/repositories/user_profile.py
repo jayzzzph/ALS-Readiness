@@ -11,7 +11,7 @@ class UserProfileRepository:
     async def create(self, user_profile: UserProfile) -> UserProfile:
         self._session.add(user_profile)
 
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(user_profile)
 
         return user_profile
@@ -25,8 +25,9 @@ class UserProfileRepository:
             data.model_dump(exclude_unset=True)
         )
         
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(user_profile)
+        
         return user_profile
 
     async def get_by_user_id(self, user_id: int) -> UserProfile | None:

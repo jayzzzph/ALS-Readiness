@@ -12,15 +12,10 @@ class User(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
 
-    email: str = Field(
-        max_length=254,
-        unique=True,
-        index=True,
-    )
-
+    id_no: str | None = Field(max_length=20, unique=True, index=True)
     password_hash: str = Field(max_length=255)
 
-    role: UserRole = Field(
+    role: UserRole | None = Field(
         default=UserRole.LEARNER,
         sa_type=SQLEnum(
             UserRole,
