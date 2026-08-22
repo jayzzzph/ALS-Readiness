@@ -11,3 +11,4 @@ class LearnerService:
         return await self._learner_repository.create(
             Learner(**learner_create.model_dump()),
         )
+

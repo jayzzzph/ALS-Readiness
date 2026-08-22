@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import InvalidAccessTokenError, UnauthorizedError
 from app.core.jwt import decode_access_token
 from app.db.session import get_session
 from app.enums.user import UserRole
@@ -156,19 +157,23 @@ async def get_current_user(
 ) -> User:
     payload = decode_access_token(token)
 
-    user_id = int(payload["sub"])
-    return await user_service.get_active_by_id_no(user_id)
-
-
+    try:
+        user_id = int(payload.get("sub"))
+    except (KeyError, TypeError, ValueError):
+        raise InvalidAccessTokenError()
+    
+    return await user_service.get_active_by_id(user_id)
 
 
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
 async def require_admin(current_user: CurrentUserDep) -> User:
-    if UserRole(current_user.role) != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized action"
-        )
+    user_role = UserRole(current_user.role)
+    if user_role != UserRole.ADMIN:
+        raise UnauthorizedError()
 
     return current_user
+
+
+RequireAdminDep = Annotated[User, Depends(require_admin)]

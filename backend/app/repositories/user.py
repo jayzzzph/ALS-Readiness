@@ -40,18 +40,3 @@ class UserRepository:
         await self._session.refresh(user)
 
         return user
-    
-"""
-async def update(
-        self,
-        user_profile: UserProfile,
-        data: UserProfileUpdate,
-    ) -> UserProfile:
-        user_profile.sqlmodel_update(
-            data.model_dump(exclude_unset=True)
-        )
-        
-        await self._session.commit()
-        await self._session.refresh(user_profile)
-        return user_profile
-"""

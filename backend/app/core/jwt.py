@@ -1,15 +1,15 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Type
+from typing import Any
 
 import jwt
 from jwt import InvalidTokenError
 
 from app.core.config import settings
 from app.core.constants import ACCESS_TOKEN_EXPIRE_MINUTES
-from app.core.exceptions.auth import InvalidRefreshTokenError
 from app.enums.token import TokenType
 
 from .constants import SIGNING_ALGORITHM
+from .exceptions import InvalidAccessTokenError, InvalidRefreshTokenError
 
 ACCESS_TOKEN_SECRET_KEY = settings.access_token_secret_key
 REFRESH_TOKEN_SECRET_KEY = settings.refresh_token_secret_key
@@ -31,7 +31,11 @@ def create_refresh_token(payload: dict[str, Any]) -> str:
     return create_token(payload, REFRESH_TOKEN_SECRET_KEY)
 
 
-def decode_token(token: str, secret_key: str, invalid_token_error: Type[Exception]) -> dict[str, Any]:
+def decode_token(
+    token: str,
+    secret_key: str,
+    invalid_token_error: type[Exception],
+) -> dict[str, Any]:
     try:
         return jwt.decode(
             jwt=token,
@@ -39,15 +43,23 @@ def decode_token(token: str, secret_key: str, invalid_token_error: Type[Exceptio
             algorithms=[SIGNING_ALGORITHM],
         )
     except InvalidTokenError as e:
-        raise InvalidRefreshTokenError() from e
+        raise invalid_token_error() from e
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
-    return decode_token(token, ACCESS_TOKEN_SECRET_KEY)
+    return decode_token(
+        token,
+        ACCESS_TOKEN_SECRET_KEY,
+        InvalidAccessTokenError,
+    )
 
 
 def decode_refresh_token(token: str) -> dict[str, Any]:
-    return decode_token(token, REFRESH_TOKEN_SECRET_KEY)
+    return decode_token(
+        token,
+        REFRESH_TOKEN_SECRET_KEY,
+        InvalidRefreshTokenError,
+    )
 
 
 def issue_access_token(user_id: int) -> str:

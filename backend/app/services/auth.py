@@ -1,7 +1,12 @@
 from uuid import UUID
 
-from app.core.exceptions.auth import InvalidCredentialsError, InvalidRefreshTokenError
-from app.core.exceptions.user import InactiveUserError, UserNotFoundError
+from app.core.constants import DUMMY_PASSWORD_HASH
+from app.core.exceptions import (
+    InactiveUserError,
+    InvalidCredentialsError,
+    InvalidRefreshTokenError,
+    UserNotFoundError,
+)
 from app.core.jwt import issue_access_token
 from app.core.security import verify_password
 from app.models.user import User
@@ -59,10 +64,11 @@ class AuthService:
     async def _authenticate(self, credentials: LoginRequest) -> User:
         try:
             user = await self._user_service.get_active_by_id_no(credentials.id_no)
+            password_hash = user.password_hash
         except (InactiveUserError, UserNotFoundError):
-            raise InvalidCredentialsError()
+            password_hash = DUMMY_PASSWORD_HASH
 
-        if not verify_password(credentials.password, user.password_hash):
+        if not verify_password(credentials.password, password_hash):
             raise InvalidCredentialsError()
 
         return user

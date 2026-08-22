@@ -3,8 +3,11 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from app.core.constants import REFRESH_TOKEN_EXPIRE_DAYS
-from app.core.exceptions.auth import InvalidRefreshTokenError
-from app.core.exceptions.user import InactiveUserError, UserNotFoundError
+from app.core.exceptions import (
+    InactiveUserError,
+    InvalidRefreshTokenError,
+    UserNotFoundError,
+)
 from app.core.jwt import create_refresh_token, decode_refresh_token
 from app.core.security import hash_refresh_token, verify_refresh_token
 from app.enums.token import TokenType

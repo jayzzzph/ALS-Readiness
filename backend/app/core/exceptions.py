@@ -24,7 +24,7 @@ class AlreadyExistsError(AppError):
     code = "ALREADY_EXISTS"
 
 
-class ValidationError(AppError):
+class DomainValidationError(AppError):
     """Base for domain-rule violations beyond simple field validation."""
 
     message = "Invalid request."
@@ -39,7 +39,7 @@ class UnauthorizedError(AppError):
 
 
 class UnauthenticatedError(AppError):
-    """Base for permission/role mismatch errors."""
+    """Base for authentication failures."""
 
     message = "Not authenticated to perform this action."
     code = "UNAUTHENTICATED"
@@ -56,14 +56,14 @@ class InvalidCredentialsError(UnauthenticatedError):
 class InvalidRefreshTokenError(UnauthenticatedError):
     """Raised when the refresh token is expired or invalid."""
     
-    message = "Refresh token is invalid or expired."
+    message = "Could not validate credentials."
     code = "INVALID_REFRESH_TOKEN"
 
 
 class InvalidAccessTokenError(UnauthenticatedError):
     """Raised when the refresh token is expired or invalid."""
 
-    message = "Access token is invalid or expired."
+    message = "Could not validate credentials."
     code = "INVALID_ACCESS_TOKEN"
 
 
@@ -74,3 +74,10 @@ class UserNotFoundError(NotFoundError):
 
     message = "User not found."
     code = "USER_NOT_FOUND"
+
+
+class InactiveUserError(UnauthenticatedError):
+    """Raised when a user is inactive"""
+
+    message = "User account is inactive."
+    code = "INACTIVE_USER"

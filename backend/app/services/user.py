@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
 
-from app.core.exceptions.user import (
+from app.core.exceptions import (
     InactiveUserError,
     UserNotFoundError,
 )
 from app.core.security import generate_temp_password, hash_password
 from app.models.user import User
 from app.repositories.user import UserRepository
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserPasswordUpdate
 
 
 class UserService:
@@ -62,6 +62,18 @@ class UserService:
             raise InactiveUserError()
 
         return user
+
+    async def update_password(self, user: User, user_update: UserPasswordUpdate) -> User:
+        hashed_password = hash_password(user_update.password)
+
+        return await self._user_repository.update(user, {"password_hash": hashed_password})
+
+    async def deactivate(self, user: User) -> User:
+        return await self._user_repository.update(user, {"is_active": False})
+
+    async def activate(self, user: User) -> User:
+            return await self._user_repository.update(user, {"is_active": True})
+    
 
     # ================ Private Methods ================
 

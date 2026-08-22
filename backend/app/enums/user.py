@@ -10,3 +10,5 @@ class UserRole(StrEnum):
 class Gender(StrEnum):
     MALE = "male"
     FEMALE = "female"
+    OTHER = "other"
+    

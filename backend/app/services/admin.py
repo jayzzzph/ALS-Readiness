@@ -1,4 +1,5 @@
 from app.enums.user import UserRole
+from app.models.user import User
 from app.schemas.admin import (
     AdminFacilitatorCreate,
     AdminLearnerCreate,
@@ -6,7 +7,7 @@ from app.schemas.admin import (
 )
 from app.schemas.facilitator import FacilitatorCreate
 from app.schemas.learner import LearnerCreate
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserPasswordUpdate
 from app.schemas.user_profile import UserProfileCreate, UserProfileResponse
 
 from .facilitator import FacilitatorService
@@ -50,11 +51,14 @@ class AdminService:
             id_no=user.id_no,
             password=password,
             role=user.role,
+            is_active=user.is_active,
             profile=UserProfileResponse(
                 first_name=profile.first_name,
                 last_name=profile.last_name,
                 middle_name=profile.middle_name,
             ),
+            created_at=user.created_at,
+            updated_at=user.updated_at,
         )
 
     async def create_facilitator(self, facilitator_create: AdminFacilitatorCreate) -> AdminUserCreateResponse:
@@ -79,12 +83,30 @@ class AdminService:
             id_no=user.id_no,
             password=password,
             role=user.role,
+            is_active=user.is_active,
             profile=UserProfileResponse(
                 first_name=profile.first_name,
                 last_name=profile.last_name,
                 middle_name=profile.middle_name,
             ),
+            created_at=user.created_at,
+            updated_at=user.updated_at,
         )
 
-    async def _create_base_user(self):
-        pass
+    async def update_user_password(self, user_id: int, user_update: UserPasswordUpdate) -> User:
+        stored = await self._user_service.get_active_by_id(user_id)
+
+        user = await self._user_service.update_password(stored, user_update)
+        return user
+
+    async def deactivate_user(self, user_id: int) -> User:
+        stored = await self._user_service.get_active_by_id(user_id)
+
+        user = await self._user_service.deactivate(stored)
+        return user
+
+    async def activate_user(self, user_id: int) -> User:
+        stored = await self._user_service.get_active_by_id(user_id)
+
+        user = await self._user_service.deactivate(stored)
+        return user
