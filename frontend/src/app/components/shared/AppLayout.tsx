@@ -13,12 +13,14 @@ const learnerNav = [
   // Pipeline
   { page:"learner-dashboard",   icon:LayoutDashboard, label:"Home",               group:"pipeline" },
   { page:"diagnostic-test",     icon:ClipboardList,   label:"Pre-test",           group:"pipeline", badge:"M02" },
-  { page:"eeg-profiling",       icon:Brain,           label:"EEG Profiling",      group:"pipeline", badge:"M03" },
+  // EEG Profiling — folded into the Pre-test flow, no longer a separate nav step
+  // { page:"eeg-profiling",       icon:Brain,           label:"EEG Profiling",      group:"pipeline", badge:"M03" },
   { page:"stimulus-content",    icon:BookOpen,        label:"Learning Content",   group:"pipeline", badge:"M04" },
   { page:"post-test",           icon:Target,          label:"Post-test",          group:"pipeline", badge:"M02" },
   // Track
   { page:"my-progress",         icon:TrendingUp,      label:"My Progress",        group:"track" },
-  { page:"achievements",        icon:Trophy,          label:"Achievements",        group:"track" },
+  // Achievements — hidden for now
+  // { page:"achievements",        icon:Trophy,          label:"Achievements",        group:"track" },
   { page:"learner-schedule",    icon:CalendarDays,    label:"Schedule",           group:"track" },
 ];
 
@@ -54,7 +56,7 @@ function NavItem({ item, active, open, onClick }) {
       {open && (
         <>
           <span className="flex-1 text-sm text-left truncate">{item.label}</span>
-          {item.badge && !active && <span className="text-[10px] text-blue-500 font-mono opacity-70">{item.badge}</span>}
+          {/* {item.badge && !active && <span className="text-[10px] text-blue-500 font-mono opacity-70">{item.badge}</span>} */}
           {active && <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
         </>
       )}
