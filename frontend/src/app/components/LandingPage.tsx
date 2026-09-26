@@ -1,20 +1,12 @@
-import { BookOpen, BarChart3, Users, ChevronRight, Zap, Shield, Target, Brain } from "lucide-react";
+import { BookOpen, BarChart3, ChevronRight, Shield, Target, Brain } from "lucide-react";
 import { ALSenseLogo } from "./shared/ALSenseLogo";
 
 const modules = [
   { id: "M01", title: "User Authentication & Role Management", desc: "Secure multi-role access for learners, facilitators, and admins with profile setup wizard.", icon: Shield, tag: "Core" },
   { id: "M02", title: "Diagnostic & Inventory Test Module", desc: "Preparatory Equivalency Exams with validated questionnaires linked to learner accounts.", icon: Target, tag: "Core" },
-  // M03 Readiness Profiling — moved into the pretest flow, no longer a standalone landing module
-  // { id: "M03", title: "Readiness Profiling Module", desc: "AI-powered readiness prediction using Ensemble Learning and affective state tagging.", icon: Brain, tag: "AI/ML" },
+  { id: "M03", title: "Readiness Profiling Module", desc: "AI-powered readiness prediction using Ensemble Learning and affective state tagging.", icon: Brain, tag: "AI/ML" },
   { id: "M04", title: "Learner Dashboard & Stimulus Content", desc: "Personalized stimulus delivery with auditory, visual, and reading content types.", icon: BookOpen, tag: "FE" },
   { id: "M05", title: "Facilitator / AIS Teacher Dashboard", desc: "Cohort management, analytics, reporting, and exportable results for educators.", icon: BarChart3, tag: "Analytics" },
-];
-
-const stats = [
-  { label: "Active Learners", value: "2,840", icon: Users },
-  { label: "Modules", value: "5", icon: Zap },
-  { label: "Success Rate", value: "94%", icon: Target },
-  { label: "Content Items", value: "1,200+", icon: BookOpen },
 ];
 
 export function LandingPage({ navigate }) {
@@ -47,27 +39,8 @@ export function LandingPage({ navigate }) {
         </p>
         <div className="flex items-center justify-center gap-4">
           <button onClick={() => navigate("login")} className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white rounded-xl transition-all duration-200 shadow-xl shadow-blue-500/30">
-            Start Learning <ChevronRight className="w-5 h-5" />
+            Sign In <ChevronRight className="w-5 h-5" />
           </button>
-          <button onClick={() => navigate("login")} className="flex items-center gap-2 px-8 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl transition-all duration-200">
-            <Users className="w-5 h-5" /> Facilitator Login
-          </button>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="px-8 pb-16 max-w-5xl mx-auto">
-        <div className="grid grid-cols-4 gap-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div key={stat.label} className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
-                <Icon className="w-6 h-6 text-blue-300 mx-auto mb-2" />
-                <div className="text-white text-2xl font-bold">{stat.value}</div>
-                <div className="text-blue-300 text-sm">{stat.label}</div>
-              </div>
-            );
-          })}
         </div>
       </div>
 
