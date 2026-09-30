@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, LoaderCircle, LockKeyhole } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import { STRAND_CODES, STRAND_SHORT_LABEL, getStrandTests, indexByStrandCode } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { StrandCode, StrandTestListItem } from "../../../lib/api/types";
+import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "../diagnostic/attemptDraft";
 import { StrandAttempt } from "../diagnostic/PretestAttempts";
 import { ScoreCompareModal } from "../diagnostic/ScoreCompareModal";
 import { StrandTestCard } from "../diagnostic/StrandTestCard";
@@ -35,6 +36,8 @@ export function PostTest({ navigate, user, onLogout }) {
   const [error, setError] = useState("");
   const [view, setView] = useState<View>({ name: "hub" });
   const [scoreStrand, setScoreStrand] = useState<StrandCode | null>(null);
+  // Only the first hub load after mounting may reopen an attempt (i.e. after a reload).
+  const reopenPending = useRef(true);
 
   const loadHub = async () => {
     setLoading(true); setError("");
@@ -42,13 +45,31 @@ export function PostTest({ navigate, user, onLogout }) {
       const [postData, preData] = await Promise.all([getStrandTests("posttest"), getStrandTests("pretest")]);
       setPostTests(postData.tests);
       setPreTests(preData.tests);
+
+      // A draft for a test the server already has as completed is stale (submitted elsewhere).
+      postData.tests.forEach((t) => { if (t.attempt_status === "completed") discardAttemptDraft("strand", learnerId, t.test_id); });
+
+      // Reopen the post-test that was on screen before a reload - only if it's still
+      // unsubmitted, still has a draft, and its strand's pretest is done.
+      if (reopenPending.current) {
+        reopenPending.current = false;
+        const open = readOpenAttempt("posttest");
+        const test = open?.kind === "strand" ? postData.tests.find((t) => t.test_id === open.testId) : undefined;
+        const pretestDone = test && preData.tests.some((p) => p.strand_code === test.strand_code && p.attempt_status === "completed");
+        if (test && pretestDone && test.attempt_status !== "completed" && hasAttemptDraft("strand", learnerId, test.test_id)) setView({ name: "strand-attempt", test });
+        else rememberOpenAttempt("posttest", null);
+      }
     } catch (err) {
       setError(getErrorMessage(err, "The post-test could not be loaded. Please try again."));
     } finally { setLoading(false); }
   };
   useEffect(() => { loadHub(); }, []);
 
-  const backToHub = () => { setView({ name: "hub" }); loadHub(); };
+  const openAttempt = (test: StrandTestListItem) => {
+    rememberOpenAttempt("posttest", { kind: "strand", testId: test.test_id });
+    setView({ name: "strand-attempt", test });
+  };
+  const backToHub = () => { rememberOpenAttempt("posttest", null); setView({ name: "hub" }); loadHub(); };
 
   if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} backLabel="Back to post-test" />;
 
@@ -94,8 +115,8 @@ export function PostTest({ navigate, user, onLogout }) {
                   test={test}
                   canAttempt={pretestDone}
                   disabledReason="Complete the pretest for this strand first"
-                  attemptLabel="Start post-test"
-                  onAttempt={() => setView({ name: "strand-attempt", test })}
+                  attemptLabel={hasAttemptDraft("strand", learnerId, test.test_id) ? "Resume post-test" : "Start post-test"}
+                  onAttempt={() => openAttempt(test)}
                   canShowScore={pretestDone && test.attempt_status === "completed"}
                   onShowScore={() => setScoreStrand(test.strand_code)}
                 />

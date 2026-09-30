@@ -1,27 +1,28 @@
-import React, { useState } from 'react'
+import { useState, type ImgHTMLAttributes } from "react";
+import { ImageOff } from "lucide-react";
 
-const ERROR_IMG_SRC =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg=='
+// The one place image load failures are handled. Callers decide whether there's
+// an image at all (a null/absent URL renders nothing - no image was ever meant
+// to be there); this component only covers a URL that's present but fails to
+// load (network error, 404, an expired presigned URL...), replacing the
+// browser's broken-image icon with an explicit "Unable to load image" box.
+// The box takes the caller's className, so it keeps the image slot's size and
+// spacing and the surrounding layout doesn't shift.
 
-export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElement>) {
-  const [didError, setDidError] = useState(false)
+export function ImageWithFallback({ src, alt, className, style, onError, ...rest }: ImgHTMLAttributes<HTMLImageElement>) {
+  // Remembers *which* src failed, not just "failed": the same instance is reused
+  // as `src` changes (e.g. moving between questions), and a new image deserves a
+  // fresh try rather than inheriting the previous one's failure.
+  const [failedSrc, setFailedSrc] = useState<string | undefined>();
 
-  const handleError = () => {
-    setDidError(true)
+  if (src !== undefined && failedSrc === src) {
+    return (
+      <div role="img" aria-label={alt ? `Unable to load image: ${alt}` : "Unable to load image"} className={`flex flex-col items-center justify-center gap-1.5 p-4 bg-gray-100 text-gray-500 text-xs ${className ?? ""}`} style={style} data-original-url={src}>
+        <ImageOff className="w-6 h-6" aria-hidden="true" />
+        <span>Unable to load image</span>
+      </div>
+    );
   }
 
-  const { src, alt, style, className, ...rest } = props
-
-  return didError ? (
-    <div
-      className={`inline-block bg-gray-100 text-center align-middle ${className ?? ''}`}
-      style={style}
-    >
-      <div className="flex items-center justify-center w-full h-full">
-        <img src={ERROR_IMG_SRC} alt="Error loading image" {...rest} data-original-url={src} />
-      </div>
-    </div>
-  ) : (
-    <img src={src} alt={alt} className={className} style={style} {...rest} onError={handleError} />
-  )
+  return <img src={src} alt={alt} className={className} style={style} {...rest} onError={(event) => { setFailedSrc(src); onError?.(event); }} />;
 }

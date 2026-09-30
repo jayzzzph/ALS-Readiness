@@ -57,7 +57,7 @@ export const ApiErrorCode = {
   STRAND_TEST_ATTEMPT_NOT_FOUND: "STRAND_TEST_ATTEMPT_NOT_FOUND",
   /** 404 - results requested for an LRI test the learner hasn't attempted. */
   LRI_TEST_ATTEMPT_NOT_FOUND: "LRI_TEST_ATTEMPT_NOT_FOUND",
-  /** 400 - answers didn't cover every item exactly once, or an option didn't belong to its item. */
+  /** 400 - a duplicate or foreign item (or, LRI only, a missing one), or an option didn't belong to its item. */
   INVALID_TEST_ATTEMPT: "INVALID_TEST_ATTEMPT",
   /** 404 - no such strand test (or it has no items). */
   STRAND_TEST_NOT_FOUND: "STRAND_TEST_NOT_FOUND",

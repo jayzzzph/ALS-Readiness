@@ -15,13 +15,20 @@ from app.enums.user import UserRole
 from app.models.user import User
 from app.repositories.user import UserRepository
 
+from .seed_profile import create_profile
 from .seed_user import create_user
 
 
-async def create_admin(session: AsyncSession) -> User:
-    # The seeded admin is the founding super admin; it is created already
-    # active, so it never needs another super admin's approval.
+async def create_admin(session: AsyncSession, super_admin: bool = True) -> User:
+    # The seeded admin is the founding super admin by default; it is created
+    # already active, so it never needs another super admin's approval.
     user = await create_user(UserRole.ADMIN, session)
+    # GET /users/me requires a profile, so an admin without one can't log in.
+    _ = await create_profile(user.id, {"first_name": "System", "last_name": "Administrator"}, session)
+
+    if not super_admin:
+        return user
+
     return await UserRepository(session).update(user, {"is_super_admin": True})
 
 

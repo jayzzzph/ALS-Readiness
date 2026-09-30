@@ -70,6 +70,7 @@ class AdminService:
             role=user.role,
             is_active=user.is_active,
             profile=UserProfileResponse(
+                user_id=profile.user_id,
                 first_name=profile.first_name,
                 last_name=profile.last_name,
                 middle_name=profile.middle_name,
@@ -102,6 +103,7 @@ class AdminService:
             role=user.role,
             is_active=user.is_active,
             profile=UserProfileResponse(
+                user_id=profile.user_id,
                 first_name=profile.first_name,
                 last_name=profile.last_name,
                 middle_name=profile.middle_name,
@@ -132,6 +134,7 @@ class AdminService:
             role=user.role,
             is_active=user.is_active,
             profile=UserProfileResponse(
+                user_id=profile.user_id,
                 first_name=profile.first_name,
                 last_name=profile.last_name,
                 middle_name=profile.middle_name,

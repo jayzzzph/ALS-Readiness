@@ -82,15 +82,19 @@ class StrandTestAttemptService:
         answers = attempt_create.answers
 
         # An answer is valid only when its option belongs to the supplied item,
-        # and every item in this test is answered exactly once.
+        # and no item is answered more than once. Unanswered items are allowed:
+        # the frontend auto-submits whatever is answered when a timed attempt
+        # runs out, and each missing item simply scores as incorrect (item_count
+        # below is always the full test, so the MPS reflects them).
         test_item_ids = {option.item_id for option in test_options}
         answer_item_ids = [answer.item_id for answer in answers]
         if (
-            len(answer_item_ids) != len(test_item_ids)
-            or len(set(answer_item_ids)) != len(answer_item_ids)
-            or set(answer_item_ids) != test_item_ids
+            len(set(answer_item_ids)) != len(answer_item_ids)
+            or not set(answer_item_ids) <= test_item_ids
         ):
-            raise InvalidTestAttemptError()
+            raise InvalidTestAttemptError(
+                "Answers must reference this test's items, at most one response each."
+            )
 
         total_score = 0
 

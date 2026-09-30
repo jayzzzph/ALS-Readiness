@@ -1,312 +1,125 @@
-import { useState } from "react";
-import { BookOpen, Headphones, Play, Download, CheckCircle, Clock, Star, Search, Lock, Volume2, Video, SlidersHorizontal, Filter, Pause, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, ChevronRight, CircleAlert, ExternalLink, FileText, LoaderCircle, Sparkles } from "lucide-react";
+import { getMyCohorts, getMyCurriculum, getMyStrands } from "../../../lib/api/learningContents";
+import type { LearningStrandProgress, MyCohort, MyCurriculumResponse } from "../../../lib/api/types";
+import { getErrorMessage } from "../../../lib/api/errors";
 import { AppLayout } from "../shared/AppLayout";
 
-const initialContent = [
-  { id: 1, title: "Understanding Basic Algebra", subject: "Math", type: "auditory", duration: "18 min", level: "Beginner", status: "available", progress: 0, rating: 4.5, icon: "🎧" },
-  { id: 2, title: "English Grammar: Verb Tenses", subject: "English", type: "visual", duration: "22 min", level: "Intermediate", status: "in-progress", progress: 65, rating: 4.8, icon: "📹" },
-  { id: 3, title: "Philippine History: Pre-Colonial Era", subject: "AP", type: "reading", duration: "15 min", level: "Beginner", status: "completed", progress: 100, rating: 4.2, icon: "📖" },
-  { id: 4, title: "Photosynthesis Explained", subject: "Science", type: "visual", duration: "20 min", level: "Intermediate", status: "available", progress: 0, rating: 4.7, icon: "📹" },
-  { id: 5, title: "Filipino Literature: Balagtasan", subject: "Filipino", type: "auditory", duration: "25 min", level: "Advanced", status: "available", progress: 0, rating: 4.4, icon: "🎧" },
-  { id: 6, title: "Basic Statistics and Probability", subject: "Math", type: "reading", duration: "30 min", level: "Intermediate", status: "locked", progress: 0, rating: 4.1, icon: "📖" },
-];
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(`${value}T00:00:00`));
+}
 
-const typeColors = {
-  auditory: "text-blue-600 bg-blue-50 border-blue-200",
-  visual: "text-purple-600 bg-purple-50 border-purple-200",
-  reading: "text-green-600 bg-green-50 border-green-200",
-};
+function strandStatus(strand: LearningStrandProgress): string {
+  if (strand.progress_percent === 100) return "Completed";
+  if (strand.progress_percent && strand.progress_percent > 0) return "In progress";
+  return "Not started";
+}
 
-const statusColors = {
-  available: "text-blue-600 bg-blue-50",
-  "in-progress": "text-orange-600 bg-orange-50",
-  completed: "text-green-600 bg-green-50",
-  locked: "text-gray-400 bg-gray-100",
-};
-
-const typeFilters = ["All", "Auditory", "Visual", "Reading"];
-const subjectFilters = ["All", "Math", "English", "Science", "Filipino", "AP"];
-
-const accessibilityOptions = [
-  { label: "Screen Reader", active: false },
-  { label: "High Contrast", active: false },
-  { label: "Large Text", active: false },
-  { label: "Slow Audio", active: false },
-  { label: "Captions", active: true },
-  { label: "Audio Description", active: false },
-  { label: "Keyboard Nav", active: false },
-  { label: "Dyslexia Font", active: false },
-];
-
-function PlayerModal({ item, onClose, onComplete }) {
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(item.progress || 0);
-
-  const handlePlayPause = () => {
-    setPlaying(p => !p);
-    if (!playing && progress < 100) {
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) { clearInterval(interval); setPlaying(false); return 100; }
-          return prev + 2;
-        });
-      }, 200);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div className={`h-32 flex items-center justify-center relative ${item.type === "auditory" ? "bg-gradient-to-br from-blue-400 to-blue-600" : item.type === "visual" ? "bg-gradient-to-br from-purple-400 to-purple-600" : "bg-gradient-to-br from-green-400 to-green-600"}`}>
-          <div className="text-6xl">{item.icon}</div>
-          <button onClick={onClose} className="absolute top-3 right-3 p-1.5 bg-black/20 hover:bg-black/40 rounded-full text-white transition-colors"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`text-xs px-2 py-0.5 rounded border ${typeColors[item.type]}`}>{item.type}</span>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{item.subject}</span>
-          </div>
-          <h3 className="text-gray-800 font-semibold mb-1">{item.title}</h3>
-          <div className="flex items-center gap-3 text-gray-400 text-xs mb-4">
-            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{item.duration}</span>
-            <span className="flex items-center gap-1"><Star className="w-3 h-3 text-yellow-400" />{item.rating}</span>
-            <span>{item.level}</span>
-          </div>
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-              <span>Progress</span><span>{Math.round(progress)}%</span>
-            </div>
-            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all duration-200 ${progress === 100 ? "bg-green-500" : "bg-blue-500"}`} style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={handlePlayPause}
-              className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${item.type === "auditory" ? "bg-blue-500 hover:bg-blue-600 text-white" : item.type === "visual" ? "bg-purple-500 hover:bg-purple-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"}`}>
-              {playing ? <><Pause className="w-4 h-4" /> Pause</> : progress >= 100 ? <><Play className="w-4 h-4" /> Replay</> : <><Play className="w-4 h-4" /> {progress > 0 ? "Resume" : "Start"}</>}
-            </button>
-            {progress >= 100 && (
-              <button onClick={() => { onComplete(item.id); onClose(); }}
-                className="px-5 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-colors flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" /> Mark Done
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function contentTypeLabel(type: string): string {
+  return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 export function StimulusContent({ navigate, user, onLogout }) {
-  const [typeFilter, setTypeFilter] = useState("All");
-  const [subjectFilter, setSubjectFilter] = useState("All");
-  const [search, setSearch] = useState("");
-  const [accessibilityMode, setAccessibilityMode] = useState(false);
-  const [accessOptions, setAccessOptions] = useState(accessibilityOptions);
-  const [contentItems, setContentItems] = useState(initialContent);
-  const [playingItem, setPlayingItem] = useState(null);
-  const [savedItems, setSavedItems] = useState([]);
-  const [downloadToast, setDownloadToast] = useState(null);
+  const [cohorts, setCohorts] = useState<MyCohort[]>([]);
+  const [strands, setStrands] = useState<LearningStrandProgress[]>([]);
+  const [curriculum, setCurriculum] = useState<MyCurriculumResponse | null>(null);
+  const [loadingPage, setLoadingPage] = useState(true);
+  const [loadingCurriculum, setLoadingCurriculum] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = contentItems.filter(c => {
-    const matchType = typeFilter === "All" || c.type === typeFilter.toLowerCase();
-    const matchSubject = subjectFilter === "All" || c.subject === subjectFilter;
-    const matchSearch = c.title.toLowerCase().includes(search.toLowerCase());
-    return matchType && matchSubject && matchSearch && c.status !== "locked";
-  });
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPage() {
+      setLoadingPage(true);
+      setError(null);
+      try {
+        const [cohortResponse, strandResponse] = await Promise.all([getMyCohorts(), getMyStrands()]);
+        if (!cancelled) {
+          setCohorts(cohortResponse.cohorts);
+          setStrands(strandResponse);
+        }
+      } catch (requestError) {
+        if (!cancelled) setError(getErrorMessage(requestError, "Unable to load learning contents."));
+      } finally {
+        if (!cancelled) setLoadingPage(false);
+      }
+    }
+    void loadPage();
+    return () => { cancelled = true; };
+  }, []);
 
-  const handleComplete = (id) => {
-    setContentItems(prev => prev.map(c => c.id === id ? { ...c, status: "completed", progress: 100 } : c));
-  };
+  async function openStrand(strand: LearningStrandProgress) {
+    setLoadingCurriculum(true);
+    setError(null);
+    try {
+      // The id, rather than a display label, is the backend's curriculum key.
+      setCurriculum(await getMyCurriculum(strand.strand_id));
+    } catch (requestError) {
+      setCurriculum(null);
+      setError(getErrorMessage(requestError, "Unable to load this learning strand."));
+    } finally {
+      setLoadingCurriculum(false);
+    }
+  }
 
-  const handleSave = (item) => {
-    setSavedItems(prev => prev.includes(item.id) ? prev.filter(i => i !== item.id) : [...prev, item.id]);
-    setDownloadToast(`"${item.title}" ${savedItems.includes(item.id) ? "removed from" : "saved to"} your library`);
-    setTimeout(() => setDownloadToast(null), 2500);
-  };
-
-  const toggleAccess = (idx) => {
-    setAccessOptions(prev => prev.map((o, i) => i === idx ? { ...o, active: !o.active } : o));
-  };
+  const cohort = cohorts[0];
+  const hasContents = curriculum?.modules.some((module) => module.lessons.some((lesson) => lesson.contents.length > 0)) ?? false;
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="stimulus-content">
-      {playingItem && (
-        <PlayerModal item={playingItem} onClose={() => setPlayingItem(null)} onComplete={handleComplete} />
-      )}
-      {downloadToast && (
-        <div className="fixed bottom-6 right-6 bg-gray-900 text-white rounded-xl shadow-2xl px-5 py-3 text-sm z-50">
-          {downloadToast}
-        </div>
-      )}
+      <main className="p-6 space-y-6 max-w-7xl mx-auto">
+        <header className="bg-gradient-to-r from-green-600 to-teal-600 rounded-2xl p-6 text-white">
+          <p className="text-xs bg-white/20 inline-block px-2 py-1 rounded font-mono mb-2">M04</p>
+          <h1 className="text-2xl font-bold">Learning Contents</h1>
+          <p className="text-green-100 text-sm mt-1">Browse the learning resources assigned to your cohort.</p>
+        </header>
 
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-green-600 to-teal-600 rounded-2xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs bg-white/20 px-2 py-1 rounded font-mono">M04</span>
-                <span className="text-green-100 text-sm">Stimulus Content Module — Personalized Delivery</span>
+        {error && <div role="alert" className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><CircleAlert className="w-5 h-5 shrink-0" />{error}</div>}
+
+        <section className="bg-white rounded-2xl border border-gray-100 p-6" aria-labelledby="cohort-heading">
+          <h2 id="cohort-heading" className="text-gray-800 font-semibold text-lg mb-4">Cohort Information</h2>
+          {loadingPage ? <Loading /> : cohort ? (
+            <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+              <Info label="Cohort Name" value={cohort.name} />
+              <Info label="Cohort Code" value={cohort.code} />
+              <Info label="School Year" value={cohort.school_year} />
+              <Info label="Start Date" value={formatDate(cohort.start_date)} />
+              <Info label="End Date" value={formatDate(cohort.end_date)} />
+              <div><dt className="text-gray-500">Roster Link</dt><dd className="mt-1"><a href={`/api/cohorts/${cohort.id}/members`} className="inline-flex items-center gap-1 text-green-700 hover:underline font-medium">View cohort roster <ExternalLink className="w-3.5 h-3.5" /></a></dd></div>
+            </dl>
+          ) : <Empty message="No cohort information is available." />}
+        </section>
+
+        <section aria-labelledby="strands-heading">
+          <h2 id="strands-heading" className="text-gray-800 font-semibold text-lg mb-4">Learning Strands</h2>
+          {loadingPage ? <Loading /> : strands.length ? <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {strands.map((strand) => <article key={strand.strand_id} className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col min-h-48 shadow-sm">
+              <p className="text-xs font-mono text-green-700 font-semibold">{strand.code}</p>
+              <h3 className="font-semibold text-gray-800 mt-2">{strand.name}</h3>
+              <p className="text-sm text-gray-500 mt-auto pt-4">Status: <span className="font-medium text-gray-700">{strandStatus(strand)}</span></p>
+              <button type="button" onClick={() => void openStrand(strand)} disabled={loadingCurriculum} className="mt-4 self-end rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">Open</button>
+            </article>)}
+          </div> : <Empty message="No learning strands are available for your cohort." />}
+        </section>
+
+        {loadingCurriculum && <Loading label="Loading curriculum…" />}
+        {curriculum && !loadingCurriculum && <section className="bg-white rounded-2xl border border-gray-100 p-6" aria-labelledby="selected-strand-heading">
+          <div className="border-b border-gray-100 pb-4 mb-5"><p className="text-sm text-gray-500">Selected Learning Strand</p><h2 id="selected-strand-heading" className="text-lg font-semibold text-gray-800 mt-1">{cohort?.code ? `${cohort.code} - ` : ""}{curriculum.strand_code} - {curriculum.strand_name}</h2></div>
+          {!hasContents ? <Empty message="No learning contents available." /> : <div className="space-y-6">
+            {curriculum.modules.map((module, moduleIndex) => <section key={module.module_id} aria-labelledby={`module-${module.module_id}`}>
+              <h3 id={`module-${module.module_id}`} className="font-semibold text-gray-800 flex items-center gap-2"><BookOpen className="w-5 h-5 text-green-600" />Module {moduleIndex + 1} - {module.title}</h3>
+              <div className="ml-3 mt-3 border-l-2 border-green-100 pl-5 space-y-4">
+                {module.lessons.map((lesson, lessonIndex) => <article key={lesson.lesson_id}><h4 className="font-medium text-gray-700">Lesson {lessonIndex + 1} - {lesson.title}</h4>
+                  {lesson.contents.length ? <ul className="mt-2 space-y-2">{lesson.contents.map((content) => <li key={content.content_id} className="flex items-start gap-2 text-sm text-gray-600"><ChevronRight className="w-4 h-4 mt-0.5 text-green-600 shrink-0" /><span>{content.stimulus_level && <span className="block text-green-700 mb-1"><Sparkles className="inline w-3.5 h-3.5 mr-1" />Readiness Profile Recommendation: {content.stimulus_level}</span>}<span className="inline-flex items-center gap-1"><FileText className="w-3.5 h-3.5" />File ({contentTypeLabel(content.content_type)}) - {content.title}</span></span></li>)}</ul> : <p className="mt-2 text-sm text-gray-400">No learning contents available for this lesson.</p>}</article>)}
               </div>
-              <h2 className="mb-1" style={{ fontSize: "1.5rem", fontWeight: 700 }}>Your Learning Content</h2>
-              <p className="text-green-100 text-sm">Content personalized based on your <strong>Auditory</strong> learning profile from M03 readiness analysis.</p>
-            </div>
-            <button onClick={() => setAccessibilityMode(!accessibilityMode)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${accessibilityMode ? "bg-white text-green-700" : "bg-white/10 text-white hover:bg-white/20"}`}>
-              <SlidersHorizontal className="w-4 h-4" /> Accessibility {accessibilityMode ? "ON" : "OFF"}
-            </button>
-          </div>
-        </div>
-
-        {/* Type Cards */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { type: "Auditory", icon: Headphones, count: contentItems.filter(c => c.type === "auditory").length, textCls: "text-blue-600", bgCls: "bg-blue-50", recommended: true },
-            { type: "Visual", icon: Video, count: contentItems.filter(c => c.type === "visual").length, textCls: "text-purple-600", bgCls: "bg-purple-50", recommended: false },
-            { type: "Reading", icon: BookOpen, count: contentItems.filter(c => c.type === "reading").length, textCls: "text-green-600", bgCls: "bg-green-50", recommended: false },
-          ].map(({ type, icon: Icon, count, textCls, bgCls, recommended }) => (
-            <button key={type} onClick={() => setTypeFilter(typeFilter === type ? "All" : type)}
-              className={`bg-white rounded-2xl border p-5 cursor-pointer transition-all duration-200 text-left ${typeFilter === type ? "border-blue-400 shadow-md ring-2 ring-blue-100" : "border-gray-100 hover:border-gray-200"}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-10 h-10 ${bgCls} rounded-xl flex items-center justify-center`}>
-                  <Icon className={`w-5 h-5 ${textCls}`} />
-                </div>
-                {recommended && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Primary</span>}
-              </div>
-              <div className="text-gray-800 font-semibold">{type}</div>
-              <div className={`${textCls} text-sm font-bold mt-1`}>{count} items</div>
-            </button>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="relative flex-1 min-w-48">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search content..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-gray-700 focus:outline-none focus:border-blue-400 transition-colors text-sm" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-400" />
-              {typeFilters.map(f => (
-                <button key={f} onClick={() => setTypeFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${typeFilter === f ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                  {f}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              {subjectFilters.map(f => (
-                <button key={f} onClick={() => setSubjectFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${subjectFilter === f ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-200">
-              <div className={`h-28 flex items-center justify-center cursor-pointer ${item.type === "auditory" ? "bg-gradient-to-br from-blue-400 to-blue-600" : item.type === "visual" ? "bg-gradient-to-br from-purple-400 to-purple-600" : "bg-gradient-to-br from-green-400 to-green-600"}`}
-                onClick={() => setPlayingItem(item)}>
-                <div className="text-center">
-                  <div className="text-4xl mb-2">{item.icon}</div>
-                  {item.status === "completed" && <div className="flex items-center gap-1 text-white text-sm"><CheckCircle className="w-4 h-4" /> Completed</div>}
-                  {item.status !== "completed" && <div className="flex items-center gap-1 text-white/80 text-xs"><Play className="w-3 h-3" /> Click to play</div>}
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-xs px-2 py-0.5 rounded border ${typeColors[item.type]}`}>{item.type}</span>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{item.subject}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded ml-auto ${statusColors[item.status]}`}>
-                    {item.status === "in-progress" ? "In Progress" : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                  </span>
-                </div>
-                <h4 className="text-gray-800 font-semibold mb-1 leading-snug">{item.title}</h4>
-                <div className="flex items-center gap-3 text-gray-400 text-xs mb-3">
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{item.duration}</span>
-                  <span className="flex items-center gap-1"><Star className="w-3 h-3 text-yellow-400" />{item.rating}</span>
-                  <span>{item.level}</span>
-                </div>
-                {item.progress > 0 && (
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                      <span>Progress</span><span>{item.progress}%</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${item.progress === 100 ? "bg-green-500" : "bg-blue-500"}`} style={{ width: `${item.progress}%` }} />
-                    </div>
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <button onClick={() => handleSave(item)}
-                    className={`flex-1 py-2 text-sm rounded-xl transition-colors flex items-center justify-center gap-1 ${savedItems.includes(item.id) ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-gray-50 hover:bg-gray-100 text-gray-600"}`}>
-                    <Download className="w-3.5 h-3.5" /> {savedItems.includes(item.id) ? "Saved" : "Save"}
-                  </button>
-                  <button onClick={() => setPlayingItem(item)}
-                    className={`flex-1 py-2 text-sm rounded-xl transition-all flex items-center justify-center gap-1 ${item.type === "auditory" ? "bg-blue-500 hover:bg-blue-600 text-white" : item.type === "visual" ? "bg-purple-500 hover:bg-purple-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"}`}>
-                    {item.type === "auditory" ? <Volume2 className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                    {item.status === "completed" ? "Review" : item.status === "in-progress" ? "Resume" : "Start"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="col-span-3 py-16 text-center text-gray-400">
-              <Search className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p>No content matches your filters.</p>
-              <button onClick={() => { setTypeFilter("All"); setSubjectFilter("All"); setSearch(""); }} className="mt-3 text-blue-500 text-sm hover:underline">Clear filters</button>
-            </div>
-          )}
-        </div>
-
-        {/* Locked */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <Lock className="w-5 h-5 text-gray-400" />
-            <h3 className="text-gray-700" style={{ fontWeight: 600 }}>Locked Content</h3>
-            <span className="text-xs text-gray-400">Complete prerequisites to unlock</span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {contentItems.filter(c => c.status === "locked").map(item => (
-              <div key={item.id} className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200 opacity-60">
-                <div className="flex items-center gap-3">
-                  <Lock className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <div className="text-gray-600 text-sm font-medium">{item.title}</div>
-                    <div className="text-gray-400 text-xs">Complete {item.subject} basics first</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Accessibility */}
-        {accessibilityMode && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
-            <h4 className="text-blue-800 font-semibold mb-3 flex items-center gap-2">
-              <SlidersHorizontal className="w-5 h-5" /> Accessibility Options
-            </h4>
-            <div className="grid grid-cols-4 gap-3">
-              {accessOptions.map((opt, idx) => (
-                <button key={opt.label} onClick={() => toggleAccess(idx)}
-                  className={`p-3 border rounded-xl text-sm transition-colors flex items-center gap-2 ${opt.active ? "bg-blue-500 border-blue-500 text-white" : "bg-white border-blue-200 text-blue-700 hover:bg-blue-100"}`}>
-                  {opt.active && <CheckCircle className="w-3.5 h-3.5" />} {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+            </section>)}
+          </div>}
+        </section>}
+      </main>
     </AppLayout>
   );
 }
+
+function Info({ label, value }: { label: string; value: string }) { return <div><dt className="text-gray-500">{label}</dt><dd className="font-medium text-gray-800 mt-1">{value}</dd></div>; }
+function Empty({ message }: { message: string }) { return <div className="py-8 text-center text-sm text-gray-500">{message}</div>; }
+function Loading({ label = "Loading…" }: { label?: string }) { return <div className="py-8 flex justify-center items-center gap-2 text-sm text-gray-500"><LoaderCircle className="w-5 h-5 animate-spin" />{label}</div>; }

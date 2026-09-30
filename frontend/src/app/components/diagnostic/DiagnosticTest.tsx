@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, ClipboardList, LoaderCircle, LockKeyhole, Star } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
@@ -12,9 +12,11 @@ import {
 } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { LriTestListItem, StrandCode, StrandTestListItem } from "../../../lib/api/types";
+import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
 import { LriAttempt, StrandAttempt } from "./PretestAttempts";
 import { ScoreCompareModal } from "./ScoreCompareModal";
 import { StrandTestCard } from "./StrandTestCard";
+import { BaselineEegRecording } from "./BaselineEegRecording";
 
 // Pre-test hub: Part I participant intake, Part II Learner Readiness Inventory,
 // Part III one diagnostic exam per strand. All of it comes from the real API; if
@@ -33,7 +35,8 @@ import { StrandTestCard } from "./StrandTestCard";
 type View =
   | { name: "hub" }
   | { name: "strand-attempt"; test: StrandTestListItem }
-  | { name: "lri-attempt"; test: LriTestListItem };
+  | { name: "lri-attempt"; test: LriTestListItem }
+  | { name: "baseline-eeg" };
 
 function PretestLoadingIndicator() {
   return (
@@ -55,6 +58,8 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   const [error, setError] = useState("");
   const [view, setView] = useState<View>({ name: "hub" });
   const [scoreStrand, setScoreStrand] = useState<StrandCode | null>(null);
+  // Only the first hub load after mounting may reopen an attempt (i.e. after a reload).
+  const reopenPending = useRef(true);
 
   // Gate for Parts II/III is the learner's real intake record, not a browser-local flag.
   // The posttest list is fetched too (read-only here) - not to gate anything, but because
@@ -72,16 +77,38 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
       setPostStrandTests(postStrandData.tests);
       setLriTests(lriData.tests);
       setIntakeComplete(intake !== null);
+
+      // A draft for a test the server already has as completed is stale (submitted elsewhere).
+      strandData.tests.forEach((t) => { if (t.attempt_status === "completed") discardAttemptDraft("strand", learnerId, t.test_id); });
+      lriData.tests.forEach((t) => { if (t.attempt_status === "completed") discardAttemptDraft("lri", learnerId, t.test_id); });
+
+      // Reopen the attempt that was on screen before a reload - only if it's still
+      // unsubmitted, still has a draft, and its gate is still met.
+      if (reopenPending.current) {
+        reopenPending.current = false;
+        const open = readOpenAttempt("pretest");
+        const lriDone = lriData.tests.length > 0 && lriData.tests.every((t) => t.attempt_status === "completed");
+        const lri = open?.kind === "lri" ? lriData.tests.find((t) => t.test_id === open.testId) : undefined;
+        const strand = open?.kind === "strand" ? strandData.tests.find((t) => t.test_id === open.testId) : undefined;
+        if (lri && lri.attempt_status !== "completed" && intake !== null && hasAttemptDraft("lri", learnerId, lri.test_id)) setView({ name: "lri-attempt", test: lri });
+        else if (strand && strand.attempt_status !== "completed" && lriDone && hasAttemptDraft("strand", learnerId, strand.test_id)) setView({ name: "strand-attempt", test: strand });
+        else rememberOpenAttempt("pretest", null);
+      }
     } catch (err) {
       setError(getErrorMessage(err, "The pre-test could not be loaded. Please try again."));
     } finally { setLoading(false); }
   };
   useEffect(() => { loadHub(); }, []);
 
-  const backToHub = () => { setView({ name: "hub" }); loadHub(); };
+  const openAttempt = (next: Exclude<View, { name: "hub" }>) => {
+    rememberOpenAttempt("pretest", { kind: next.name === "lri-attempt" ? "lri" : "strand", testId: next.test.test_id });
+    setView(next);
+  };
+  const backToHub = () => { rememberOpenAttempt("pretest", null); setView({ name: "hub" }); loadHub(); };
 
   if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} />;
   if (view.name === "lri-attempt") return <LriAttempt test={view.test} learnerId={learnerId} onClose={backToHub} />;
+  if (view.name === "baseline-eeg") return <BaselineEegRecording onClose={backToHub} onComplete={() => navigate("stimulus-content")} />;
 
   // Strands are identified by strand_code, never by name; unknown codes are skipped.
   const byCode = indexByStrandCode(strandTests);
@@ -99,9 +126,9 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   return <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="diagnostic-test">
     <main className="p-6 max-w-6xl mx-auto w-full">
       <section className="bg-gradient-to-r from-[#182f68] to-[#3535C5] rounded-2xl p-7 text-white mb-6">
-        <p className="text-blue-200 text-xs font-semibold uppercase tracking-[0.16em] mb-2">Baseline assessment · No EEG device</p>
+        <p className="text-blue-200 text-xs font-semibold uppercase tracking-[0.16em] mb-2">Baseline assessment · Muse 2 baseline recording</p>
         <h2 className="text-2xl font-bold mb-2">Pre-test</h2>
-        <p className="text-blue-100 text-sm max-w-2xl leading-relaxed">Complete the participant intake, Learner Readiness Inventory, and three diagnostic exams to establish your baseline.</p>
+        <p className="text-blue-100 text-sm max-w-2xl leading-relaxed">Complete the participant intake, Learner Readiness Inventory, three diagnostic exams, and a short baseline EEG recording to establish your baseline.</p>
       </section>
 
       {loading ? <PretestLoadingIndicator /> : error ? (
@@ -122,7 +149,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
           {lriTests.map((test) => {
             const done = test.attempt_status === "completed";
             // Completed, no further action - no score is fetched or shown here.
-            return <PartCard key={test.test_id} number="Part II" title={test.title} description={test.description} status={done ? "Completed" : intakeComplete ? "Ready to attempt" : "Locked until Part I"} disabled={!done && !intakeComplete} action={done ? undefined : "Attempt LRI"} onClick={done ? undefined : () => setView({ name: "lri-attempt", test })} />;
+            return <PartCard key={test.test_id} number="Part II" title={test.title} description={test.description} status={done ? "Completed" : intakeComplete ? "Ready to attempt" : "Locked until Part I"} disabled={!done && !intakeComplete} action={done ? undefined : hasAttemptDraft("lri", learnerId, test.test_id) ? "Resume LRI" : "Attempt LRI"} onClick={done ? undefined : () => openAttempt({ name: "lri-attempt", test })} />;
           })}
 
           <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
@@ -137,7 +164,8 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
                   test={test}
                   canAttempt={lriComplete}
                   disabledReason={strandsLockReason}
-                  onAttempt={() => setView({ name: "strand-attempt", test })}
+                  attemptLabel={hasAttemptDraft("strand", learnerId, test.test_id) ? "Resume test" : undefined}
+                  onAttempt={() => openAttempt({ name: "strand-attempt", test })}
                   canShowScore={test.attempt_status === "completed" && postByCode[test.strand_code]?.attempt_status === "completed"}
                   onShowScore={() => setScoreStrand(test.strand_code)}
                 />
@@ -145,6 +173,16 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
               {!strands.length && <p className="text-sm text-gray-500">No pre-test strands are currently available.</p>}
             </div>
           </section>
+
+          <PartCard
+            number="Part IV"
+            title="Baseline EEG Recording"
+            description="A short baseline recording using the Muse 2 headband, taken right after the diagnostic exams."
+            status={allComplete ? "Ready to record" : "Locked until Part I–III complete"}
+            disabled={!allComplete}
+            action="Start Recording"
+            onClick={() => setView({ name: "baseline-eeg" })}
+          />
         </div>
       </>}
 
@@ -162,4 +200,4 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
 
 function Stat({ icon: Icon, label, value }) { return <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3"><div className="w-10 h-10 bg-indigo-50 text-[#3535C5] rounded-xl flex items-center justify-center"><Icon className="w-5 h-5" /></div><div><p className="text-lg font-bold text-gray-800">{value}</p><p className="text-xs text-gray-500">{label}</p></div></div>; }
 
-function PartCard({ number, title, imageUrl, description, status, action, onClick, disabled }: { number: string; title: string; imageUrl?: string | null; description: string; status: string; action?: string; onClick?: () => void; disabled?: boolean }) { return <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row gap-5 sm:items-center sm:justify-between">{imageUrl && <ImageWithFallback src={imageUrl} alt="" className="h-24 w-full sm:w-36 object-cover rounded-xl" />}<div className="flex-1"><p className="text-xs font-bold text-[#3535C5] uppercase tracking-wider mb-1">{number}</p><h3 className="text-gray-800 font-bold text-lg">{title}</h3><p className="text-gray-500 text-sm mt-1">{description}</p></div><div className="flex flex-col sm:items-end gap-2 shrink-0"><span className={`text-xs font-medium px-2.5 py-1 rounded-full ${disabled ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{status}</span>{action && onClick && <button onClick={onClick} disabled={disabled} className="px-4 py-2.5 rounded-xl text-sm font-medium bg-[#3535C5] text-white hover:bg-[#2929a8] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">{action}</button>}</div></section>; }
+function PartCard({ number, title, imageUrl, description, status, action, onClick, disabled }: { number: string; title: string; imageUrl?: string | null; description: string; status: string; action?: string; onClick?: () => void; disabled?: boolean }) { return <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row gap-5 sm:items-center sm:justify-between">{imageUrl && <ImageWithFallback src={imageUrl} alt="" className="h-24 w-full sm:w-36 object-cover rounded-xl" />}<div className="flex-1"><p className="text-xs font-bold text-[#3535C5] uppercase tracking-wider mb-1">{number}</p><h3 className="text-gray-800 font-bold text-lg">{title}</h3><p className="text-gray-500 text-sm mt-1">{description}</p></div><div className="flex flex-col sm:items-end gap-2 shrink-0"><span className={`text-xs font-medium px-2.5 py-1 rounded-full ${status === "Completed" ? "bg-green-50 text-green-700" : disabled ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{status}</span>{action && onClick && <button onClick={onClick} disabled={disabled} className="px-4 py-2.5 rounded-xl text-sm font-medium bg-[#3535C5] text-white hover:bg-[#2929a8] disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">{action}</button>}</div></section>; }

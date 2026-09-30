@@ -19,6 +19,7 @@ class CohortCreate(BaseModel):
 class CohortResponse(BaseModel):
     id: int
     name: str
+    school_year: str
     start_date: date
     end_date: date
     code: str

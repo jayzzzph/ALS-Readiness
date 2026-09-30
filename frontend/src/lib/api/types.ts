@@ -156,6 +156,62 @@ export const API_STATUS = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Learning contents domain (GET /api/me/cohorts, /api/me/strands and
+// /api/me/curriculum/{strand_id}).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MyCohort {
+  id: number;
+  name: string;
+  code: string;
+  school_year: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+}
+
+export interface MyCohortsResponse {
+  cohorts: MyCohort[];
+}
+
+export interface LearningStrandProgress {
+  strand_id: number;
+  code: string;
+  name: string;
+  completed_lessons: number;
+  total_lessons: number;
+  progress_percent: number | null;
+}
+
+export interface LearningContentNode {
+  content_id: number;
+  title: string;
+  content_type: "video" | "audio" | "reading";
+  stimulus_level: "low" | "medium" | "high" | null;
+  progress_status: "not_opened" | "in_progress" | "completed";
+}
+
+export interface CurriculumLesson {
+  lesson_id: number;
+  title: string;
+  contents: LearningContentNode[];
+}
+
+export interface CurriculumModule {
+  module_id: number;
+  title: string;
+  lessons: CurriculumLesson[];
+}
+
+export interface MyCurriculumResponse {
+  strand_id: number;
+  strand_code: string;
+  strand_name: string;
+  strand_description: string | null;
+  modules: CurriculumModule[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // M02 diagnostic domain types (strand tests, LRI, participant intake).
 // Every shape below was captured from the live backend responses (2026-09-19),
 // not inferred from the spec - see lib/api/diagnostic.ts for the endpoints.
@@ -227,7 +283,7 @@ export interface StrandAttemptAnswer {
   option_id: number;
 }
 
-/** POST /api/learner/strand-tests/{test_id}/attempts body - must answer every item exactly once. */
+/** POST /api/learner/strand-tests/{test_id}/attempts body - at most one answer per item; unanswered items score as incorrect. */
 export interface StrandAttemptCreate {
   answers: StrandAttemptAnswer[];
 }

@@ -11,8 +11,9 @@ import {
 import { getErrorMessage, isAttemptAlreadySubmitted } from "../../../lib/api/errors";
 import type { LriAnswerValue, LriTestListItem, StrandTestListItem } from "../../../lib/api/types";
 import { LIKERT_OPTIONS, isComplete, toLriAttemptCreate, toStrandAttemptCreate } from "./pretestLogic";
+import { useAttemptDraft } from "./attemptDraft";
 import { shuffleForLearner } from "./shuffle";
-import { LRI_TEST_TIME_LIMIT_SECONDS, STRAND_TEST_TIME_LIMIT_SECONDS, formatCountdown, useCountdown } from "./testTiming";
+import { LRI_TEST_TIME_LIMIT_SECONDS, STRAND_TEST_TIME_LIMIT_SECONDS, TIME_WARNING_SECONDS, formatCountdown, useCountdown, useSubmitOnExpiry } from "./testTiming";
 import { TestOverviewModal } from "./TestOverviewModal";
 
 // The screens a learner sees while taking a strand test or the LRI: an
@@ -53,8 +54,9 @@ function useLoad<T>(load: () => Promise<T>, errorFallback: string): [LoadState<T
 }
 
 function CountdownBadge({ secondsLeft, expired }: { secondsLeft: number; expired: boolean }) {
+  const tone = expired ? "bg-red-50 text-red-700" : secondsLeft <= TIME_WARNING_SECONDS ? "bg-amber-50 text-amber-700" : "bg-indigo-50 text-[#3535C5]";
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 ${expired ? "bg-red-50 text-red-700" : "bg-indigo-50 text-[#3535C5]"}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 ${tone}`}>
       <Clock className="w-3.5 h-3.5" /> {expired ? "Time's up" : formatCountdown(secondsLeft)}
     </span>
   );
@@ -113,15 +115,30 @@ function AttemptSuccess({ message, onClose }: { message: string; onClose: () => 
   );
 }
 
+/** Shown in the last TIME_WARNING_SECONDS so the auto-submit at zero isn't a surprise. */
+function TimeWarningNotice() {
+  return <p role="status" className="mt-6 p-3 rounded-xl bg-amber-50 text-amber-800 text-sm">Less than a minute left - when time runs out, your answers will be submitted automatically as they are.</p>;
+}
+
+/**
+ * Shown once the time limit has run out - live, or already on restoring a draft
+ * after a reload. Answers are locked either way, and the attempt is being (or,
+ * if that failed, can be re-) submitted as it stands.
+ */
+function TimeUpNotice() {
+  return <p role="status" className="mt-6 p-3 rounded-xl bg-red-50 text-red-700 text-sm">Time's up - your answers are locked and are being submitted as they are. Unanswered questions count as incorrect.</p>;
+}
+
 const strandTitle = (test: StrandTestListItem) => `${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name} diagnostic exam`;
 
 // ── Strand: take the test ────────────────────────────────────────────────────
 
 export function StrandAttempt({ test, learnerId, onClose, backLabel }: { test: StrandTestListItem; learnerId: string | number; onClose: () => void; backLabel?: string }) {
   const [detail, retry] = useLoad(() => getStrandTestWithItems(test.test_id), "This test could not be opened.");
-  const [phase, setPhase] = useState<"overview" | "in-progress">("overview");
-  const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  // A saved draft means this is a resumed attempt: skip the overview, restore answers and position.
+  const { draft, start, setAnswer, setCurrent, clear } = useAttemptDraft<number>("strand", learnerId, test.test_id);
+  const phase = draft ? "in-progress" : "overview";
+  const answers = draft?.answers ?? {};
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [finished, setFinished] = useState<{ alreadySubmitted: boolean } | null>(null);
@@ -130,8 +147,28 @@ export function StrandAttempt({ test, learnerId, onClose, backLabel }: { test: S
   // Computed once per loaded attempt - stable across re-renders while answering,
   // stable across a reload for the same learner+test (deterministic seed).
   const items = useMemo(() => shuffleForLearner(rawItems, learnerId, test.test_id), [rawItems, learnerId, test.test_id]);
+  // Clamped so a restored position can't point past the end if the item set shrank since.
+  const current = Math.min(draft?.current ?? 0, Math.max(0, items.length - 1));
 
-  const { secondsLeft, expired } = useCountdown(phase === "in-progress" ? STRAND_TEST_TIME_LIMIT_SECONDS : null);
+  const { secondsLeft, expired } = useCountdown(STRAND_TEST_TIME_LIMIT_SECONDS, draft?.startedAt ?? null);
+
+  // Used for both a manual submit and the time-limit auto-submit below.
+  const submit = async () => {
+    setSaving(true); setSubmitError("");
+    try {
+      await submitStrandAttempt(test.test_id, toStrandAttemptCreate(items, answers));
+      clear();
+      setFinished({ alreadySubmitted: false });
+    } catch (err) {
+      // A 409 means another tab/device already submitted: that's a completed
+      // state to show, not an error to surface.
+      if (isAttemptAlreadySubmitted(err)) { clear(); setFinished({ alreadySubmitted: true }); }
+      else setSubmitError(getErrorMessage(err, "Your answers could not be submitted. Please try again."));
+    } finally { setSaving(false); }
+  };
+
+  // Time's up (live, or on restoring an already-expired draft): submit what's answered.
+  useSubmitOnExpiry(expired, detail.status === "ready" && items.length > 0 && !saving && !finished, submit);
 
   if (finished) {
     return (
@@ -148,26 +185,13 @@ export function StrandAttempt({ test, learnerId, onClose, backLabel }: { test: S
         description={`Diagnostic exam for ${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name}. Read each question carefully and choose the best answer for every item before submitting.`}
         timeLimitSeconds={STRAND_TEST_TIME_LIMIT_SECONDS}
         itemCount={detail.status === "ready" ? rawItems.length : undefined}
-        onStart={() => setPhase("in-progress")}
+        onStart={start}
         onCancel={onClose}
       />
     );
   }
 
   const item = items[current];
-
-  const submit = async () => {
-    setSaving(true); setSubmitError("");
-    try {
-      await submitStrandAttempt(test.test_id, toStrandAttemptCreate(items, answers));
-      setFinished({ alreadySubmitted: false });
-    } catch (err) {
-      // A 409 means another tab/device already submitted: that's a completed
-      // state to show, not an error to surface.
-      if (isAttemptAlreadySubmitted(err)) setFinished({ alreadySubmitted: true });
-      else setSubmitError(getErrorMessage(err, "Your answers could not be submitted. Please try again."));
-    } finally { setSaving(false); }
-  };
 
   return (
     <AttemptShell
@@ -189,17 +213,19 @@ export function StrandAttempt({ test, learnerId, onClose, backLabel }: { test: S
             <p className="text-gray-800 text-lg font-medium leading-relaxed mb-6 whitespace-pre-line">{item.question_text}</p>
             <div className="space-y-3">
               {item.options.map((option, index) => (
-                <button key={option.option_id} aria-pressed={answers[item.item_id] === option.option_id} onClick={() => setAnswers((old) => ({ ...old, [item.item_id]: option.option_id }))} className={`w-full flex text-left gap-3 p-4 border rounded-xl transition-colors ${answers[item.item_id] === option.option_id ? "border-[#3535C5] bg-indigo-50 text-indigo-900" : "border-gray-200 hover:border-indigo-300 text-gray-700"}`}>
+                <button key={option.option_id} aria-pressed={answers[item.item_id] === option.option_id} disabled={expired} onClick={() => setAnswer(item.item_id, option.option_id)} className={`w-full flex text-left gap-3 p-4 border rounded-xl transition-colors ${answers[item.item_id] === option.option_id ? "border-[#3535C5] bg-indigo-50 text-indigo-900" : "border-gray-200 hover:border-indigo-300 text-gray-700"}`}>
                   <span className="w-6 h-6 shrink-0 rounded-full border flex justify-center items-center text-xs font-semibold">{String.fromCharCode(65 + index)}</span>{option.option_text}
                 </button>
               ))}
             </div>
           </section>
           <div className="flex justify-between mt-5">
-            <button onClick={() => setCurrent((n) => n - 1)} disabled={current === 0} className="inline-flex gap-1 items-center px-4 py-2 text-sm text-gray-600 disabled:text-gray-300"><ChevronLeft className="w-4 h-4" /> Previous</button>
-            {current < items.length - 1 ? <button onClick={() => setCurrent((n) => n + 1)} className="inline-flex gap-1 items-center px-4 py-2 rounded-xl text-sm text-white bg-[#3535C5]">Next <ChevronRight className="w-4 h-4" /></button> : <span />}
+            <button onClick={() => setCurrent(() => current - 1)} disabled={current === 0} className="inline-flex gap-1 items-center px-4 py-2 text-sm text-gray-600 disabled:text-gray-300"><ChevronLeft className="w-4 h-4" /> Previous</button>
+            {current < items.length - 1 ? <button onClick={() => setCurrent(() => current + 1)} className="inline-flex gap-1 items-center px-4 py-2 rounded-xl text-sm text-white bg-[#3535C5]">Next <ChevronRight className="w-4 h-4" /></button> : <span />}
           </div>
-          <SubmitBar disabled={!isComplete(items, answers)} saving={saving} error={submitError} onSubmit={submit} />
+          {expired ? <TimeUpNotice /> : secondsLeft !== null && secondsLeft <= TIME_WARNING_SECONDS && <TimeWarningNotice />}
+          {/* After expiry an incomplete attempt is submittable too - that's the retry if the auto-submit failed. */}
+          <SubmitBar disabled={!expired && !isComplete(items, answers)} saving={saving} error={submitError} onSubmit={submit} />
         </>
       )}
     </AttemptShell>
@@ -211,8 +237,9 @@ export function StrandAttempt({ test, learnerId, onClose, backLabel }: { test: S
 export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem; learnerId: string | number; onClose: () => void }) {
   // The LRI detail always includes its statements - there's no include_items switch.
   const [detail, retry] = useLoad(() => getLriTestWithItems(test.test_id), "The Learner Readiness Inventory could not be opened.");
-  const [phase, setPhase] = useState<"overview" | "in-progress">("overview");
-  const [answers, setAnswers] = useState<Record<number, LriAnswerValue>>({});
+  const { draft, start, setAnswer, clear } = useAttemptDraft<LriAnswerValue>("lri", learnerId, test.test_id);
+  const phase = draft ? "in-progress" : "overview";
+  const answers = draft?.answers ?? {};
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [finished, setFinished] = useState<{ alreadySubmitted: boolean } | null>(null);
@@ -220,7 +247,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
   const rawItems = detail.status === "ready" ? detail.data.items : [];
   const items = useMemo(() => shuffleForLearner(rawItems, learnerId, test.test_id), [rawItems, learnerId, test.test_id]);
 
-  const { secondsLeft, expired } = useCountdown(phase === "in-progress" ? LRI_TEST_TIME_LIMIT_SECONDS : null);
+  const { secondsLeft, expired } = useCountdown(LRI_TEST_TIME_LIMIT_SECONDS, draft?.startedAt ?? null);
 
   if (finished) {
     return (
@@ -237,7 +264,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
         description={test.description}
         timeLimitSeconds={LRI_TEST_TIME_LIMIT_SECONDS}
         itemCount={detail.status === "ready" ? rawItems.length : undefined}
-        onStart={() => setPhase("in-progress")}
+        onStart={start}
         onCancel={onClose}
       />
     );
@@ -247,9 +274,10 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
     setSaving(true); setSubmitError("");
     try {
       await submitLriAttempt(test.test_id, toLriAttemptCreate(items, answers));
+      clear();
       setFinished({ alreadySubmitted: false });
     } catch (err) {
-      if (isAttemptAlreadySubmitted(err)) setFinished({ alreadySubmitted: true });
+      if (isAttemptAlreadySubmitted(err)) { clear(); setFinished({ alreadySubmitted: true }); }
       else setSubmitError(getErrorMessage(err, "Your LRI responses could not be submitted. Please try again."));
     } finally { setSaving(false); }
   };
@@ -280,7 +308,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
                     <td className="border border-slate-800 p-3 text-gray-800 align-top"><span className="font-semibold mr-1">{index + 1}.</span>{item.question_text}</td>
                     {LIKERT_OPTIONS.map(({ label, value }) => (
                       <td key={value} className="border border-slate-800 p-3 text-center">
-                        <input aria-label={`${item.question_text}: ${label}`} type="radio" name={`item-${item.item_id}`} value={value} checked={answers[item.item_id] === value} onChange={() => setAnswers((current) => ({ ...current, [item.item_id]: value }))} className="h-4 w-4 accent-[#244477]" />
+                        <input aria-label={`${item.question_text}: ${label}`} type="radio" name={`item-${item.item_id}`} value={value} checked={answers[item.item_id] === value} disabled={expired} onChange={() => setAnswer(item.item_id, value)} className="h-4 w-4 accent-[#244477]" />
                       </td>
                     ))}
                   </tr>
@@ -288,6 +316,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
               </tbody>
             </table>
           </div>
+          {expired && <TimeUpNotice />}
           <SubmitBar disabled={!isComplete(items, answers)} saving={saving} error={submitError} onSubmit={submit} />
         </>
       )}

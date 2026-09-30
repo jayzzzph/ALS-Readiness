@@ -149,7 +149,9 @@ class PretestRequiredError(DomainValidationError):
 
 
 class InvalidTestAttemptError(DomainValidationError):
-    """Raised when an attempt does not answer a test's items exactly once."""
+    """Raised when an attempt's answers don't fit the test: a duplicate or
+    foreign item (both tests), or a missing one (LRI only - a strand attempt may
+    leave items unanswered, which score as incorrect)."""
 
     message = "Answers must include one valid response for every test item."
     code = "INVALID_TEST_ATTEMPT"

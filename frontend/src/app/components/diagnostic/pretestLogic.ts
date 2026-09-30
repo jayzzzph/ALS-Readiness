@@ -23,18 +23,19 @@ export function isComplete(items: readonly { item_id: number }[], answers: Recor
 }
 
 /**
- * Strand submission body: one `{item_id, option_id}` per item, in item order.
- * Throws rather than send a partial submission (the server rejects those anyway).
+ * Strand submission body: one `{item_id, option_id}` per answered item, in item
+ * order. Unanswered items are left out - a manual submit only happens once
+ * every item is answered, but a time-limit auto-submit sends whatever is
+ * answered, and the server scores each missing item as incorrect.
  */
 export function toStrandAttemptCreate(
   items: readonly StrandTestItem[],
   answers: Record<number, number>,
 ): StrandAttemptCreate {
   return {
-    answers: items.map((item) => {
+    answers: items.flatMap((item) => {
       const option_id = answers[item.item_id];
-      if (option_id === undefined) throw new Error(`Question ${item.item_id} is unanswered`);
-      return { item_id: item.item_id, option_id };
+      return option_id === undefined ? [] : [{ item_id: item.item_id, option_id }];
     }),
   };
 }

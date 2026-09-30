@@ -25,8 +25,16 @@ class LearningStrandService:
 
         cohort_learner = await self._cohort_learner_service.get_active_by_learner_id(learner.id)
 
-        strands = await self._strand_repo.get_all_active()
         curriculum_map = await self._curriculum_repo.get_cohort_curriculum_map(cohort_learner.cohort_id)
+        # A learner can only open strands which have content assigned to their
+        # active cohort.  Returning every active strand made the upper list and
+        # the curriculum endpoint disagree: unassigned strands necessarily had
+        # an empty content tree.
+        strands = [
+            strand
+            for strand in await self._strand_repo.get_all_active()
+            if strand.id in curriculum_map
+        ]
 
         all_content_ids = [
             cid

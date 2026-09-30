@@ -29,6 +29,7 @@ async def get_me(
         created_at=current_user.created_at,
         updated_at=current_user.updated_at,
         profile=UserProfileResponse(
+            user_id=profile.user_id,
             first_name=profile.first_name,
             last_name=profile.last_name,
             middle_name=profile.middle_name,
@@ -59,6 +60,7 @@ async def update_me(
         created_at=current_user.created_at,
         updated_at=current_user.updated_at,
         profile=UserProfileResponse(
+            user_id=profile.user_id,
             first_name=profile.first_name,
             last_name=profile.last_name,
             middle_name=profile.middle_name,
