@@ -4,6 +4,7 @@ import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
 import { useAuthStore } from "../../../lib/store/authStore";
 import { homeForRole } from "../../../lib/navigation";
+import { HeroIllustration, heroIllustrationCss } from "../HeroIllustration";
 
 // TEMPORARY: loads fonts from Google Fonts. Replace with @fontsource imports once `pnpm add` works.
 const fontCss = "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Serif+Display&display=swap');";
@@ -12,6 +13,14 @@ const fontCss = "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:w
 const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
 const body = { fontFamily: "'DM Sans', system-ui, sans-serif" } as const;
 const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
+
+// Entrance: the left column rises in on load, the card follows 120ms later, and the waveform draws once (see HeroIllustration).
+// Plays once, never on re-render. Under prefers-reduced-motion everything simply shows.
+const motionCss = `
+@keyframes lg-rise { from { opacity: 0; translate: 0 8px; } }
+.lg-rise { animation: lg-rise 300ms cubic-bezier(0.23, 1, 0.32, 1) backwards; animation-delay: var(--d, 0ms); }
+@media (prefers-reduced-motion: reduce) { .lg-rise { animation: none; } }`;
+const delay = (ms: number) => ({ ["--d" as string]: `${ms}ms` });
 
 const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A]";
 // Strong ease-out: responds immediately, settles softly. All motion here stays under 200ms.
@@ -56,14 +65,26 @@ export function LoginPage({ navigate }) {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-[#F8F6F2] text-[#1B1D26] selection:bg-[#FFAB2E]/50" style={body}>
-      <style>{fontCss}</style>
+      <style>{fontCss + motionCss + heroIllustrationCss}</style>
 
-      <header className="h-16 shrink-0 flex items-center px-8 bg-white border-b border-[#E2E0DA]">
-        <span className="text-[#00538A] text-2xl leading-none" style={display}>ALSense</span>
+      <header className="flex h-20 shrink-0 items-center border-b border-[#E2E0DA] bg-white px-8">
+        <span className="text-[#00538A]" style={{ ...display, fontSize: "1.75rem" }}>ALSense</span>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-8 py-12">
-        <div className="w-full max-w-[28rem]">
+      <main className="flex flex-1 items-center">
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-8 py-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:py-16">
+          {/* Left column: only from 1024px up. Below that, the card stands alone under the wordmark. */}
+          <div className="hidden lg:block">
+            <div className="lg-rise">
+              <HeroIllustration />
+            </div>
+            <h2 className="lg-rise mt-8 text-[2.5rem] leading-[1.15] text-[#1B1D26]" style={{ ...display, ...delay(60) }}>Welcome back</h2>
+            <p className="lg-rise mt-3 max-w-[30rem] text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(120) }}>
+              Sign in to continue your pre-test, lessons and progress.
+            </p>
+          </div>
+
+          <div className="lg-rise mx-auto w-full max-w-[28rem] lg:mx-0 lg:justify-self-center" style={delay(120)}>
           <button
             type="button"
             onClick={() => navigate("landing")}
@@ -72,7 +93,7 @@ export function LoginPage({ navigate }) {
             <ChevronLeft className="w-5 h-5" aria-hidden="true" /> Back to Home
           </button>
 
-          <div className="bg-white border border-[#E2E0DA] rounded-2xl p-8">
+          <div className="rounded-2xl border border-[#E2E0DA] bg-white p-8">
             <h1 className="mb-2 text-[2rem] leading-[1.2] text-[#1B1D26]" style={display}>Sign In</h1>
             <p className="mb-7 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>Enter your ID number and password.</p>
 
@@ -98,12 +119,14 @@ export function LoginPage({ navigate }) {
                     autoComplete="username"
                     value={idNo}
                     onChange={e => setIdNo(e.target.value)}
-                    placeholder="2026-00001"
                     aria-invalid={error ? true : undefined}
-                    aria-describedby={error ? "login-error" : undefined}
+                    aria-describedby={error ? "id-hint login-error" : "id-hint"}
                     className={`${inputClass} pr-4 tabular-nums`}
                   />
                 </div>
+                <p id="id-hint" className="mt-2 text-[0.9375rem] leading-snug text-[#4A4F5C]" style={reading}>
+                  Your facilitator gives you your ID number. It looks like 2026-00001.
+                </p>
               </div>
 
               <div>
@@ -154,12 +177,20 @@ export function LoginPage({ navigate }) {
                 )}
               </button>
             </form>
+
+            <p className="mt-5 text-center text-[0.9375rem] leading-snug text-[#4A4F5C]" style={reading}>
+              Forgot your password? Ask your facilitator to reset it.
+            </p>
+
+            <p className="mt-6 border-t border-[#E2E0DA] pt-5 text-center text-[0.9375rem] leading-snug text-[#4A4F5C]" style={reading}>
+              Your information is protected under the Data Privacy Act of 2012.
+            </p>
           </div>
         </div>
       </main>
 
-      <footer className="shrink-0 px-8 py-6 bg-white border-t border-[#E2E0DA] text-sm text-[#4A4F5C]">
-        &copy; 2026 ALSense
+      <footer className="shrink-0 border-t border-[#E2E0DA] bg-white px-8 py-6 text-base text-[#4A4F5C]">
+        ALSense · A capstone research project
       </footer>
     </div>
   );
