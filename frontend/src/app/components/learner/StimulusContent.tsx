@@ -65,6 +65,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
   const [loadingPage, setLoadingPage] = useState(true);
   const [loadingCurriculum, setLoadingCurriculum] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   // A slow response for a strand the learner has already moved away from must not replace the current one.
   const latestStrand = useRef<number | null>(null);
 
@@ -80,14 +81,18 @@ export function StimulusContent({ navigate, user, onLogout }) {
           setStrands(strandResponse);
         }
       } catch (requestError) {
-        if (!cancelled) setError(getErrorMessage(requestError, "Your lessons could not be loaded. Please try again."));
+        // 404 means the learner is not in an active cohort yet (as on the dashboard): that is the empty state, not an error.
+        if (!cancelled) {
+          if ((requestError as { response?: { status?: number } })?.response?.status === 404) { setCohorts([]); setStrands([]); }
+          else setError(getErrorMessage(requestError, "Your lessons could not be loaded. Please try again."));
+        }
       } finally {
         if (!cancelled) setLoadingPage(false);
       }
     }
     void loadPage();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   async function openStrand(strand: LearningStrandProgress) {
     latestStrand.current = strand.strand_id;
@@ -135,7 +140,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
                   <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
                   <div>
                     <p className="text-lg leading-snug" style={reading}>{error}</p>
-                    {selected && <button type="button" onClick={() => void openStrand(selected)} className={`mt-3 ${secondaryButton}`}>Try again</button>}
+                    <button type="button" onClick={() => (selected ? void openStrand(selected) : setReloadKey((key) => key + 1))} className={`mt-3 ${secondaryButton}`}>Try again</button>
                   </div>
                 </div>
               )}
