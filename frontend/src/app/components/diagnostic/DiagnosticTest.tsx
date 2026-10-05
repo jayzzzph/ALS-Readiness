@@ -12,7 +12,7 @@ import {
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { LriTestListItem, StrandCode, StrandTestListItem } from "../../../lib/api/types";
 import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
-import { LriAttempt, StrandAttempt } from "./PretestAttempts";
+import { LriAttempt, StrandAttempt, type NextStep } from "./PretestAttempts";
 import { ScoreCompareModal } from "./ScoreCompareModal";
 import { StrandTestCard, primaryButton, secondaryButton } from "./StrandTestCard";
 import { BaselineEegRecording } from "./BaselineEegRecording";
@@ -111,8 +111,26 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   };
   const backToHub = () => { rememberOpenAttempt("pretest", null); setView({ name: "hub" }); loadHub(); };
 
-  if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} />;
-  if (view.name === "lri-attempt") return <LriAttempt test={view.test} learnerId={learnerId} onClose={backToHub} />;
+  // What the success screen offers next, from the lists the hub already loaded: the first strand exam not done yet,
+  // other than the one just submitted (`justDone`; null after the LRI). Opening it marks `justDone` done here, so a
+  // chain of exams doesn't offer one that was already finished. null = nothing left, undefined = not known.
+  const nextStrandStep = (justDone: number | null): NextStep | null | undefined => {
+    const now = indexByStrandCode(strandTests);
+    const ordered = STRAND_CODES.map((code) => now[code]).filter((test): test is StrandTestListItem => Boolean(test));
+    if (!ordered.length) return undefined;
+    const next = ordered.find((test) => test.test_id !== justDone && test.attempt_status !== "completed");
+    if (!next) return null;
+    return {
+      label: `Next: ${STRAND_SHORT_LABEL[next.strand_code]} diagnostic exam`,
+      onOpen: () => {
+        if (justDone !== null) setStrandTests((tests) => tests.map((test) => (test.test_id === justDone ? { ...test, attempt_status: "completed" } : test)));
+        openAttempt({ name: "strand-attempt", test: next });
+      },
+    };
+  };
+
+  if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(view.test.test_id)} />;
+  if (view.name === "lri-attempt") return <LriAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(null)} />;
   if (view.name === "baseline-eeg") return <BaselineEegRecording onClose={backToHub} onComplete={() => navigate("stimulus-content")} />;
 
   // Strands are identified by strand_code, never by name; unknown codes are skipped.

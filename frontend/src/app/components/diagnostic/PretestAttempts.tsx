@@ -35,7 +35,11 @@ import { TestOverviewModal } from "./TestOverviewModal";
 // the wordmark, the stage and "Save & Exit", and one centered column on paper.
 
 const ALREADY_SUBMITTED_MESSAGE = "You've already submitted this test (perhaps on another tab or device) - nothing more to do here.";
-const SUBMIT_SUCCESS_MESSAGE = "Your responses have been submitted. Thank you for completing this.";
+const SUBMIT_SUCCESS_MESSAGE = "Good work. Your answers are saved.";
+const answeredLine = (answered: number, total: number) => `You answered ${answered} of ${total} questions.`;
+
+/** What the success screen offers after a submit: the next unfinished test in the same stage. Never a score. */
+export type NextStep = { label: string; onOpen: () => void };
 /** Shown instead when the clock ran out; unanswered questions are named so the result isn't a surprise. */
 const timeUpMessage = (answered: number, total: number) =>
   `Time's up. Your answers were submitted. You answered ${answered} of ${total} questions.`;
@@ -181,13 +185,28 @@ function SubmitBar({ disabled, saving, error, onSubmit }: { disabled: boolean; s
 }
 
 /** Plain success state after a submission (or a 409 "already submitted") - no score, per the locked decision. */
-function AttemptSuccess({ message, closeLabel, onClose }: { message: string; closeLabel: string; onClose: () => void }) {
+/**
+ * `next`: a test to offer (primary button, with "Back" as the secondary), `null` when nothing in the stage is left
+ * (the hub is the only button), or left out when it isn't known (a single "Back" button).
+ */
+function AttemptSuccess({ title, message, detail, next, closeLabel, onClose }: { title: string; message: string; detail?: string; next?: NextStep | null; closeLabel: string; onClose: () => void }) {
   return (
     <section className={`${card} px-6 py-12 sm:px-8 text-center`}>
       <span className="mx-auto grid place-items-center w-16 h-16 rounded-full bg-[#CFE4FF] text-[#00538A]"><CircleCheck className="w-8 h-8" aria-hidden="true" /></span>
-      <h1 className="mt-6 text-[2rem] leading-[1.2]" style={display}>All done</h1>
-      <p data-testid="attempt-success" className="mt-3 mx-auto max-w-[46ch] text-lg leading-[1.6] text-[#4A4F5C]" style={reading}>{message}</p>
-      <button onClick={onClose} className={`mt-8 ${primaryButton}`}>{closeLabel}</button>
+      <h1 className="mt-6 text-[2rem] leading-[1.2]" style={display}>{title}</h1>
+      <div data-testid="attempt-success" className="mt-3 mx-auto max-w-[46ch] space-y-1 text-lg leading-[1.6] text-[#4A4F5C]" style={reading}>
+        <p>{message}</p>
+        {detail && <p>{detail}</p>}
+        {next === null && <p>That was the last one. Everything in this stage is done.</p>}
+      </div>
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        {next ? (
+          <>
+            <button onClick={next.onOpen} className={primaryButton}>{next.label}</button>
+            <button onClick={onClose} className={secondaryButton}>{closeLabel}</button>
+          </>
+        ) : <button onClick={onClose} className={primaryButton}>{closeLabel}</button>}
+      </div>
     </section>
   );
 }
@@ -291,11 +310,13 @@ function stemStyle(text: string): { className: string; style: typeof display | t
   return { className: "text-[2rem] leading-[1.2]", style: display };
 }
 
+/** What a strand test is called in this stage, for the success screen: "English post-test", "English diagnostic exam". */
+const strandName = (test: StrandTestListItem, stage: string) => `${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name} ${stage === "Pre-test" ? "diagnostic exam" : stage.toLowerCase()}`;
 const strandTitle = (test: StrandTestListItem) => `${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name} diagnostic exam`;
 
 // ── Strand: take the test ────────────────────────────────────────────────────
 
-export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", backLabel = `Back to ${stage.toLowerCase()}` }: { test: StrandTestListItem; learnerId: string | number; onClose: () => void; stage?: string; backLabel?: string }) {
+export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", backLabel = `Back to ${stage.toLowerCase()}`, next }: { test: StrandTestListItem; learnerId: string | number; onClose: () => void; stage?: string; backLabel?: string; next?: NextStep | null }) {
   const [detail, retry] = useLoad(() => getStrandTestWithItems(test.test_id), "This test could not be opened.");
   // A saved draft means this is a resumed attempt: skip the overview, restore answers and position.
   const { draft, start, setAnswer, setCurrent, clear } = useAttemptDraft<number>("strand", learnerId, test.test_id);
@@ -303,7 +324,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
   const answers = draft?.answers ?? {};
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [finished, setFinished] = useState<{ alreadySubmitted: boolean; timeUp?: { answered: number; total: number } } | null>(null);
+  const [finished, setFinished] = useState<{ alreadySubmitted: boolean; counts?: { answered: number; total: number }; timeUp?: { answered: number; total: number } } | null>(null);
 
   const rawItems = detail.status === "ready" ? detail.data.items : [];
   // Computed once per loaded attempt - stable across re-renders while answering,
@@ -322,7 +343,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
       clear();
       // `expired` is the latest render's value, so it is true when the clock triggered this submit.
       const answered = items.filter((it) => answers[it.item_id] !== undefined).length;
-      setFinished({ alreadySubmitted: false, timeUp: expired ? { answered, total: items.length } : undefined });
+      setFinished({ alreadySubmitted: false, counts: { answered, total: items.length }, timeUp: expired ? { answered, total: items.length } : undefined });
     } catch (err) {
       // A 409 means another tab/device already submitted: that's a completed
       // state to show, not an error to surface.
@@ -349,7 +370,14 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
   if (finished) {
     return (
       <AttemptShell title={stage} onClose={onClose} exitLabel="Exit">
-        <AttemptSuccess message={finished.alreadySubmitted ? ALREADY_SUBMITTED_MESSAGE : finished.timeUp ? timeUpMessage(finished.timeUp.answered, finished.timeUp.total) : SUBMIT_SUCCESS_MESSAGE} closeLabel={backLabel} onClose={onClose} />
+        <AttemptSuccess
+          title={`${strandName(test, stage)} submitted`}
+          message={finished.alreadySubmitted ? ALREADY_SUBMITTED_MESSAGE : finished.timeUp ? timeUpMessage(finished.timeUp.answered, finished.timeUp.total) : SUBMIT_SUCCESS_MESSAGE}
+          detail={!finished.alreadySubmitted && !finished.timeUp && finished.counts ? answeredLine(finished.counts.answered, finished.counts.total) : undefined}
+          next={next}
+          closeLabel={backLabel}
+          onClose={onClose}
+        />
       </AttemptShell>
     );
   }
@@ -461,7 +489,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
 
 // ── LRI: take the inventory ──────────────────────────────────────────────────
 
-export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem; learnerId: string | number; onClose: () => void }) {
+export function LriAttempt({ test, learnerId, onClose, next }: { test: LriTestListItem; learnerId: string | number; onClose: () => void; next?: NextStep | null }) {
   // The LRI detail always includes its statements - there's no include_items switch.
   const [detail, retry] = useLoad(() => getLriTestWithItems(test.test_id), "The Learner Readiness Inventory could not be opened.");
   const { draft, start, setAnswer, clear } = useAttemptDraft<LriAnswerValue>("lri", learnerId, test.test_id);
@@ -469,7 +497,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
   const answers = draft?.answers ?? {};
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [finished, setFinished] = useState<{ alreadySubmitted: boolean } | null>(null);
+  const [finished, setFinished] = useState<{ alreadySubmitted: boolean; counts?: { answered: number; total: number } } | null>(null);
 
   const rawItems = detail.status === "ready" ? detail.data.items : [];
   const items = useMemo(() => shuffleForLearner(rawItems, learnerId, test.test_id), [rawItems, learnerId, test.test_id]);
@@ -479,7 +507,14 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
   if (finished) {
     return (
       <AttemptShell title="Pre-test" onClose={onClose} exitLabel="Exit">
-        <AttemptSuccess message={finished.alreadySubmitted ? ALREADY_SUBMITTED_MESSAGE : SUBMIT_SUCCESS_MESSAGE} closeLabel="Back to pre-test" onClose={onClose} />
+        <AttemptSuccess
+          title="Learner Readiness Inventory submitted"
+          message={finished.alreadySubmitted ? ALREADY_SUBMITTED_MESSAGE : SUBMIT_SUCCESS_MESSAGE}
+          detail={!finished.alreadySubmitted && finished.counts ? answeredLine(finished.counts.answered, finished.counts.total) : undefined}
+          next={next}
+          closeLabel="Back to pre-test"
+          onClose={onClose}
+        />
       </AttemptShell>
     );
   }
@@ -506,7 +541,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
     try {
       await submitLriAttempt(test.test_id, toLriAttemptCreate(items, answers));
       clear();
-      setFinished({ alreadySubmitted: false });
+      setFinished({ alreadySubmitted: false, counts: { answered: items.filter((it) => answers[it.item_id] !== undefined).length, total: items.length } });
     } catch (err) {
       if (isAttemptAlreadySubmitted(err)) { clear(); setFinished({ alreadySubmitted: true }); }
       else setSubmitError(getErrorMessage(err, "Your LRI responses could not be submitted. Please try again."));

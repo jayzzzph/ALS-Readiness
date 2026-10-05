@@ -5,7 +5,7 @@ import { STRAND_CODES, STRAND_SHORT_LABEL, getStrandTests, indexByStrandCode } f
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { StrandCode, StrandTestListItem } from "../../../lib/api/types";
 import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "../diagnostic/attemptDraft";
-import { StrandAttempt } from "../diagnostic/PretestAttempts";
+import { StrandAttempt, type NextStep } from "../diagnostic/PretestAttempts";
 import { ScoreCompareModal } from "../diagnostic/ScoreCompareModal";
 import { StrandTestCard } from "../diagnostic/StrandTestCard";
 
@@ -71,7 +71,29 @@ export function PostTest({ navigate, user, onLogout }) {
   };
   const backToHub = () => { rememberOpenAttempt("posttest", null); setView({ name: "hub" }); loadHub(); };
 
-  if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} stage="Post-test" backLabel="Back to post-test" />;
+  // What the success screen offers next, from the lists the hub already loaded: the first post-test not done yet whose
+  // pretest is done, other than the one just submitted. Opening it marks the finished one done here, so a chain of
+  // tests doesn't offer one that was already finished. null = nothing left, undefined = not known (something is left
+  // but its pretest isn't done, so it isn't offered).
+  const nextPostTestStep = (justDone: number): NextStep | null | undefined => {
+    const now = indexByStrandCode(postTests);
+    const nowPre = indexByStrandCode(preTests);
+    const ordered = STRAND_CODES.map((code) => now[code]).filter((test): test is StrandTestListItem => Boolean(test));
+    if (!ordered.length) return undefined;
+    const left = ordered.filter((test) => test.test_id !== justDone && test.attempt_status !== "completed");
+    if (!left.length) return null;
+    const next = left.find((test) => nowPre[test.strand_code]?.attempt_status === "completed");
+    if (!next) return undefined;
+    return {
+      label: `Next: ${STRAND_SHORT_LABEL[next.strand_code]} post-test`,
+      onOpen: () => {
+        setPostTests((tests) => tests.map((test) => (test.test_id === justDone ? { ...test, attempt_status: "completed" } : test)));
+        openAttempt(next);
+      },
+    };
+  };
+
+  if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} stage="Post-test" backLabel="Back to post-test" next={nextPostTestStep(view.test.test_id)} />;
 
   // Strands are identified by strand_code, never by name; unknown codes are skipped.
   const byCode = indexByStrandCode(postTests);
