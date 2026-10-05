@@ -7,6 +7,10 @@ import { CHANNELS, SAMPLE_RATE } from "../../features/eeg/muse2-ble.js";
 import museStep1 from "../../../assets/illustrations/muse-step-1.webp";
 import museStep2 from "../../../assets/illustrations/muse-step-2.webp";
 import museStep3 from "../../../assets/illustrations/muse-step-3.webp";
+import musePair from "../../../assets/illustrations/muse-pair.webp";
+import museFit1 from "../../../assets/illustrations/muse-fit-1.webp";
+import museFit2 from "../../../assets/illustrations/muse-fit-2.webp";
+import museFit3 from "../../../assets/illustrations/muse-fit-3.webp";
 
 // Part IV of the pre-test flow: a resting baseline recorded with the Muse 2 headband, run by the facilitator.
 // Three modes, each one fits a 1366x768 screen without scrolling:
@@ -115,7 +119,7 @@ export function BaselineEegRecording({ onClose, learnerId }: { onClose: () => vo
       {mode === "setup" && (
         <div className="grid gap-4">
           {banners}
-          <div className="grid gap-6 xl:grid-cols-[30rem_minmax(0,1fr)] xl:items-start">
+          <div className="grid gap-6 xl:grid-cols-[32rem_minmax(0,1fr)] xl:items-start">
             <Rail eeg={eeg} levels={levels} ready={ready} />
             <div className="grid gap-4 min-w-0">
               <SensorCard eeg={eeg} levels={levels} />
@@ -172,8 +176,8 @@ function Rail({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: number
         const n = i + 1;
         const status: StepStatus = n < step ? "done" : n === step ? "current" : "upcoming";
         const last = n === 4;
-        const markerTop = status === "current" ? "top-5" : "top-1";
-        const lineTop = status === "current" ? "top-[3.75rem]" : "top-11";
+        const markerTop = status === "current" ? "top-[15px]" : "top-1";
+        const lineTop = status === "current" ? "top-[55px]" : "top-11";
         const look = status === "done" ? "bg-[#00538A] border-[#00538A] text-white" : status === "current" ? "bg-[#FFAB2E] border-[#FFAB2E] text-[#1B1D26]" : "bg-white border-[#8A8F9C] text-[#4A4F5C]";
         return (
           <li key={name} className={`relative pl-16 ${last ? "" : "pb-5"}`} aria-current={status === "current" ? "step" : undefined}>
@@ -182,7 +186,7 @@ function Rail({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: number
               {status === "done" ? <Check className="w-5 h-5" strokeWidth={2.5} /> : n}
             </span>
             {status === "current" ? (
-              <section aria-label={name} className={`rounded-2xl border border-[#E2E0DA] bg-white p-6 ${enter}`}>
+              <section aria-label={name} className={`rounded-2xl border border-[#E2E0DA] bg-white p-5 ${enter}`}>
                 <h2 className={`${cardTitle} text-[#1B1D26]`} style={display}>{name}</h2>
                 <StepBody eeg={eeg} levels={levels} ready={ready} />
               </section>
@@ -205,7 +209,7 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
   if (step === 1) {
     return (
       <>
-        <StepGuide action={<button onClick={eeg.continueFromStep1} className={primaryButton}>The headband is on</button>} />
+        <StepGuide frames={WEAR_FRAMES} label="How to put the band on" side={<button onClick={eeg.continueFromStep1} className={primaryButton}>The headband is on</button>} />
       </>
     );
   }
@@ -217,6 +221,7 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
     return (
       <>
         <p className={p}>Keep the headband within 1 meter of this computer. Click Pair Muse 2, then choose the device named “Muse” in the window that opens.</p>
+        <StepGuide frames={PAIR_FRAMES} label="Pairing the headband" locked={{ index: 0 }} width="16.5rem" aspect="528 / 396" />
         {note && (
           <p role="alert" className="mt-4 flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-4 text-base leading-snug text-[#7A1A12]">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" /> {note}
@@ -233,24 +238,13 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
     );
   }
   if (step === 3) {
-    const poor = levels.map((l, i) => (l === "poor" ? i : -1)).filter((i) => i >= 0);
     return (
       <>
-        <p className={p}>Wait until all four sensors say Good or Fair. It moves on by itself once they hold.</p>
-        <p className="mt-3 text-base font-bold text-[#1B1D26] tabular-nums" aria-live="polite">{ready} of 4 sensors ready</p>
-        {poor.length > 0 && (
-          <ul className="mt-3 grid gap-2">
-            {poor.map((i) => (
-              <li key={i} className="flex items-start gap-2 text-base leading-snug text-[#7A1A12]">
-                <TriangleAlert className="w-5 h-5 shrink-0 text-[#B42318]" aria-hidden="true" />
-                <span><b>{CHANNELS[i]}:</b> {FIX[i]}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <StepGuide frames={FIT_FRAMES} label="Fixing the fit" locked={fitGuide(levels)} width="16.25rem"
+          side={<span className="text-[0.9375rem] font-bold tabular-nums text-[#1B1D26]" aria-live="polite">{ready} of 4 sensors ready</span>} />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <button onClick={eeg.skipFit} disabled={ready < 4} className={primaryButton}>Continue</button>
-          <button onClick={eeg.skipFit} className={`h-11 rounded-lg px-3 text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] ${focus}`}>Continue with a weak signal</button>
+          <button onClick={eeg.skipFit} className={`h-11 rounded-lg px-2 text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] ${focus}`}>Continue with a weak signal</button>
         </div>
       </>
     );
@@ -276,13 +270,37 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
   );
 }
 
-/* ───────────────────────── Setup: how to wear it ───────────────────────── */
+/* ───────────────────────── Setup: the picture guides (steps 1 to 3) ───────────────────────── */
 
-const GUIDE = [
+type GuideFrame = { src: string; alt: string; caption?: string };
+
+const WEAR_FRAMES: GuideFrame[] = [
   { src: museStep1, caption: "Turn it on", alt: "The learner presses the power button on the Muse 2 band until its light comes on." },
   { src: museStep2, caption: "Rest it above the eyebrows", alt: "The learner holds the band with both hands and rests it across the forehead, above the eyebrows." },
   { src: museStep3, caption: "Tuck the ear pieces behind the ears", alt: "The learner tucks the two ends of the band behind the ears." },
 ];
+const PAIR_FRAMES: GuideFrame[] = [
+  { src: musePair, alt: "The learner sits wearing the headband, an arm’s length from the laptop, while the laptop connects to it over Bluetooth." },
+];
+const FIT_FRAMES: GuideFrame[] = [
+  { src: museFit1, caption: "Move hair away from the forehead", alt: "The learner moves hair away from the band on the forehead so the sensors touch the skin." },
+  { src: museFit2, caption: "Press the ear piece behind the ear", alt: "The learner presses the end of the band against the skin behind the ear." },
+  { src: museFit3, caption: "Then wait for every sensor to say Good", alt: "The learner sits still with the band lying flat across the forehead and behind both ears." },
+];
+
+/**
+ * Step 3's picture follows the real contact instead of a timed loop. A poor forehead sensor (AF7, AF8) comes first, then a
+ * poor ear sensor (TP9, TP10, naming the side); all four Good shows the good-fit frame; anything else (still waiting, or
+ * Fair) returns null, and the guide loops through all three pictures.
+ */
+function fitGuide(levels: Level[]): { index: number; caption: string } | null {
+  if (levels[1] === "poor" || levels[2] === "poor") return { index: 0, caption: FIT_FRAMES[0].caption! };
+  const left = levels[0] === "poor", right = levels[3] === "poor";
+  if (left || right) return { index: 1, caption: `Press ${left && right ? "both ear pieces behind the ears" : `the ${left ? "left" : "right"} ear piece behind the ear`}` };
+  if (levels.every((l) => l === "good")) return { index: 2, caption: "Good fit. Ask the learner to sit still and relax." };
+  return null;
+}
+
 /** How long each frame stays up before the next one fades in. */
 const GUIDE_FRAME_MS = 2500;
 
@@ -298,16 +316,22 @@ function usePrefersReducedMotion() {
 }
 
 /**
- * Three pictures of how to put the band on. They crossfade one at a time and loop, with a caption, three dots and a
- * pause button. The loop only runs while this is mounted (step 1), the tab is visible and the guide is not paused.
- * Under reduced motion nothing fades or loops: the three pictures sit side by side, each with its number and caption.
- * `action` is the step's one button, shown on the same row as the dots.
+ * The picture guide used by steps 1, 2 and 3. Frames sit stacked and crossfade, with a caption under them.
+ *  - Looping (step 1, and step 3 while contact is still settling): one frame at a time every 2.5 s, three dots and a
+ *    Pause/Play button. A dot pauses on its frame. The loop stops while the tab is hidden, and when the guide unmounts
+ *    (the step is finished).
+ *  - `locked` pins one frame and its caption (step 3 following a sensor; step 2's single picture); no dots, no loop.
+ * Under reduced motion nothing fades or loops: a pinned frame just switches, and a looping guide shows its frames side
+ * by side with their numbers and captions. `side` is the step's own control, shown beside the dots.
  */
-function StepGuide({ action }: { action: ReactNode }) {
+function StepGuide({ frames, label, locked = null, side, width = "16.5rem", aspect = "528 / 470" }: {
+  frames: GuideFrame[]; label: string; locked?: { index: number; caption?: string } | null; side?: ReactNode; width?: string; aspect?: string;
+}) {
   const reduced = usePrefersReducedMotion();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [tabHidden, setTabHidden] = useState(() => typeof document !== "undefined" && document.visibilityState === "hidden");
+  const looping = !locked && frames.length > 1;
 
   useEffect(() => {
     const on = () => setTabHidden(document.visibilityState === "hidden");
@@ -316,23 +340,26 @@ function StepGuide({ action }: { action: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (reduced || paused || tabHidden) return;
-    const t = setTimeout(() => setIndex((i) => (i + 1) % GUIDE.length), GUIDE_FRAME_MS);
+    if (!looping || reduced || paused || tabHidden) return;
+    const t = setTimeout(() => setIndex((i) => (i + 1) % frames.length), GUIDE_FRAME_MS);
     return () => clearTimeout(t);
-  }, [index, reduced, paused, tabHidden]);
+  }, [index, looping, reduced, paused, tabHidden, frames.length]);
 
-  if (reduced) {
+  const shown = locked ? locked.index : index;
+  const caption = locked ? locked.caption : frames[shown].caption;
+
+  if (reduced && looping) {
     return (
       <>
-        <ol aria-label="How to put the band on" className="mt-3 grid grid-cols-3 gap-3">
-          {GUIDE.map((g, i) => (
-            <li key={g.caption} className="min-w-0">
-              <img src={g.src} width={528} height={470} alt={g.alt} className="block aspect-[528/470] w-full rounded-lg" />
+        <ol aria-label={label} className="mt-3 grid grid-cols-3 gap-3">
+          {frames.map((g, i) => (
+            <li key={g.src} className="min-w-0">
+              <img src={g.src} width={528} height={470} alt={g.alt} className="block w-full rounded-lg" style={{ aspectRatio: aspect }} />
               <p className="mt-2 text-[18px] leading-[1.35] text-[#1B1D26]" style={reading}><b className="tabular-nums">{i + 1}.</b> {g.caption}</p>
             </li>
           ))}
         </ol>
-        <div className="mt-4">{action}</div>
+        {side && <div className="mt-3">{side}</div>}
       </>
     );
   }
@@ -340,37 +367,39 @@ function StepGuide({ action }: { action: ReactNode }) {
   const fade = `transition-opacity duration-[600ms] ${easeOut}`;
   return (
     <>
-      <div role="group" aria-roledescription="carousel" aria-label="How to put the band on" className="mt-3">
-        <div className="relative mx-auto aspect-[528/470] w-[16.5rem] overflow-hidden rounded-xl">
-          {GUIDE.map((g, i) => (
-            <img key={g.caption} src={g.src} width={528} height={470} alt={g.alt} aria-hidden={i !== index}
-              className={`absolute inset-0 h-full w-full ${i === index ? `z-10 opacity-100 ${fade}` : "z-0 opacity-0 transition-opacity duration-0 delay-[600ms]"}`} />
+      <div role="group" aria-roledescription={looping ? "carousel" : undefined} aria-label={label} className="mt-2">
+        <div className="relative mx-auto overflow-hidden rounded-xl" style={{ width, aspectRatio: aspect }}>
+          {frames.map((g, i) => (
+            <img key={g.src} src={g.src} width={528} height={470} alt={g.alt} aria-hidden={i !== shown}
+              className={`absolute inset-0 h-full w-full ${i === shown ? `z-10 opacity-100 ${reduced ? "" : fade}` : `z-0 opacity-0 ${reduced ? "" : "transition-opacity duration-0 delay-[600ms]"}`}`} />
           ))}
         </div>
         {/* The incoming picture fades in over the outgoing one, which is hidden only once it is fully covered. */}
-        <p className="mt-2 text-center text-[18px] leading-[1.6] text-[#1B1D26]" style={reading} aria-live={paused ? "polite" : "off"}>
-          {GUIDE[index].caption}
-        </p>
+        {caption && <p className="mt-2 text-center text-[18px] leading-[1.6] text-[#1B1D26]" style={reading} aria-live={locked || paused ? "polite" : "off"}>{caption}</p>}
       </div>
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <div className="flex items-center">
-          <ul className="flex items-center" aria-label="Pictures">
-            {GUIDE.map((g, i) => (
-              <li key={g.caption}>
-                <button onClick={() => { setIndex(i); setPaused(true); }} aria-label={`Show picture ${i + 1}: ${g.caption}`} aria-current={i === index ? "true" : undefined}
-                  className={`grid h-10 w-8 place-items-center rounded-lg ${focus}`}>
-                  <span className={`block h-2.5 rounded-full transition-[width,background-color] duration-200 ${easeOut} ${i === index ? "w-6 bg-[#00538A]" : "w-2.5 bg-[#8A8F9C]"}`} aria-hidden="true" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button onClick={() => setPaused((v) => !v)} aria-label={paused ? "Play guide" : "Pause guide"}
-            className={`ml-1 grid h-10 w-10 place-items-center rounded-lg text-[#00538A] hover:bg-[#CFE4FF] active:scale-[0.97] transition-[background-color,scale] duration-150 ${easeOut} ${focus}`}>
-            {paused ? <Play className="w-4 h-4" fill="currentColor" aria-hidden="true" /> : <Pause className="w-4 h-4" fill="currentColor" aria-hidden="true" />}
-          </button>
+      {(looping || side) && (
+        <div className="mt-1 flex items-center justify-between gap-3">
+          {looping ? (
+            <div className="flex items-center">
+              <ul className="flex items-center" aria-label="Pictures">
+                {frames.map((g, i) => (
+                  <li key={g.src}>
+                    <button onClick={() => { setIndex(i); setPaused(true); }} aria-label={`Show picture ${i + 1}: ${g.caption}`} aria-current={i === shown ? "true" : undefined}
+                      className={`grid h-8 w-8 place-items-center rounded-lg ${focus}`}>
+                      <span className={`block h-2.5 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none ${easeOut} ${i === shown ? "w-6 bg-[#00538A]" : "w-2.5 bg-[#8A8F9C]"}`} aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button onClick={() => setPaused((v) => !v)} aria-label={paused ? "Play guide" : "Pause guide"}
+                className={`ml-1 grid h-8 w-8 place-items-center rounded-lg text-[#00538A] hover:bg-[#CFE4FF] active:scale-[0.97] motion-reduce:active:scale-100 transition-[background-color,scale] duration-150 ${easeOut} ${focus}`}>
+                {paused ? <Play className="w-4 h-4" fill="currentColor" aria-hidden="true" /> : <Pause className="w-4 h-4" fill="currentColor" aria-hidden="true" />}
+              </button>
+            </div>
+          ) : <span />}
+          {side}
         </div>
-        {action}
-      </div>
+      )}
     </>
   );
 }
