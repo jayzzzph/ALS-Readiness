@@ -28,7 +28,7 @@
 
 ### Similarity ✅
 - **One job per color (the One Job Rule):**
-  - **Deep blue:** every action (`primaryButton` and `secondaryButton`, `StrandTestCard.tsx` lines 18 to 19), done markers, the done line, and the progress ring.
+  - **Deep blue:** every action (`primaryButton` and `secondaryButton`, `StrandTestCard.tsx` lines 17 to 18), done markers, the done line, and the progress ring.
   - **Amber:** only where the learner is: the current marker and "You are here".
   - **Indigo:** only the strand codes (`LS1-EN`, `LS1-FIL`, `LS3`).
   - **Navy:** only the Muse 2 card.
