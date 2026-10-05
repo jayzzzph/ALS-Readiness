@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BookOpen, ChevronRight, Headphones, Video } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Headphones, Video } from "lucide-react";
 import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
 
@@ -19,12 +19,15 @@ const cardClass = "rounded-2xl border border-[#E2E0DA] bg-white";
 // Motion. The page is a scroll story: each section plays once when it scrolls into view (IntersectionObserver), its parts
 // arriving one after another. Everything uses the app's ease-out curve and stays between 150 and 600ms, except the two
 // drawn lines (the hero wave draws once, the baseline wave scrolls slowly like a live trace). Nothing moves on hover, and
-// under prefers-reduced-motion every mock is shown in its final state with no movement.
+// under prefers-reduced-motion every mock is shown in its final state with no movement. A section plays when about a fifth
+// of it is on screen, so it is already moving as it enters.
 const motionCss = `
 @keyframes lp-rise { from { opacity: 0; translate: 0 8px; } }
 .lp-rise { animation: lp-rise 300ms cubic-bezier(0.23, 1, 0.32, 1) backwards; animation-delay: var(--d, 0ms); }
 .st { opacity: 0; translate: 0 8px; transition: opacity 300ms cubic-bezier(0.23, 1, 0.32, 1), translate 300ms cubic-bezier(0.23, 1, 0.32, 1); transition-delay: var(--d, 0ms); }
 [data-shown="true"] .st { opacity: 1; translate: 0 0; }
+.lp-line { transform-origin: top; scale: 1 0; transition: scale 600ms cubic-bezier(0.23, 1, 0.32, 1); }
+[data-shown="true"] .lp-line { scale: 1 1; }
 @keyframes lp-draw { 0% { stroke-dashoffset: 1; opacity: 0; } 1% { opacity: 1; } 100% { stroke-dashoffset: 0; } }
 @keyframes lp-sweep { from { scale: 0 1; } }
 .lp-wave { stroke-dasharray: 1 2; animation: lp-draw 1200ms cubic-bezier(0.23, 1, 0.32, 1) 200ms backwards; }
@@ -35,7 +38,11 @@ const motionCss = `
 @media (prefers-reduced-motion: reduce) {
   .lp-rise, .lp-wave, .lp-sweep, .lp-trace { animation: none; }
   .st { opacity: 1; translate: 0 0; transition: none; }
+  .lp-line { scale: 1 1; transition: none; }
 }`;
+
+// One seamless EEG-like trace (600 units wide, drawn twice) shared by the baseline panel and the small reading in the core-idea mock.
+const museWave = "M0.0 94.9 C2.1 95.9 8.3 101.8 12.5 101.3 C16.7 100.9 20.8 94.2 25.0 92.2 C29.2 90.2 33.3 89.6 37.5 89.3 C41.7 89.1 45.8 89.4 50.0 90.8 C54.2 92.2 58.3 97.7 62.5 97.8 C66.7 97.8 70.8 91.3 75.0 90.9 C79.2 90.6 83.3 94.5 87.5 95.6 C91.7 96.7 95.8 101.9 100.0 97.6 C104.2 93.4 108.3 77.4 112.5 70.2 C116.7 62.9 120.8 57.1 125.0 54.0 C129.2 51.0 133.3 50.8 137.5 51.6 C141.7 52.5 145.8 56.9 150.0 59.3 C154.2 61.7 158.3 64.3 162.5 65.9 C166.7 67.5 170.8 65.4 175.0 68.9 C179.2 72.5 183.3 84.7 187.5 87.0 C191.7 89.3 195.8 85.3 200.0 82.8 C204.2 80.2 208.3 71.5 212.5 71.8 C216.7 72.0 220.8 79.9 225.0 84.2 C229.2 88.6 233.3 93.7 237.5 97.7 C241.7 101.8 245.8 107.5 250.0 108.5 C254.2 109.4 258.3 104.9 262.5 103.6 C266.7 102.2 270.8 101.9 275.0 100.4 C279.2 98.9 283.3 100.2 287.5 94.4 C291.7 88.5 295.8 71.1 300.0 65.1 C304.2 59.2 308.3 58.2 312.5 58.7 C316.7 59.1 320.8 65.8 325.0 67.8 C329.2 69.8 333.3 70.4 337.5 70.7 C341.7 70.9 345.8 70.6 350.0 69.2 C354.2 67.8 358.3 62.3 362.5 62.2 C366.7 62.2 370.8 68.7 375.0 69.1 C379.2 69.4 383.3 65.5 387.5 64.4 C391.7 63.3 395.8 58.1 400.0 62.4 C404.2 66.6 408.3 82.6 412.5 89.8 C416.7 97.1 420.8 102.9 425.0 106.0 C429.2 109.0 433.3 109.2 437.5 108.4 C441.7 107.5 445.8 103.1 450.0 100.7 C454.2 98.3 458.3 95.7 462.5 94.1 C466.7 92.5 470.8 94.6 475.0 91.1 C479.2 87.5 483.3 75.3 487.5 73.0 C491.7 70.7 495.8 74.7 500.0 77.2 C504.2 79.8 508.3 88.5 512.5 88.2 C516.7 88.0 520.8 80.1 525.0 75.8 C529.2 71.4 533.3 66.3 537.5 62.3 C541.7 58.2 545.8 52.5 550.0 51.5 C554.2 50.6 558.3 55.1 562.5 56.4 C566.7 57.8 570.8 58.1 575.0 59.6 C579.2 61.1 583.3 59.8 587.5 65.6 C591.7 71.5 595.8 88.9 600.0 94.9 C604.2 100.8 608.3 101.8 612.5 101.3 C616.7 100.9 620.8 94.2 625.0 92.2 C629.2 90.2 633.3 89.6 637.5 89.3 C641.7 89.1 645.8 89.4 650.0 90.8 C654.2 92.2 658.3 97.7 662.5 97.8 C666.7 97.8 670.8 91.3 675.0 90.9 C679.2 90.6 683.3 94.5 687.5 95.6 C691.7 96.7 695.8 101.9 700.0 97.6 C704.2 93.4 708.3 77.4 712.5 70.2 C716.7 62.9 720.8 57.1 725.0 54.0 C729.2 51.0 733.3 50.8 737.5 51.6 C741.7 52.5 745.8 56.9 750.0 59.3 C754.2 61.7 758.3 64.3 762.5 65.9 C766.7 67.5 770.8 65.4 775.0 68.9 C779.2 72.5 783.3 84.7 787.5 87.0 C791.7 89.3 795.8 85.3 800.0 82.8 C804.2 80.2 808.3 71.5 812.5 71.8 C816.7 72.0 820.8 79.9 825.0 84.2 C829.2 88.6 833.3 93.7 837.5 97.7 C841.7 101.8 845.8 107.5 850.0 108.5 C854.2 109.4 858.3 104.9 862.5 103.6 C866.7 102.2 870.8 101.9 875.0 100.4 C879.2 98.9 883.3 100.2 887.5 94.4 C891.7 88.5 895.8 71.1 900.0 65.1 C904.2 59.2 908.3 58.2 912.5 58.7 C916.7 59.1 920.8 65.8 925.0 67.8 C929.2 69.8 933.3 70.4 937.5 70.7 C941.7 70.9 945.8 70.6 950.0 69.2 C954.2 67.8 958.3 62.3 962.5 62.2 C966.7 62.2 970.8 68.7 975.0 69.1 C979.2 69.4 983.3 65.5 987.5 64.4 C991.7 63.3 995.8 58.1 1000.0 62.4 C1004.2 66.6 1008.3 82.6 1012.5 89.8 C1016.7 97.1 1020.8 102.9 1025.0 106.0 C1029.2 109.0 1033.3 109.2 1037.5 108.4 C1041.7 107.5 1045.8 103.1 1050.0 100.7 C1054.2 98.3 1058.3 95.7 1062.5 94.1 C1066.7 92.5 1070.8 94.6 1075.0 91.1 C1079.2 87.5 1083.3 75.3 1087.5 73.0 C1091.7 70.7 1095.8 74.7 1100.0 77.2 C1104.2 79.8 1108.3 88.5 1112.5 88.2 C1116.7 88.0 1120.8 80.1 1125.0 75.8 C1129.2 71.4 1133.3 66.3 1137.5 62.3 C1141.7 58.2 1145.8 52.5 1150.0 51.5 C1154.2 50.6 1158.3 55.1 1162.5 56.4 C1166.7 57.8 1170.8 58.1 1175.0 59.6 C1179.2 61.1 1183.3 59.8 1187.5 65.6 C1191.7 71.5 1197.9 90.0 1200.0 94.9";
 
 const reducedQuery = "(prefers-reduced-motion: reduce)";
 
@@ -51,8 +58,8 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-/** Turns true once, the first time the element is mostly in view. Without IntersectionObserver it is true at once. */
-function useShown<T extends HTMLElement>(threshold = 0.3) {
+/** Turns true once, the first time a fifth of the element is in view. Without IntersectionObserver it is true at once. */
+function useShown<T extends HTMLElement>(threshold = 0.2) {
   const ref = useRef<T>(null);
   const [shown, setShown] = useState(false);
   useEffect(() => {
@@ -82,21 +89,44 @@ function useBeat(shown: boolean, ms: number) {
 
 const delay = (ms: number) => ({ ["--d" as string]: `${ms}ms` });
 
-/**
- * One chapter of the story: a full-width band with the words on one side and a mock of the real screen on the other,
- * alternating sides. The section plays once when it scrolls into view; `mock` gets that moment as `shown`.
- */
-function Chapter({ id, title, children, mock, flip = false, band = "paper" }: { id: string; title: string; children: ReactNode; mock: (shown: boolean) => ReactNode; flip?: boolean; band?: "paper" | "white" }) {
-  const [ref, shown] = useShown<HTMLElement>();
+/** The numbered marker and the line down to the next one, like the pre-test hub's timeline. Drawn by the section's own animation. */
+function StepRail({ number, first = false, last = false }: { number?: number; first?: boolean; last?: boolean }) {
+  // Marker centers sit 20px under the section's top padding (64px, 96px from 1024px); the line runs through the padding in between.
+  const span = first ? "top-[calc(4rem+20px)] bottom-0 lg:top-[calc(6rem+20px)]" : last ? "top-0 h-[calc(4rem+20px)] lg:h-[calc(6rem+20px)]" : "inset-y-0";
   return (
-    <section ref={ref} data-shown={shown} aria-labelledby={id} className={`flex min-h-[85dvh] items-center border-t border-[#E2E0DA] ${band === "white" ? "bg-white" : "bg-[#F8F6F2]"}`}>
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-8 py-16 lg:grid-cols-2 lg:gap-16">
-        <div className={`max-w-[32rem] ${flip ? "lg:order-2" : ""}`}>
-          <h2 id={id} className="st text-[2rem] leading-[1.2] text-[#1B1D26] lg:text-[2.5rem]" style={display}>{title}</h2>
-          <div className="st mt-5 space-y-4 text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(60) }}>{children}</div>
+    <>
+      <span className={`absolute left-[19px] w-0.5 overflow-hidden rounded-full bg-[#E1E2E7] ${span}`} aria-hidden="true">
+        <span className="lp-line block h-full w-full bg-[#00538A]" />
+      </span>
+      {number !== undefined && (
+        <span className="absolute left-0 top-16 z-[1] flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#8A8F9C] bg-white text-[1.0625rem] font-bold tabular-nums text-[#4A4F5C] lg:top-24" aria-hidden="true">{number}</span>
+      )}
+    </>
+  );
+}
+
+/**
+ * One chapter of the story: the words on one side and a mock of the real screen on the other, alternating sides. A numbered
+ * step sits on the rail down the left edge; a chapter without `step` (the facilitators) is its own white band, off the rail.
+ * It takes its natural height, so the next chapter always peeks in. It plays once when it scrolls into view; `mock` gets that
+ * moment as `shown`.
+ */
+function Chapter({ id, title, children, mock, flip = false, step, last = false }: { id: string; title: string; children: ReactNode; mock: (shown: boolean) => ReactNode; flip?: boolean; step?: number; last?: boolean }) {
+  const [ref, shown] = useShown<HTMLElement>();
+  const onRail = step !== undefined;
+  return (
+    <section ref={ref} data-shown={shown} aria-labelledby={id} className={onRail ? "" : "border-t border-[#E2E0DA] bg-white"}>
+      <div className="mx-auto w-full max-w-6xl px-8">
+        <div className={`relative grid items-start gap-12 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24 ${onRail ? "pl-16 lg:pl-20" : ""}`}>
+          {onRail && <StepRail number={step} first={step === 1} last={last} />}
+          <div className={`max-w-[32rem] ${flip ? "lg:order-2" : ""}`}>
+            {onRail && <p className="st mb-3 text-[0.8125rem] font-bold uppercase leading-snug tracking-[0.06em] text-[#4A4F5C]">Step {step} of 4</p>}
+            <h2 id={id} className="st text-[2rem] leading-[1.2] text-[#1B1D26] lg:text-[2.5rem]" style={{ ...display, ...delay(onRail ? 40 : 0) }}>{title}</h2>
+            <div className="st mt-5 space-y-4 text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(onRail ? 100 : 60) }}>{children}</div>
+          </div>
+          {/* The mocks only illustrate; the words beside them say everything, so they are hidden from screen readers. */}
+          <div aria-hidden="true" className={`st ${flip ? "lg:order-1" : ""}`} style={delay(160)}>{mock(shown)}</div>
         </div>
-        {/* The mocks only illustrate; the words beside them say everything, so they are hidden from screen readers. */}
-        <div aria-hidden="true" className={`st ${flip ? "lg:order-1" : ""}`} style={delay(120)}>{mock(shown)}</div>
       </div>
     </section>
   );
@@ -151,7 +181,7 @@ function MuseMock() {
             <path d="M0 40H600M0 80H600M0 120H600" />
           </g>
           <g className="lp-trace">
-            <path d="M0.0 94.9 C2.1 95.9 8.3 101.8 12.5 101.3 C16.7 100.9 20.8 94.2 25.0 92.2 C29.2 90.2 33.3 89.6 37.5 89.3 C41.7 89.1 45.8 89.4 50.0 90.8 C54.2 92.2 58.3 97.7 62.5 97.8 C66.7 97.8 70.8 91.3 75.0 90.9 C79.2 90.6 83.3 94.5 87.5 95.6 C91.7 96.7 95.8 101.9 100.0 97.6 C104.2 93.4 108.3 77.4 112.5 70.2 C116.7 62.9 120.8 57.1 125.0 54.0 C129.2 51.0 133.3 50.8 137.5 51.6 C141.7 52.5 145.8 56.9 150.0 59.3 C154.2 61.7 158.3 64.3 162.5 65.9 C166.7 67.5 170.8 65.4 175.0 68.9 C179.2 72.5 183.3 84.7 187.5 87.0 C191.7 89.3 195.8 85.3 200.0 82.8 C204.2 80.2 208.3 71.5 212.5 71.8 C216.7 72.0 220.8 79.9 225.0 84.2 C229.2 88.6 233.3 93.7 237.5 97.7 C241.7 101.8 245.8 107.5 250.0 108.5 C254.2 109.4 258.3 104.9 262.5 103.6 C266.7 102.2 270.8 101.9 275.0 100.4 C279.2 98.9 283.3 100.2 287.5 94.4 C291.7 88.5 295.8 71.1 300.0 65.1 C304.2 59.2 308.3 58.2 312.5 58.7 C316.7 59.1 320.8 65.8 325.0 67.8 C329.2 69.8 333.3 70.4 337.5 70.7 C341.7 70.9 345.8 70.6 350.0 69.2 C354.2 67.8 358.3 62.3 362.5 62.2 C366.7 62.2 370.8 68.7 375.0 69.1 C379.2 69.4 383.3 65.5 387.5 64.4 C391.7 63.3 395.8 58.1 400.0 62.4 C404.2 66.6 408.3 82.6 412.5 89.8 C416.7 97.1 420.8 102.9 425.0 106.0 C429.2 109.0 433.3 109.2 437.5 108.4 C441.7 107.5 445.8 103.1 450.0 100.7 C454.2 98.3 458.3 95.7 462.5 94.1 C466.7 92.5 470.8 94.6 475.0 91.1 C479.2 87.5 483.3 75.3 487.5 73.0 C491.7 70.7 495.8 74.7 500.0 77.2 C504.2 79.8 508.3 88.5 512.5 88.2 C516.7 88.0 520.8 80.1 525.0 75.8 C529.2 71.4 533.3 66.3 537.5 62.3 C541.7 58.2 545.8 52.5 550.0 51.5 C554.2 50.6 558.3 55.1 562.5 56.4 C566.7 57.8 570.8 58.1 575.0 59.6 C579.2 61.1 583.3 59.8 587.5 65.6 C591.7 71.5 595.8 88.9 600.0 94.9 C604.2 100.8 608.3 101.8 612.5 101.3 C616.7 100.9 620.8 94.2 625.0 92.2 C629.2 90.2 633.3 89.6 637.5 89.3 C641.7 89.1 645.8 89.4 650.0 90.8 C654.2 92.2 658.3 97.7 662.5 97.8 C666.7 97.8 670.8 91.3 675.0 90.9 C679.2 90.6 683.3 94.5 687.5 95.6 C691.7 96.7 695.8 101.9 700.0 97.6 C704.2 93.4 708.3 77.4 712.5 70.2 C716.7 62.9 720.8 57.1 725.0 54.0 C729.2 51.0 733.3 50.8 737.5 51.6 C741.7 52.5 745.8 56.9 750.0 59.3 C754.2 61.7 758.3 64.3 762.5 65.9 C766.7 67.5 770.8 65.4 775.0 68.9 C779.2 72.5 783.3 84.7 787.5 87.0 C791.7 89.3 795.8 85.3 800.0 82.8 C804.2 80.2 808.3 71.5 812.5 71.8 C816.7 72.0 820.8 79.9 825.0 84.2 C829.2 88.6 833.3 93.7 837.5 97.7 C841.7 101.8 845.8 107.5 850.0 108.5 C854.2 109.4 858.3 104.9 862.5 103.6 C866.7 102.2 870.8 101.9 875.0 100.4 C879.2 98.9 883.3 100.2 887.5 94.4 C891.7 88.5 895.8 71.1 900.0 65.1 C904.2 59.2 908.3 58.2 912.5 58.7 C916.7 59.1 920.8 65.8 925.0 67.8 C929.2 69.8 933.3 70.4 937.5 70.7 C941.7 70.9 945.8 70.6 950.0 69.2 C954.2 67.8 958.3 62.3 962.5 62.2 C966.7 62.2 970.8 68.7 975.0 69.1 C979.2 69.4 983.3 65.5 987.5 64.4 C991.7 63.3 995.8 58.1 1000.0 62.4 C1004.2 66.6 1008.3 82.6 1012.5 89.8 C1016.7 97.1 1020.8 102.9 1025.0 106.0 C1029.2 109.0 1033.3 109.2 1037.5 108.4 C1041.7 107.5 1045.8 103.1 1050.0 100.7 C1054.2 98.3 1058.3 95.7 1062.5 94.1 C1066.7 92.5 1070.8 94.6 1075.0 91.1 C1079.2 87.5 1083.3 75.3 1087.5 73.0 C1091.7 70.7 1095.8 74.7 1100.0 77.2 C1104.2 79.8 1108.3 88.5 1112.5 88.2 C1116.7 88.0 1120.8 80.1 1125.0 75.8 C1129.2 71.4 1133.3 66.3 1137.5 62.3 C1141.7 58.2 1145.8 52.5 1150.0 51.5 C1154.2 50.6 1158.3 55.1 1162.5 56.4 C1166.7 57.8 1170.8 58.1 1175.0 59.6 C1179.2 61.1 1183.3 59.8 1187.5 65.6 C1191.7 71.5 1197.9 90.0 1200.0 94.9" fill="none" stroke="#CFE4FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            <path d={museWave} fill="none" stroke="#CFE4FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
           </g>
         </svg>
       </div>
@@ -256,6 +286,92 @@ function CohortMock() {
   );
 }
 
+const levels = ["Gentle pace", "Steady pace", "Faster pace"];
+
+/**
+ * The core idea as a small flow: three inputs, lines into a readiness estimate with three paces (one lights up in amber),
+ * then a line into one lesson. It plays in order once shown: inputs appear, lines draw, the pace lights up, the lesson appears.
+ * Sample content only; it is not anyone's result.
+ */
+function CoreIdeaMock({ shown }: { shown: boolean }) {
+  const linesDrawn = useBeat(shown, 700);
+  const lit = useBeat(shown, 1300);
+  const outDrawn = useBeat(shown, 1500);
+  const lesson = useBeat(shown, 1800);
+  const draw = (on: boolean) => ({ strokeDasharray: 1, strokeDashoffset: on ? 0 : 1 });
+  const lineClass = `transition-[stroke-dashoffset] duration-[500ms] motion-reduce:transition-none ${easeOut}`;
+  const inputCard = "flex h-[88px] items-center justify-between gap-3 rounded-xl border border-[#E2E0DA] bg-white px-5";
+  return (
+    <div className="grid items-center gap-6 lg:grid-cols-[13.5rem_4rem_12.5rem_3rem_minmax(0,1fr)] lg:gap-0">
+      <div className="grid gap-4">
+        <div className={`st ${inputCard}`} style={delay(0)}>
+          <p className="text-lg font-bold leading-snug text-[#1B1D26]" style={reading}>Test answers</p>
+          <Check className="h-6 w-6 shrink-0 text-[#00538A]" strokeWidth={2.5} />
+        </div>
+        <div className={`st ${inputCard}`} style={delay(120)}>
+          <p className="text-lg font-bold leading-snug text-[#1B1D26]" style={reading}>Readiness survey</p>
+          <Check className="h-6 w-6 shrink-0 text-[#00538A]" strokeWidth={2.5} />
+        </div>
+        <div className={`st ${inputCard}`} style={delay(240)}>
+          <p className="text-lg font-bold leading-snug text-[#1B1D26]" style={reading}>Brainwave reading</p>
+          <svg viewBox="0 0 600 160" preserveAspectRatio="none" className="h-8 w-14 shrink-0 overflow-hidden">
+            <g className="lp-trace"><path d={museWave} fill="none" stroke="#00538A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></g>
+          </svg>
+        </div>
+      </div>
+
+      <svg viewBox="0 0 64 296" preserveAspectRatio="none" className="hidden h-[296px] w-full lg:block" fill="none" stroke="#8A8F9C" strokeWidth="2" strokeLinecap="round">
+        {[44, 148, 252].map((y) => <path key={y} d={`M0 ${y} C32 ${y} 32 148 64 148`} pathLength={1} vectorEffect="non-scaling-stroke" className={lineClass} style={draw(linesDrawn)} />)}
+      </svg>
+
+      <div className={`${cardClass} p-5`}>
+        <p className="text-[0.8125rem] font-bold uppercase leading-snug tracking-[0.06em] text-[#4A4F5C]">Estimated readiness</p>
+        <div className="mt-3 grid gap-2">
+          {levels.map((level, index) => {
+            const on = lit && index === 1;
+            return (
+              <p key={level} className={`flex h-12 items-center rounded-lg border px-4 text-lg font-bold transition-[background-color,border-color] duration-300 motion-reduce:transition-none ${easeOut} ${on ? "border-[#FFAB2E] bg-[#FFAB2E] text-[#1B1D26]" : "border-[#E2E0DA] bg-white text-[#4A4F5C]"}`} style={reading}>{level}</p>
+            );
+          })}
+        </div>
+      </div>
+
+      <svg viewBox="0 0 48 4" preserveAspectRatio="none" className="hidden h-1 w-full lg:block" fill="none" stroke="#8A8F9C" strokeWidth="2" strokeLinecap="round">
+        <path d="M0 2H48" pathLength={1} vectorEffect="non-scaling-stroke" className={lineClass} style={draw(outDrawn)} />
+      </svg>
+
+      <div className={`${cardClass} flex items-center gap-3 p-5 transition-[opacity,translate] duration-300 motion-reduce:transition-none ${easeOut} ${lesson ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+        <Video className="h-6 w-6 shrink-0 text-[#1B1D26]" strokeWidth={1.75} />
+        <p className="text-lg font-bold leading-snug text-[#1B1D26]" style={reading}>Short video lesson · Steady pace</p>
+      </div>
+    </div>
+  );
+}
+
+/** The core idea, set off from the numbered steps: a white panel the step line passes beside. */
+function CoreIdea() {
+  const [ref, shown] = useShown<HTMLElement>();
+  return (
+    <section ref={ref} data-shown={shown} aria-labelledby="core-idea">
+      <div className="mx-auto w-full max-w-6xl px-8">
+        <div className="relative py-16 pl-16 lg:py-24 lg:pl-20">
+          <StepRail />
+          <div className={`${cardClass} p-8 lg:p-12`}>
+            <h2 id="core-idea" className="st text-[2rem] leading-[1.2] text-[#1B1D26] lg:text-[2.5rem]" style={display}>How ALSense picks your lessons</h2>
+            <div className="st mt-5 max-w-[42rem] space-y-4 text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(60) }}>
+              <p>ALSense combines three things: your pre-test answers, your readiness survey, and a short brainwave reading. Together they estimate how ready you are to learn right now.</p>
+              <p>Then it picks lessons with a pace and format that aim to fit you.</p>
+            </div>
+            <div aria-hidden="true" className="mt-10">
+              <CoreIdeaMock shown={shown} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /**
  * The hero illustration, drawn inline from DESIGN.md colors only: an open workbook (white pages, hairline edges, track-grey
  * text lines), an amber highlighter across two lines, indigo strand tabs on the page edge, and a soft deep blue brainwave
@@ -338,7 +454,7 @@ export function LandingPage({ navigate }) {
       <main className="flex-1">
         {/* Hero: the message and the one action on the left, the workbook illustration on the right. Stacks below 1024px. */}
         <div className="mx-auto w-full max-w-6xl px-8">
-          <section className="grid min-h-[calc(100dvh-5rem)] items-center gap-12 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <section className="grid items-center gap-12 pt-8 pb-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:pt-10 lg:pb-24">
             <div>
               <h1 className="lp-rise text-[3rem] leading-[1.1] text-[#1B1D26] xl:text-[3.5rem]" style={display}>
                 Study the way that suits you
@@ -358,22 +474,25 @@ export function LandingPage({ navigate }) {
           </section>
         </div>
 
-        <Chapter id="story-pretest" title="Start with a short pre-test" mock={(shown) => <PretestMock shown={shown} />}>
+        {/* The four learner steps run down one rail; the core idea sits between steps 2 and 3, and the facilitators are off the rail. */}
+        <Chapter id="story-pretest" step={1} title="Start with a short pre-test" mock={(shown) => <PretestMock shown={shown} />}>
           <p>Answer questions about you and your learning, one at a time. Each learning strand has its own set.</p>
           <p>You can save your answers and come back to finish later.</p>
         </Chapter>
 
-        <Chapter id="story-baseline" title="Then a short recording" flip band="white" mock={() => <MuseMock />}>
+        <Chapter id="story-baseline" step={2} title="Then a short recording" flip mock={() => <MuseMock />}>
           <p>Your facilitator helps you wear a Muse 2 headband at the learning center. It records your resting brain activity for a few minutes.</p>
           <p>There is nothing to answer. You just sit comfortably and stay still.</p>
         </Chapter>
 
-        <Chapter id="story-content" title="Study in the way that fits you" mock={(shown) => <LessonsMock shown={shown} />}>
+        <CoreIdea />
+
+        <Chapter id="story-content" step={3} title="Study in the way that fits you" mock={(shown) => <LessonsMock shown={shown} />}>
           <p>Lessons come as audio you listen to, video you watch, or text you read.</p>
           <p>You get the kind that matches how you learn.</p>
         </Chapter>
 
-        <Chapter id="story-progress" title="Then see how far you have come" flip band="white" mock={(shown) => <ProgressMock shown={shown} />}>
+        <Chapter id="story-progress" step={4} last flip title="Then see how far you have come" mock={(shown) => <ProgressMock shown={shown} />}>
           <p>After your lessons, take the strand questions again. Your progress page shows where you started and where you are now.</p>
         </Chapter>
 
@@ -383,7 +502,7 @@ export function LandingPage({ navigate }) {
 
         {/* Closing: one more way in. */}
         <section ref={closingRef} data-shown={closingShown} aria-labelledby="closing-title" className="border-t border-[#E2E0DA] bg-white">
-          <div className="mx-auto flex max-w-2xl flex-col items-center px-8 py-24 text-center">
+          <div className="mx-auto flex max-w-2xl flex-col items-center px-8 py-16 text-center lg:py-24">
             <h2 id="closing-title" className="st text-[2rem] leading-[1.2] text-[#1B1D26] lg:text-[2.5rem]" style={display}>Ready to start?</h2>
             <p className="st mt-4 text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(60) }}>Sign in with the ID number your facilitator gave you.</p>
             <div className="st mt-10" style={delay(120)}>
