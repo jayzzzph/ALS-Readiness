@@ -282,7 +282,7 @@ function TimelineItem({ index, status, last = false, children }: { index: number
 
 /**
  * A part, in the shape its state calls for (words always say the state, never color alone):
- *  - done: one compact row, "Done", and its secondary action;
+ *  - done: one compact row, "Done", and its secondary action; any content (Part III's strand rows) stays visible beneath it;
  *  - current: the only expanded card, with its description, its content and the one deep blue action;
  *  - locked: one compact row with the reason.
  */
@@ -310,6 +310,7 @@ function PartBody({ number, title, description, status, note, action, onClick, d
         </div>
         {status === "done" && action && onClick && <button onClick={onClick} className={`shrink-0 ${secondaryButton}`}>{action}</button>}
       </div>
+      {status === "done" && children && <div className="mt-3">{children}</div>}
     </section>
   );
 }
