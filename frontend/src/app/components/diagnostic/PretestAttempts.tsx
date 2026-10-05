@@ -356,6 +356,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
 
   if (phase === "overview") {
     return (
+      <AttemptShell title={stage} onClose={onClose} exitLabel="Exit">
       <TestOverviewModal
         title={strandTitle(test)}
         description={`Diagnostic exam for ${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name}. Read each question carefully and choose the best answer for every item before submitting.`}
@@ -364,6 +365,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
         onStart={start}
         onCancel={onClose}
       />
+      </AttemptShell>
     );
   }
 
@@ -484,6 +486,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
 
   if (phase === "overview") {
     return (
+      <AttemptShell title="Pre-test" onClose={onClose} exitLabel="Exit">
       <TestOverviewModal
         title={test.title}
         description={test.description}
@@ -492,6 +495,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
         onStart={start}
         onCancel={onClose}
       />
+      </AttemptShell>
     );
   }
 
