@@ -85,7 +85,8 @@ export function ParticipantIntake({ navigate, user, onLogout }) {
           Part I of the pre-test. Answer these questions once before the Learner Readiness Inventory and diagnostic exams. All fields are required, and you can come back and update your answers at any time.
         </p>
 
-        <div className="mt-8 max-w-3xl">
+        <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="min-w-0">
           {loading ? (
             <div role="status" className="py-12 flex items-center justify-center gap-3 text-lg text-[#4A4F5C]" style={reading}>
               <LoaderCircle className="w-6 h-6 text-[#00538A] motion-safe:animate-spin" aria-hidden="true" /> Loading your intake...
@@ -121,9 +122,9 @@ export function ParticipantIntake({ navigate, user, onLogout }) {
                   <fieldset>
                     <legend className="text-[1.125rem] font-bold leading-snug text-[#1B1D26]" style={reading}>ALS learning strand(s) currently enrolled in</legend>
                     <p className="mt-1 text-base leading-snug text-[#4A4F5C]" style={reading}>Choose at least one.</p>
-                    <div className="mt-3 grid gap-3">
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
                       {INTAKE_STRAND_OPTIONS.map(({ code, label }) => (
-                        <label key={code} className="flex min-h-14 items-center gap-4 rounded-xl border border-[#8A8F9C] bg-white px-4 py-3 text-lg text-[#1B1D26] cursor-pointer transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-[#00538A] has-[:checked]:border-[#00538A] has-[:checked]:bg-[#CFE4FF] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#00538A]" style={reading}>
+                        <label key={code} className="flex min-h-14 items-center gap-3 rounded-xl border border-[#8A8F9C] bg-white px-4 py-3 text-lg text-[#1B1D26] cursor-pointer transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-[#00538A] has-[:checked]:border-[#00538A] has-[:checked]:bg-[#CFE4FF] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#00538A]" style={reading}>
                           <input type="checkbox" checked={form.als_learning_strands.includes(code)} onChange={() => toggleStrand(code)} className="w-6 h-6 shrink-0 accent-[#00538A]" />
                           {label}
                         </label>
@@ -150,6 +151,27 @@ export function ParticipantIntake({ navigate, user, onLogout }) {
               </div>
             </form>
           )}
+          </div>
+
+          <aside aria-label="About this part" className="grid gap-6 content-start self-start lg:grid-cols-3 xl:grid-cols-1 xl:sticky xl:top-6">
+            <section aria-labelledby="intake-progress" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+              <h3 id="intake-progress" className={cardTitle} style={display}>Part I of 4</h3>
+              <div className="mt-4 flex gap-2" aria-hidden="true">
+                {[0, 1, 2, 3].map((part) => <span key={part} className={`h-2 flex-1 rounded-full ${part === 0 ? (existingIntake ? "bg-[#00538A]" : "bg-[#FFAB2E]") : "bg-[#E1E2E7]"}`} />)}
+              </div>
+              <p className="mt-3 text-lg leading-snug text-[#4A4F5C]" style={reading}>{existingIntake ? "Intake saved. You can still update it." : "You are here"}</p>
+            </section>
+
+            <section aria-labelledby="intake-why" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+              <h3 id="intake-why" className={cardTitle} style={display}>Why we ask</h3>
+              <p className="mt-3 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>These answers are for the research study and are kept private.</p>
+            </section>
+
+            <section aria-labelledby="intake-next" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+              <h3 id="intake-next" className={cardTitle} style={display}>What's next</h3>
+              <p className="mt-3 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>The Learner Readiness Inventory. It opens once your intake is saved.</p>
+            </section>
+          </aside>
         </div>
       </div>
     </AppLayout>
