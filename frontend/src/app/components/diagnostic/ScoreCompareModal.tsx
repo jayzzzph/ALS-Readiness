@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, LoaderCircle, Minus } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { getStrandAttemptResult } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { StrandAttemptResult } from "../../../lib/api/types";
@@ -52,8 +52,7 @@ export function ScoreCompareModal({
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-lg rounded-2xl border-[#E2E0DA] bg-white p-8 gap-6 shadow-[0_8px_24px_rgba(27,29,38,0.08)]">
         <DialogHeader className="gap-2">
-          <DialogTitle className="text-2xl leading-[1.25] font-normal text-[#1B1D26]" style={display}>{strandLabel}: your score before and after the lessons</DialogTitle>
-          <DialogDescription className="text-lg leading-relaxed text-[#4A4F5C]" style={reading}>How you did on the pre-test, and how you did on the post-test.</DialogDescription>
+          <DialogTitle className="text-2xl leading-[1.25] font-normal text-[#1B1D26]" style={display}>Your {strandLabel} score</DialogTitle>
         </DialogHeader>
 
         {state.status === "loading" && (
@@ -85,6 +84,23 @@ export function ScoreCompareModal({
               {change === 0 ? <Minus className="w-5 h-5" aria-hidden="true" /> : improved ? <ArrowUp className="w-5 h-5" aria-hidden="true" /> : <ArrowDown className="w-5 h-5" aria-hidden="true" />}
               {changeWords}
             </p>
+
+            {/* Same 0 to 100% scale for both bars; only the after bar grows in, once, and only if motion is allowed. */}
+            <div className="space-y-3">
+              {([["Before", state.pre.mps, "bg-[#8A8F9C]"], ["After", state.post.mps, "bg-[#00538A]"]] as const).map(([label, value, fill]) => (
+                <div key={label} className="flex items-center gap-3">
+                  <span className="w-14 shrink-0 text-lg font-bold text-[#1B1D26]">{label}</span>
+                  <div className="h-3 flex-1 rounded-full bg-[#E1E2E7]" role="img" aria-label={`${label}: ${value}%`}>
+                    <div
+                      className={`h-full rounded-full ${fill} ${label === "After" ? `motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-[cubic-bezier(0.23,1,0.32,1)] motion-safe:starting:w-0` : ""}`}
+                      style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+                    />
+                  </div>
+                  <span className="w-14 shrink-0 text-right text-lg tabular-nums text-[#4A4F5C]">{value}%</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-lg text-[#1B1D26]">{improved && change > 0 ? "Nice progress!" : "Keep going. Every lesson helps."}</p>
           </div>
         )}
       </DialogContent>

@@ -180,13 +180,6 @@ export function PostTest({ navigate, user, onLogout }) {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="min-w-0 space-y-6">
               {strands.length > 0 && !someOpen && !allComplete ? lockedState : strandRows}
-              {allComplete && (
-                <section aria-labelledby="post-done-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
-                  <h3 id="post-done-title" className={cardTitle} style={display}>All three post-tests are done</h3>
-                  <p className="mt-2 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>See how you are doing across the lessons.</p>
-                  <button onClick={() => navigate("my-progress")} className={`mt-5 ${primaryButton}`}>View progress</button>
-                </section>
-              )}
             </div>
 
             <div className="content-start">
@@ -198,6 +191,15 @@ export function PostTest({ navigate, user, onLogout }) {
                     <span className="mt-1.5 text-base font-bold text-[#4A4F5C]">done</span>
                   </Ring>
                 </div>
+              </section>
+
+              <section aria-labelledby="post-next-title" className="mt-6 rounded-2xl border border-[#E2E0DA] bg-white p-6">
+                <h3 id="post-next-title" className={cardTitle} style={display}>What's next</h3>
+                {allComplete ? (
+                  <button onClick={() => navigate("my-progress")} className={`mt-4 ${primaryButton}`}>See your progress</button>
+                ) : (
+                  <p className="mt-2 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>Finish your remaining post-tests</p>
+                )}
               </section>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { CircleCheck, Clock, Lock } from "lucide-react";
+import { ChartColumn, CircleCheck, Clock, Lock } from "lucide-react";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { STRAND_SHORT_LABEL } from "../../../lib/api/diagnostic";
 import type { StrandTestListItem } from "../../../lib/api/types";
@@ -61,7 +61,7 @@ export function StrandTestCard({
     : <p className="inline-flex items-center gap-2 text-base text-[#4A4F5C]"><Clock className="w-5 h-5 shrink-0" strokeWidth={1.75} aria-hidden="true" /> Not yet</p>;
 
   const action = done ? (
-    canShowScore && onShowScore ? <button onClick={onShowScore} className={secondaryButton}>Show Score</button> : null
+    canShowScore && onShowScore ? <button onClick={onShowScore} className={`${secondaryButton} gap-2`}><ChartColumn className="w-5 h-5 shrink-0" strokeWidth={2} aria-hidden="true" /> Show Score</button> : null
   ) : (
     <button onClick={onAttempt} disabled={!canAttempt} className={canAttempt && emphasis === "secondary" ? secondaryButton : primaryButton}>{attemptLabel}</button>
   );
