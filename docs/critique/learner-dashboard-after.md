@@ -4,7 +4,7 @@
 - **Checked against:** the Gestalt Principles section of `DESIGN.md` (commit `c481359c`). The same method as `learner-dashboard-before.md`.
 - **Date:** 2026-10-05, branch `ui-polish`.
 - **Evidence:** the source code, plus the page rendered in Chromium after signing in through `/login` with a real seeded learner account against the local backend. No session was faked. Layout measurements were taken at 100% zoom (device pixel ratio 1) at 1280px and 1024px.
-- **Screenshots:** `learner-dashboard-after-1280.png` and `learner-dashboard-after-1024.png`, still to be added. They aren't in this commit.
+- **Screenshots:** `learner-dashboard-after-1280.png` and `learner-dashboard-after-1024.png`, taken in Chrome at 100% zoom with the page laid out at 1280px and 1024px. The saved images are about 82% of CSS size, **1050×1148** and **828×1456**, so they are smaller than the before images (1280×1162 and 1024×1162) even though the layout widths match. They were captured as WebP and converted to PNG with no other change.
 - **Scope:** this is a focused Gestalt review done by one reviewer, the same as the before file. The design skill's automated check (`impeccable detect`) found nothing on either file.
 
 > **What this account shows.** The test learner has not started the pre-test and is not in an active cohort. So the screenshots show the empty states: readiness "Not yet", pre-test "0 of 5 parts done", and "No lessons yet". Filled progress bars, filled rings and done steps exist in the code but don't appear in these captures.
