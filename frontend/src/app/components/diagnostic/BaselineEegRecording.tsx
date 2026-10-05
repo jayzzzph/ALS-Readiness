@@ -74,10 +74,10 @@ export function BaselineEegRecording({ onClose, learnerId }: { onClose: () => vo
   const { conn, recording, result } = eeg;
   const lost = conn.state === "disconnected" && conn.reason === "lost";
 
-  // Development only: the demo signal never reports a poor sensor, so this lets a developer see that state.
-  const [demoPoor, setDemoPoor] = useState(false);
+  // Development only: the demo signal never reports a poor sensor, so this lets a developer force each state.
+  const [demoForce, setDemoForce] = useState<DemoForce>("live");
   const showDemoTools = import.meta.env.DEV && eeg.source === "demo";
-  const levels: Level[] = eeg.levels.map((l, i) => (showDemoTools && demoPoor && i === 0 ? "poor" : l));
+  const levels: Level[] = showDemoTools ? applyDemoForce(eeg.levels, demoForce) : eeg.levels;
   const ready = levels.filter((l) => l === "good" || l === "fair").length;
 
   const mode = recording ? "recording" : result ? "done" : "setup";
@@ -140,17 +140,32 @@ export function BaselineEegRecording({ onClose, learnerId }: { onClose: () => vo
           {eeg.toast}
         </div>
       )}
-      {showDemoTools && (
-        <button onClick={() => setDemoPoor((v) => !v)} aria-pressed={demoPoor}
-          className={`fixed bottom-4 left-4 z-20 h-11 rounded-lg border border-dashed border-[#8A8F9C] bg-white px-3 text-[0.9375rem] font-bold text-[#1B1D26] ${focus}`}>
-          Demo: {demoPoor ? "clear" : "make"} TP9 poor
-        </button>
+      {import.meta.env.DEV && showDemoTools && (
+        <label className="fixed bottom-4 left-4 z-20 flex items-center gap-2 rounded-lg border border-dashed border-[#8A8F9C] bg-white px-3 py-2 text-[0.9375rem] font-bold text-[#1B1D26]">
+          Demo sensors
+          <select value={demoForce} onChange={(e) => setDemoForce(e.target.value as DemoForce)}
+            className={`h-9 rounded-md border border-[#8A8F9C] bg-white px-2 text-[0.9375rem] font-medium ${focus}`}>
+            <option value="live">Live demo signal</option>
+            <option value="tp9">TP9 Poor</option>
+            <option value="af7">AF7 Poor</option>
+            <option value="good">All Good</option>
+          </select>
+        </label>
       )}
     </AttemptShell>
   );
 }
 
 type Eeg = ReturnType<typeof useEegSession>;
+
+/** Dev-only: which sensor states the demo screen forces, so each one can be seen. Never reached in a production build. */
+type DemoForce = "live" | "tp9" | "af7" | "good";
+function applyDemoForce(levels: Level[], force: DemoForce): Level[] {
+  if (force === "tp9") return levels.map((l, i) => (i === 0 ? "poor" : l));
+  if (force === "af7") return levels.map((l, i) => (i === 1 ? "poor" : l));
+  if (force === "good") return levels.map(() => "good" as Level);
+  return levels;
+}
 
 function Banner({ tone, icon, action, role, children }: { tone: "error" | "info"; icon: ReactNode; action?: ReactNode; role: "alert" | "status"; children: ReactNode }) {
   const palette = tone === "error" ? "border-[#B42318] bg-[#FDECEA] text-[#7A1A12]" : "border-[#E2E0DA] bg-[#F2F1ED] text-[#1B1D26]";
@@ -238,13 +253,20 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
     );
   }
   if (step === 3) {
+    // Moving on is always the facilitator's choice. All Good: the main button. Only Fair (nothing Poor or Waiting): a
+    // secondary button. Anything else: a quiet escape link.
+    const allGood = levels.every((l) => l === "good");
+    const onlyFair = !allGood && !levels.includes("poor") && !levels.includes("waiting");
     return (
       <>
         <StepGuide frames={FIT_FRAMES} label="Fixing the fit" locked={fitGuide(levels)} width="16.25rem"
           side={<span className="text-[0.9375rem] font-bold tabular-nums text-[#1B1D26]" aria-live="polite">{ready} of 4 sensors ready</span>} />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button onClick={eeg.skipFit} disabled={ready < 4} className={primaryButton}>Continue</button>
-          <button onClick={eeg.skipFit} className={`h-11 rounded-lg px-2 text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] ${focus}`}>Continue with a weak signal</button>
+          {allGood && <button onClick={eeg.skipFit} className={primaryButton}>Continue to recording</button>}
+          {onlyFair && <button onClick={eeg.skipFit} className={secondaryButton}>Continue with a weaker signal</button>}
+          {!allGood && !onlyFair && (
+            <button onClick={eeg.skipFit} className={`h-11 rounded-lg px-2 text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] ${focus}`}>Continue with a weak signal</button>
+          )}
         </div>
       </>
     );

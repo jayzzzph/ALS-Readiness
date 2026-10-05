@@ -13,7 +13,6 @@ export type ConnState = "idle" | "connecting" | "connected" | "reconnecting" | "
 export type Step = 1 | 2 | 3 | 4;
 
 export const WINDOW_SEC = 5;
-const FIT_HOLD_MS = 2500;
 const N = SAMPLE_RATE * WINDOW_SEC;
 const HP_A = 1 / (1 + (2 * Math.PI * 1) / SAMPLE_RATE);
 
@@ -53,7 +52,6 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
   const hpRef = useRef(Array.from({ length: 4 }, () => ({ x: NaN, y: 0 })));
   const signal = useRef<SignalBuffer>({ ring: Array.from({ length: 4 }, () => new Float32Array(N).fill(NaN)), pos: 0, dirty: true });
   const levelsRef = useRef<Level[]>([]);
-  const fitGoodSince = useRef(0);
   const droppedAtStart = useRef(0);
   const finishing = useRef(false);
   const targetSamples = Math.round(seconds * SAMPLE_RATE);
@@ -171,7 +169,6 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
     try {
       await dev.connect();
       await dev.start();
-      fitGoodSince.current = 0;
       setStep(3);
     } catch (err: any) {
       setConn({ state: "idle", name: "Muse 2" });
@@ -235,16 +232,13 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
     let alive = true;
     const rec = recorderRef.current;
 
-    // Contact quality twice a second; once all four sensors hold Good or Fair for 2.5 s, move on to recording.
+    // Contact quality twice a second. Moving on to recording is the facilitator's choice (a button), never automatic.
     const qTimer = setInterval(() => {
       if (!deviceRef.current?.isConnected) return;
       const q: { level: Level }[] = qualityRef.current.read();
       const next = q.map((x) => x.level);
       levelsRef.current = next;
       setLevels(next);
-      const ready = next.filter((l) => l === "good" || l === "fair").length === 4;
-      if (ready) fitGoodSince.current ||= Date.now(); else fitGoodSince.current = 0;
-      if (stepRef.current === 3 && fitGoodSince.current && Date.now() - fitGoodSince.current > FIT_HOLD_MS) setStep(4);
     }, 500);
     const sTimer = setInterval(() => { if (rec.isRecording) setElapsedSec(rec.durationSec); }, 250);
     const onUnload = (e: BeforeUnloadEvent) => { if (rec.isRecording) { e.preventDefault(); e.returnValue = ""; } };
@@ -274,7 +268,7 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
         try { await dev?.disconnect(); } catch { /* ignore */ }
       })();
     };
-  }, [setStep, stopRecording]);
+  }, [stopRecording]);
 
   const ready = levels.filter((l) => l === "good" || l === "fair").length;
 
