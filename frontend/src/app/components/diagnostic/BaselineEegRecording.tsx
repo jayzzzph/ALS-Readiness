@@ -1,230 +1,414 @@
-import { useEffect, useState } from "react";
-import { CheckCircle, ChevronLeft, ChevronRight, Radio, Wifi, WifiOff } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AlertCircle, BatteryMedium, Check, Info, LoaderCircle } from "lucide-react";
+import { AttemptShell } from "./PretestAttempts";
+import { primaryButton, secondaryButton } from "./StrandTestCard";
+import { useEegSession, WINDOW_SEC, type ConnState, type Level, type SignalBuffer } from "../../features/eeg/useEegSession";
+import { CHANNELS, SAMPLE_RATE } from "../../features/eeg/muse2-ble.js";
 
-// Part IV of the pre-test flow: a short baseline EEG recording taken after the
-// test proper (Parts I-III) using the Muse 2 headband. This reuses the visual
-// language of the old standalone EEG Profiling page, but:
-//  - no live waveform is drawn (device: Muse 2 headband, not NeuroSky MindWave)
-//  - the waveform is replaced with a simple pulsing "recording" indicator
-//  - the capture stage has a countdown timer (hardcoded duration for now)
+// Part IV of the pre-test flow: a resting baseline recorded with the Muse 2 headband, run by the
+// facilitator. Connects over Web Bluetooth (Chrome or Edge), checks the fit, records a fixed length
+// that stops by itself, and exports the recording as CSV. The recording length is fixed, taken from
+// the screen this replaces. Type roles and colors follow DESIGN.md.
 
-const RECORD_DURATION_MS = 15_000; // hardcoded baseline recording length - 15s (testing)
+export const BASELINE_RECORD_SECONDS = 15;
 
-const STAGES = [
-  { id: "connect", label: "Connect Muse 2 Headband", duration: 0 },
-  { id: "calibrate", label: "Calibrating Signal", duration: 3_000 },
-  { id: "record", label: "Recording Baseline EEG", duration: RECORD_DURATION_MS },
-  { id: "analyze", label: "Processing Baseline Data", duration: 4_000 },
-  { id: "done", label: "Baseline Recording Complete", duration: 0 },
-];
+const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
+const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
+const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A]";
+const easeOut = "ease-[cubic-bezier(0.23,1,0.32,1)]";
+const cardTitle = "text-2xl leading-[1.25]";
+const label = "text-[0.9375rem] font-bold tracking-[0.01em]";
 
-function formatMMSS(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
-  const s = Math.floor(totalSeconds % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
+/** One color per sensor, each at least 4.5:1 on white (6.4, 5.8, 8.0, 6.4) so the trace labels read. */
+const CHANNEL_COLORS = ["#0E6B5C", "#A8480A", "#7A2E8E", "#2B5EA7"];
+const WHERE = ["Behind left ear", "Left forehead", "Right forehead", "Behind right ear"];
+
+// Readiness scale from DESIGN.md: blue = good, amber ink = fair, red = poor. The word always comes with it.
+const LEVEL_WORD: Record<Level, string> = { waiting: "Waiting", good: "Good", fair: "Fair", poor: "Poor" };
+const LEVEL_COLOR: Record<Level, string> = { waiting: "#6B7080", good: "#00538A", fair: "#835500", poor: "#B42318" };
+const LEVEL_GLYPH: Record<Level, string> = { waiting: "", good: "✓", fair: "~", poor: "!" };
+
+const CONN_WORD: Record<ConnState, string> = {
+  idle: "Not connected", connecting: "Connecting…", connected: "Connected", reconnecting: "Reconnecting…", disconnected: "Disconnected",
+};
+const CONN_COLOR: Record<ConnState, string> = {
+  idle: "#6B7080", connecting: "#835500", connected: "#00538A", reconnecting: "#B42318", disconnected: "#B42318",
+};
+
+const STEP_NAMES = ["Put on the headband", "Connect the Muse 2", "Check the fit", "Record"];
+
+// Motion only where the user allows it: the waiting halo and the recording dot.
+const css = `
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes eeg-halo { from { transform: scale(1); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
+  .eeg-halo { animation: eeg-halo 1.6s cubic-bezier(0.23, 1, 0.32, 1) infinite; transform-box: fill-box; transform-origin: center; }
 }
+`;
 
-export function BaselineEegRecording({ onClose, onComplete }: { onClose: () => void; onComplete: () => void }) {
-  const [connected, setConnected] = useState(false);
-  const [stageIdx, setStageIdx] = useState(0); // 0=connect, 1=calibrate, 2=record, 3=analyze, 4=done
-  const [running, setRunning] = useState(false);
-  const [elapsedMs, setElapsedMs] = useState(0);
+const fmt = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
 
-  useEffect(() => {
-    if (!running || stageIdx === 0 || stageIdx === 4) return;
-    const stage = STAGES[stageIdx];
-    if (!stage.duration) return;
+export function BaselineEegRecording({ onClose, onComplete, learnerId }: { onClose: () => void; onComplete: () => void; learnerId: string | null }) {
+  const eeg = useEegSession({ learnerId, seconds: BASELINE_RECORD_SECONDS });
+  const { step, conn, recording, result } = eeg;
+  const lost = conn.state === "disconnected" && conn.reason === "lost";
 
-    const start = Date.now();
-    const tick = setInterval(() => setElapsedMs(Date.now() - start), 200);
-    const next = setTimeout(() => {
-      clearInterval(tick);
-      setStageIdx((i) => i + 1);
-      setElapsedMs(0);
-    }, stage.duration);
-
-    return () => { clearInterval(tick); clearTimeout(next); };
-  }, [running, stageIdx]);
-
-  const handleConnect = () => {
-    setConnected(true);
-    setRunning(true);
-    setStageIdx(1);
+  const handleExit = () => {
+    if (recording && !window.confirm("Leave now? The recording will stop. What was recorded stays on this computer.")) return;
+    onClose();
   };
 
-  const stage = STAGES[stageIdx];
-  const stagePct = stageIdx >= 1 && stageIdx <= 3 ? Math.min(100, Math.round((elapsedMs / stage.duration) * 100)) : stageIdx === 4 ? 100 : 0;
-  const overallPct = stageIdx === 4 ? 100 : Math.round(((stageIdx - 1) / 3 + stagePct / 100 / 3) * 100);
+  return (
+    <AttemptShell title="Part IV: Baseline EEG recording" onClose={handleExit} exitLabel="Exit" wide>
+      <style>{css}</style>
+      <h1 className="text-[2rem] leading-[1.2] text-[#1B1D26]" style={display}>Baseline recording</h1>
+      <p className="mt-2 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
+        Sit still while the Muse 2 headband records a {BASELINE_RECORD_SECONDS}-second resting baseline.
+      </p>
 
-  const recordTotalSec = RECORD_DURATION_MS / 1000;
-  const recordRemainingSec = stageIdx === 2 ? Math.max(0, recordTotalSec - Math.floor(elapsedMs / 1000)) : recordTotalSec;
+      <div className="mt-6 grid gap-4 empty:hidden">
+        {conn.state === "reconnecting" && (
+          <Banner tone="error" role="status" icon={<LoaderCircle className="w-5 h-5 motion-safe:animate-spin" aria-hidden="true" />}>
+            The connection to the headband dropped. Reconnecting ({conn.reason}).
+          </Banner>
+        )}
+        {lost && (
+          <Banner tone="error" role="alert" icon={<AlertCircle className="w-5 h-5" aria-hidden="true" />}
+            action={<button onClick={() => eeg.pair(false)} className={primaryButton}>Connect Muse 2</button>}>
+            The headband disconnected. Check that it is on and nearby, then connect it again.
+          </Banner>
+        )}
+        {eeg.recovered && (
+          <Banner tone="info" role="status" icon={<Info className="w-5 h-5" aria-hidden="true" />}
+            action={<>
+              <button onClick={eeg.exportRecovered} className={secondaryButton}>Export CSV</button>
+              <button onClick={eeg.discardRecovered} className={secondaryButton}>Discard</button>
+            </>}>
+            A recording from {eeg.recovered.when} ({fmt(eeg.recovered.duration)}) was not exported. It is still on this computer.
+          </Banner>
+        )}
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+        <StepCard eeg={eeg} lost={lost} onFinish={onComplete} />
+        <div className="grid gap-6 content-start min-w-0">
+          <SensorCard eeg={eeg} />
+          <SignalCard signal={eeg.signal} connected={conn.state === "connected" || conn.state === "reconnecting"} />
+        </div>
+      </div>
+
+      {/* Quiet announcements for screen readers. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {recording ? "Recording started." : result ? (result.completed ? "Recording complete." : "Recording stopped early.") : ""}
+      </p>
+      {eeg.toast && (
+        <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100vw-2rem)] rounded-xl bg-[#1B1D26] px-5 py-3 text-[0.9375rem] font-bold text-white">
+          {eeg.toast}
+        </div>
+      )}
+    </AttemptShell>
+  );
+}
+
+function Banner({ tone, icon, action, role, children }: { tone: "error" | "info"; icon: ReactNode; action?: ReactNode; role: "alert" | "status"; children: ReactNode }) {
+  const palette = tone === "error" ? "border-[#B42318] bg-[#FDECEA] text-[#7A1A12]" : "border-[#E2E0DA] bg-[#F2F1ED] text-[#1B1D26]";
+  return (
+    <div role={role} className={`flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border p-5 ${palette}`}>
+      <span className="shrink-0" aria-hidden="true">{icon}</span>
+      <p className="flex-1 min-w-[16rem] text-lg leading-snug" style={reading}>{children}</p>
+      {action && <div className="flex flex-wrap gap-3">{action}</div>}
+    </div>
+  );
+}
+
+type Eeg = ReturnType<typeof useEegSession>;
+
+function StepCard({ eeg, lost, onFinish }: { eeg: Eeg; lost: boolean; onFinish: () => void }) {
+  const { step, recording, result } = eeg;
+  const finished = !!result && !recording;
+  const body = (text: ReactNode) => <p className="mt-3 text-lg leading-relaxed text-[#1B1D26]" style={reading}>{text}</p>;
+
+  let content: ReactNode;
+  if (finished && result) {
+    content = (
+      <>
+        <div className="flex items-center gap-3">
+          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-white ${result.completed ? "bg-[#00538A]" : "bg-[#B42318]"}`}>
+            {result.completed ? <Check className="w-5 h-5" aria-hidden="true" /> : <AlertCircle className="w-5 h-5" aria-hidden="true" />}
+          </span>
+          <h2 className={`${cardTitle} text-[#1B1D26]`} style={display}>{result.completed ? "Recording complete" : "Recording stopped early"}</h2>
+        </div>
+        {body(result.completed
+          ? `${fmt(result.recordedSec)} recorded.`
+          : `Stopped at ${fmt(result.recordedSec)} of ${fmt(BASELINE_RECORD_SECONDS)} because the headband disconnected. What was recorded is kept.`)}
+        <div className="mt-6 flex flex-wrap gap-3">
+          {result.completed ? (
+            <>
+              <button onClick={eeg.exportCsv} className={eeg.exported ? secondaryButton : primaryButton}>Export CSV</button>
+              <button onClick={onFinish} className={eeg.exported ? primaryButton : secondaryButton}>Finish pre-test</button>
+            </>
+          ) : (
+            <>
+              <button onClick={eeg.startRecording} disabled={eeg.conn.state !== "connected"} className={primaryButton}>Record again</button>
+              <button onClick={eeg.exportCsv} className={secondaryButton}>Export CSV</button>
+            </>
+          )}
+        </div>
+        {result.completed && !eeg.exported && (
+          <p className="mt-4 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
+            Export the CSV before you finish. ALSense can’t upload recordings yet.
+          </p>
+        )}
+      </>
+    );
+  } else if (recording) {
+    content = (
+      <>
+        <h2 className={`${cardTitle} text-[#1B1D26]`} style={display}>Recording</h2>
+        {body("Stay relaxed and still. The recording stops by itself.")}
+        <p className="mt-6 flex items-baseline gap-3 tabular-nums">
+          <span className="text-[3rem] leading-none text-[#1B1D26]" style={display} aria-label={`${eeg.secondsLeft} seconds left`}>{fmt(eeg.secondsLeft)}</span>
+          <span className="inline-flex items-center gap-2 text-[0.9375rem] font-bold text-[#B42318]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#B42318] motion-safe:animate-pulse" aria-hidden="true" /> Recording, time left
+          </span>
+        </p>
+        <div role="progressbar" aria-label="Recording progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(eeg.progress * 100)}
+          className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#E1E2E7]">
+          <div className={`h-full rounded-full bg-[#00538A] transition-[width] duration-[250ms] motion-reduce:transition-none ${easeOut}`} style={{ width: `${eeg.progress * 100}%` }} />
+        </div>
+        <div className="mt-6">
+          <button onClick={eeg.cancelRecording} className={`${secondaryButton} border-[#B42318]! text-[#B42318]! hover:bg-[#FDECEA]!`}>Cancel recording</button>
+        </div>
+      </>
+    );
+  } else if (step === 1) {
+    content = (
+      <>
+        <h2 className={`${cardTitle} text-[#1B1D26]`} style={display}>Put on the headband</h2>
+        {body("Turn on the Muse 2 until its lights blink. Rest the band on the forehead, above the eyebrows, and tuck the rubber ear pieces behind both ears.")}
+        <div className="mt-6"><button onClick={eeg.continueFromStep1} className={primaryButton}>The headband is on</button></div>
+      </>
+    );
+  } else if (step === 2) {
+    const note = eeg.connectNote === "unsupported"
+      ? "This browser can’t connect to Bluetooth devices. Open this page in Chrome or Edge on a laptop or desktop. Phones and iPads aren’t supported."
+      : eeg.connectNote === "cancelled" ? "No device was chosen. Press Connect Muse 2 to try again." : eeg.connectNote;
+    const connecting = eeg.conn.state === "connecting";
+    content = (
+      <>
+        <h2 className={`${cardTitle} text-[#1B1D26]`} style={display}>Connect the Muse 2</h2>
+        {body("Keep the headband within 1 meter of this computer. Choose the device named “Muse” in the window that opens.")}
+        {note && !lost && (
+          <p role="alert" className="mt-4 flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-4 text-lg leading-snug text-[#7A1A12]" style={reading}>
+            <AlertCircle className="w-5 h-5 shrink-0 mt-1" aria-hidden="true" /> {note}
+          </p>
+        )}
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <button onClick={() => eeg.pair(false)} disabled={connecting || eeg.connectNote === "unsupported"} aria-busy={connecting} className={`${primaryButton} gap-2`}>
+            {connecting && <LoaderCircle className="w-5 h-5 motion-safe:animate-spin" aria-hidden="true" />}
+            {connecting ? "Connecting…" : "Connect Muse 2"}
+          </button>
+          {import.meta.env.DEV && <button onClick={() => eeg.pair(true)} disabled={connecting} className={secondaryButton}>Use a demo signal</button>}
+        </div>
+      </>
+    );
+  } else if (step === 3) {
+    content = (
+      <>
+        <h2 className={`${cardTitle} text-[#1B1D26]`} style={display}>Check the fit</h2>
+        {body("Wait until every sensor says Good or Fair. If one says Poor, move hair out of the way or dampen the sensor slightly.")}
+        <p className="mt-4 text-lg font-bold text-[#1B1D26] tabular-nums" style={reading} aria-live="polite">{eeg.ready} of 4 sensors ready</p>
+        <div className="mt-6">
+          <button onClick={eeg.skipFit} className={`${secondaryButton}`}>Continue with a weak signal</button>
+        </div>
+      </>
+    );
+  } else {
+    content = (
+      <>
+        <h2 className={`${cardTitle} text-[#1B1D26]`} style={display}>Record</h2>
+        {body(`Ask the learner to sit still and relax. The recording lasts ${BASELINE_RECORD_SECONDS} seconds and stops by itself.`)}
+        {!eeg.fitReady && (
+          <p className="mt-4 flex items-start gap-3 text-lg leading-snug text-[#7A1A12]" style={reading}>
+            <AlertCircle className="w-5 h-5 shrink-0 mt-1 text-[#B42318]" aria-hidden="true" /> At least one sensor is not Good or Fair yet.
+          </p>
+        )}
+        <div className="mt-6">
+          <button onClick={eeg.startRecording} disabled={eeg.conn.state !== "connected"} className={primaryButton}>
+            {eeg.fitReady ? `Start ${BASELINE_RECORD_SECONDS}-second recording` : `Record ${BASELINE_RECORD_SECONDS} seconds anyway`}
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  const doneStep = finished || recording ? 4 : step;
+  return (
+    <section aria-label="Setup" className="rounded-2xl border border-[#E2E0DA] bg-white p-8">
+      <p className="mb-4 text-[0.9375rem] font-bold uppercase tracking-[0.06em] text-[#4A4F5C]">Step {doneStep} of 4 · {STEP_NAMES[doneStep - 1]}</p>
+      {content}
+    </section>
+  );
+}
+
+function LevelPill({ level }: { level: Level }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[0.9375rem] font-bold text-[#1B1D26]">
+      <span className="h-2.5 w-2.5 rounded-full" style={level === "waiting" ? { border: `2px solid ${LEVEL_COLOR.waiting}` } : { background: LEVEL_COLOR[level] }} aria-hidden="true" />
+      {LEVEL_WORD[level]}
+    </span>
+  );
+}
+
+/** Navy is reserved for the sensor: connection, battery, and contact quality. */
+function SensorCard({ eeg }: { eeg: Eeg }) {
+  const { conn, levels } = eeg;
+  const connected = conn.state === "connected";
+  return (
+    <section aria-labelledby="eeg-sensor-title" className="rounded-2xl bg-[#1C1D33] p-8 text-white">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="eeg-sensor-title" className={cardTitle} style={display}>Sensor contact</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          {eeg.battery !== null && (
+            <span className="inline-flex items-center gap-1.5 text-[0.9375rem] font-bold text-[#D9DBEA]">
+              <BatteryMedium className="w-5 h-5" aria-hidden="true" /> Battery {Math.round(eeg.battery)}%
+            </span>
+          )}
+          <span role="status" className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[0.9375rem] font-bold text-[#1B1D26]">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: CONN_COLOR[conn.state] }} aria-hidden="true" />
+            {connected ? `Connected to ${conn.name}` : CONN_WORD[conn.state]}
+          </span>
+        </div>
+      </div>
+      <p className="mt-3 text-lg leading-relaxed text-[#D9DBEA]" style={reading}>Seen from above, front of the head at the top.</p>
+
+      <div className="mt-6 flex flex-wrap items-center gap-x-10 gap-y-6">
+        <HeadMap levels={levels} />
+        <ul className="min-w-[14rem] flex-1 divide-y divide-white/20">
+          {CHANNELS.map((c: string, i: number) => (
+            <li key={c} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+              <div>
+                <p className="text-[0.9375rem] font-bold tabular-nums">{c}</p>
+                <p className="text-[0.9375rem] text-[#D9DBEA]">{WHERE[i]}</p>
+              </div>
+              <LevelPill level={levels[i]} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function HeadMap({ levels }: { levels: Level[] }) {
+  const sensors = [[46, 186], [76, 81], [164, 81], [194, 186]];
+  return (
+    <svg viewBox="0 0 240 262" className="w-[240px] h-[262px] shrink-0" role="img" aria-label={`Head seen from above. ${CHANNELS.map((c: string, i: number) => `${c} ${LEVEL_WORD[levels[i]]}`).join(", ")}.`}>
+      <text x="120" y="14" textAnchor="middle" fontSize="15" fontWeight="700" fill="#D9DBEA" fontFamily="'DM Sans', system-ui, sans-serif">Front</text>
+      <path d="M108 42 L120 24 L132 42 Z" fill="#191A2E" stroke="#D9DBEA" strokeOpacity=".6" strokeWidth="2" />
+      <ellipse cx="22" cy="146" rx="11" ry="24" fill="#191A2E" stroke="#D9DBEA" strokeOpacity=".6" strokeWidth="2" />
+      <ellipse cx="218" cy="146" rx="11" ry="24" fill="#191A2E" stroke="#D9DBEA" strokeOpacity=".6" strokeWidth="2" />
+      <circle cx="120" cy="142" r="100" fill="#191A2E" stroke="#D9DBEA" strokeOpacity=".6" strokeWidth="2" />
+      <path d="M46 186 C 40 20, 200 20, 194 186" fill="none" stroke="#D9DBEA" strokeOpacity=".6" strokeWidth="3" strokeDasharray="2 6" strokeLinecap="round" />
+      {sensors.map(([x, y], i) => {
+        const level = levels[i];
+        return (
+          <g key={CHANNELS[i]}>
+            {level === "waiting" && <circle className="eeg-halo" cx={x} cy={y} r="14" fill="none" stroke="#D9DBEA" strokeWidth="2" />}
+            {/* White ring: it keeps the fill readable on navy (blue and red fills alone would not be). */}
+            <circle cx={x} cy={y} r="14" fill={level === "waiting" ? "#191A2E" : LEVEL_COLOR[level]} stroke="#FFFFFF" strokeWidth="3" strokeDasharray={level === "waiting" ? "4 3" : undefined} />
+            <text x={x} y={y + 6} textAnchor="middle" fontSize="16" fontWeight="700" fill="#FFFFFF" fontFamily="'DM Sans', system-ui, sans-serif" aria-hidden="true">{LEVEL_GLYPH[level]}</text>
+            <text x={x} y={i === 1 || i === 2 ? y - 24 : y + 38} textAnchor="middle" fontSize="15" fontWeight="700" fill="#FFFFFF" fontFamily="'DM Sans', system-ui, sans-serif">{CHANNELS[i]}</text>
+          </g>
+        );
+      })}
+      <text x="120" y="258" textAnchor="middle" fontSize="15" fontWeight="700" fill="#D9DBEA" fontFamily="'DM Sans', system-ui, sans-serif">Back</text>
+    </svg>
+  );
+}
+
+/** Live trace of the last 5 seconds, 1 Hz high-pass for display only (the CSV holds the raw signal). */
+function SignalCard({ signal, connected }: { signal: { current: SignalBuffer }; connected: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [scale, setScale] = useState(100);
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    // Under reduced motion the trace refreshes once a second instead of scrolling continuously.
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let raf = 0, last = 0;
+    const N = SAMPLE_RATE * WINDOW_SEC;
+
+    const draw = (now: number) => {
+      raf = requestAnimationFrame(draw);
+      if (calm.matches && now - last < 1000) return;
+      const sig = signal.current;
+      const dpr = window.devicePixelRatio || 1;
+      const W = canvas.clientWidth, H = canvas.clientHeight;
+      if (!W || !H) return;
+      if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+        canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); sig.dirty = true;
+      }
+      if (!sig.dirty) return;
+      sig.dirty = false; last = now;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      const laneH = H / 4, left = 64, plotW = W - left - 12, uv = scaleRef.current;
+
+      ctx.strokeStyle = "#E2E0DA"; ctx.lineWidth = 1;
+      for (let s = 1; s < WINDOW_SEC; s++) {
+        const x = left + (s / WINDOW_SEC) * plotW;
+        ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x, H - 4); ctx.stroke();
+      }
+      for (let ch = 0; ch < 4; ch++) {
+        const mid = laneH * (ch + 0.5), k = (laneH / 2 - 4) / uv;
+        ctx.strokeStyle = "#E2E0DA"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(left, mid); ctx.lineTo(W - 12, mid); ctx.stroke();
+        ctx.fillStyle = CHANNEL_COLORS[ch];
+        ctx.font = "700 15px 'DM Sans', system-ui, sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.fillText(CHANNELS[ch], 12, mid);
+        ctx.strokeStyle = CHANNEL_COLORS[ch]; ctx.lineWidth = 1.6; ctx.lineJoin = "round";
+        ctx.beginPath();
+        let pen = false;
+        for (let i = 0; i < N; i++) {
+          const v = sig.ring[ch][(sig.pos + i) % N];
+          if (!Number.isFinite(v)) { pen = false; continue; }
+          const x = left + (i / (N - 1)) * plotW;
+          const y = mid - Math.max(-laneH / 2 + 2, Math.min(laneH / 2 - 2, v * k));
+          if (pen) ctx.lineTo(x, y); else { ctx.moveTo(x, y); pen = true; }
+        }
+        ctx.stroke();
+      }
+    };
+    signal.current.dirty = true;
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [signal]);
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8] p-4 sm:p-8">
-      <main className="max-w-5xl mx-auto">
-        <button onClick={onClose} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-[#3535C5] mb-5">
-          <ChevronLeft className="w-4 h-4" /> Back to pre-test
-        </button>
-
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#0B1F3A] to-[#1a2f4a] rounded-2xl p-5 text-white flex items-center justify-between mb-5">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs bg-white/15 px-2 py-0.5 rounded font-mono">Part IV</span>
-              <span className="text-blue-300 text-xs">Baseline EEG Recording — Muse 2 Headband</span>
-            </div>
-            <h2 className="mb-1" style={{ fontSize: "1.25rem", fontWeight: 700 }}>Baseline EEG Capture</h2>
-            <p className="text-blue-200/70 text-sm">Put on the Muse 2 headband, then start the baseline recording session.</p>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${connected ? "bg-green-500/20 border border-green-500/40" : "bg-white/10 border border-white/20"}`}>
-              {connected ? <Wifi className="w-7 h-7 text-green-400" /> : <WifiOff className="w-7 h-7 text-blue-300" />}
-            </div>
-            <span className={`text-xs font-semibold ${connected ? "text-green-400" : "text-blue-300"}`}>{connected ? "Connected" : "Not Connected"}</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* ── Left: Device + stages ── */}
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h3 className="text-gray-800 font-semibold text-sm mb-4">Muse 2 Headband</h3>
-              <div className="flex items-center justify-center mb-4">
-                <svg viewBox="0 0 120 70" className="w-28 h-16" fill="none">
-                  {/* Curved band over the head */}
-                  <path d="M 16 42 Q 60 -6 104 42" stroke="#D1D5DB" strokeWidth="6" strokeLinecap="round" fill="none" />
-                  {/* Left paddle (behind-ear sensor module) */}
-                  <rect x="3" y="30" width="17" height="28" rx="8.5" fill="#D1D5DB" />
-                  {/* Right paddle (forehead / power module) */}
-                  <rect x="100" y="30" width="17" height="28" rx="8.5" fill="#D1D5DB" />
-                  {/* Power LED */}
-                  <circle cx="108.5" cy="38" r="3" fill={connected ? "#4ADE80" : "#9CA3AF"}
-                    style={connected ? { animation: "pulse 1.5s ease-in-out infinite" } : {}} />
-                </svg>
-              </div>
-              <div className="space-y-1.5 text-xs text-gray-500 mb-4">
-                {[["Device", "Muse 2 Headband"], ["Protocol", "Bluetooth Low Energy"], ["Sampling", "256 Hz"], ["Channels", "4-channel EEG (TP9, AF7, AF8, TP10)"]].map(([k, v]) => (
-                  <div key={k} className="flex justify-between"><span>{k}</span><span className="text-gray-700 font-medium">{v}</span></div>
-                ))}
-              </div>
-              {!connected ? (
-                <button onClick={handleConnect}
-                  className="w-full py-3 bg-[#3535C5] hover:bg-[#2929a8] text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
-                  <Wifi className="w-4 h-4" /> Connect Headband
-                </button>
-              ) : stageIdx === 4 ? (
-                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-xs font-medium justify-center">
-                  <CheckCircle className="w-4 h-4" /> Session complete
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-xs justify-center">
-                  <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  {stage?.label}…
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h3 className="text-gray-800 font-semibold text-sm mb-3">Capture Stages</h3>
-              <div className="space-y-2">
-                {STAGES.slice(1).map((s, i) => {
-                  const idx = i + 1;
-                  const isDone = stageIdx > idx;
-                  const isActive = stageIdx === idx;
-                  return (
-                    <div key={s.id} className="flex items-center gap-3">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all ${isDone ? "bg-green-500 text-white" : isActive ? "bg-[#3535C5] text-white" : "bg-gray-100 text-gray-400"}`}>
-                        {isDone ? "✓" : idx}
-                      </div>
-                      <span className={`text-xs ${isDone ? "text-green-700" : isActive ? "text-[#3535C5] font-medium" : "text-gray-400"}`}>{s.label}</span>
-                      {isActive && <div className="w-3 h-3 border-2 border-[#3535C5] border-t-transparent rounded-full animate-spin ml-auto" />}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Center/right: recording indicator (replaces live waveform) ── */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-[#0B1F3A] rounded-2xl p-8 flex flex-col items-center justify-center min-h-[240px]">
-              <div className="flex items-center gap-2 mb-6 self-start">
-                <div className={`w-2 h-2 rounded-full ${running && stageIdx < 4 ? "bg-green-400 animate-pulse" : "bg-gray-500"}`} />
-                <span className="text-white text-sm font-medium">Device Recording</span>
-              </div>
-
-              <div className="relative w-24 h-24 flex items-center justify-center mb-5">
-                {running && stageIdx < 4 && <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400/30 animate-ping" />}
-                <span className={`relative inline-flex rounded-full h-14 w-14 items-center justify-center ${running && stageIdx < 4 ? "bg-gradient-to-br from-blue-500 to-cyan-400" : "bg-white/10"}`}>
-                  <Radio className="w-6 h-6 text-white" />
-                </span>
-              </div>
-
-              {stageIdx === 2 ? (
-                <div className="text-center">
-                  <div className="text-white text-3xl font-bold font-mono tabular-nums">{formatMMSS(recordRemainingSec)}</div>
-                  <p className="text-blue-300 text-xs mt-2">Baseline recording in progress — stay relaxed and still</p>
-                </div>
-              ) : stageIdx === 4 ? (
-                <p className="text-green-400 text-sm font-medium">Recording captured</p>
-              ) : (
-                <p className="text-blue-300 text-sm">{running ? `${stage?.label}…` : "Waiting to start"}</p>
-              )}
-            </div>
-
-            {connected && stageIdx < 4 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-700 text-sm font-medium">Overall Progress</span>
-                  <span className="text-[#3535C5] font-bold text-sm">{overallPct}%</span>
-                </div>
-                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[#3535C5] to-cyan-400 rounded-full transition-all duration-300" style={{ width: `${overallPct}%` }} />
-                </div>
-              </div>
-            )}
-
-            {stageIdx === 4 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-green-50 border border-green-200 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-gray-800 font-bold">Baseline Recording Complete</h3>
-                    <p className="text-gray-500 text-xs">{recordTotalSec}-second baseline EEG captured</p>
-                  </div>
-                </div>
-
-                <button onClick={onComplete}
-                  className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
-                  Finish Pre-test <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            {!connected && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <h3 className="text-gray-700 font-semibold text-sm mb-3">Setup Instructions</h3>
-                <div className="space-y-2.5">
-                  {[
-                    "Place the Muse 2 headband on your forehead, sensors resting flat against your skin.",
-                    "Turn on the headband using the button on the right arm.",
-                    "Wait for the LED to blink blue — this indicates Bluetooth is ready.",
-                    "Click 'Connect Headband' to pair and begin the baseline session.",
-                    `Sit still and relax during the ${recordTotalSec}-second baseline recording.`,
-                  ].map((step, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="w-5 h-5 rounded-full bg-[#3535C5]/10 text-[#3535C5] text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
-                      <span className="text-gray-600 text-xs leading-relaxed">{step}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
+    <section aria-labelledby="eeg-signal-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="eeg-signal-title" className={`${cardTitle} text-[#1B1D26]`} style={display}>Live signal</h2>
+        <label className={`inline-flex items-center gap-3 ${label} text-[#1B1D26]`}>
+          Scale
+          <select value={scale} onChange={(e) => { setScale(Number(e.target.value)); signal.current.dirty = true; }}
+            className={`h-11 rounded-xl border border-[#8A8F9C] bg-white px-3 text-[0.9375rem] font-medium text-[#1B1D26] ${focus}`}>
+            <option value={50}>±50 µV</option><option value={100}>±100 µV</option><option value={200}>±200 µV</option>
+          </select>
+        </label>
+      </div>
+      <div className="relative mt-5 h-[18rem] overflow-hidden rounded-xl border border-[#E2E0DA] bg-white">
+        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" role="img" aria-label={`Live EEG traces for ${CHANNELS.join(", ")}, last ${WINDOW_SEC} seconds`} />
+        {!connected && (
+          <p className="absolute inset-0 grid place-items-center p-6 text-center text-lg text-[#4A4F5C]" style={reading}>
+            The signal appears here after you connect the headband.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
