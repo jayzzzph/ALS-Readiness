@@ -5,6 +5,7 @@ import { getParticipantIntake, submitParticipantIntake } from "../../../lib/api/
 import { getErrorMessage } from "../../../lib/api/errors";
 import {
   INTAKE_STRAND_OPTIONS,
+  civilStatusChoices,
   initialIntakeForm,
   intakeFormFromIntake,
   toIntakeUpsert,
@@ -83,7 +84,7 @@ export function ParticipantIntake({ navigate, user, onLogout }) {
             <div className="grid sm:grid-cols-3 gap-4">
               <Field label="Age"><input required min="15" max="120" type="number" value={form.age} onChange={(event) => update("age", event.target.value)} className={inputClass} /></Field>
               <Field label="Sex"><select required value={form.sex} onChange={(event) => update("sex", event.target.value)} className={inputClass}><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></Field>
-              <Field label="Civil status"><input required value={form.civil_status} onChange={(event) => update("civil_status", event.target.value)} className={inputClass} placeholder="e.g., Single" /></Field>
+              <Field label="Civil status"><select required value={form.civil_status} onChange={(event) => update("civil_status", event.target.value)} className={inputClass}><option value="">Select</option>{civilStatusChoices(form.civil_status).map((status) => <option key={status} value={status}>{status}</option>)}</select></Field>
             </div>
             <Field label="Highest educational attainment prior to ALS"><input required value={form.highest_educational_attainment} onChange={(event) => update("highest_educational_attainment", event.target.value)} className={inputClass} placeholder="e.g., Grade 10" /></Field>
             <fieldset><legend className="text-sm font-medium text-gray-700 mb-2">ALS learning strand(s) currently enrolled in</legend><div className="grid sm:grid-cols-3 gap-3">{INTAKE_STRAND_OPTIONS.map(({ code, label }) => <label key={code} className="flex items-center gap-2 p-3 rounded-xl border border-gray-200 text-sm text-gray-700 cursor-pointer"><input type="checkbox" checked={form.als_learning_strands.includes(code)} onChange={() => toggleStrand(code)} className="accent-[#3535C5]" />{label}</label>)}</div></fieldset>
