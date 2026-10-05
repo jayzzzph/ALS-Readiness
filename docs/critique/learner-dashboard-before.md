@@ -3,7 +3,7 @@
 - **Target:** `frontend/src/app/components/learner/LearnerDashboard.tsx` (169 lines), shown inside the shared `AppLayout` shell.
 - **Checked against:** the Gestalt Principles section of `DESIGN.md` (commit `c481359c`).
 - **Date:** 2026-10-05, branch `ui-polish`, code at commit `7cd7e23f`.
-- **Evidence:** the source code, plus the page rendered in Chromium at 1280px and 1024px with a mocked learner session ("Maria Dela Cruz"), because the backend wasn't running. Screenshot: `learner-dashboard-before-1280.png`. The design skill's automated check (`impeccable detect`) flagged one problem: a purple gradient at line 125.
+- **Evidence:** the source code, plus the page rendered in Chromium after signing in through `/login` with a real seeded learner account against the local backend. No session was faked. Full-page screenshots: `learner-dashboard-before-1280.png` and `learner-dashboard-before-1024.png`. The design skill's automated check (`impeccable detect`) flagged one problem: a purple gradient at line 125.
 - **Scope:** this is a focused Gestalt review done by one reviewer. It isn't the full multi-reviewer `impeccable critique`. No code was changed.
 
 > This screen still uses the **old** visual system: the dark navy sidebar, indigo `#3535C5` everywhere, a cool gray background, Tailwind grays and emoji. DESIGN.md treats that system as legacy. Many of the "breaks" below come from that, and they go away once the screen is rebuilt in the light style.
@@ -91,7 +91,7 @@
 These aren't Gestalt principles, but they affect the same learner.
 
 - **A dead link:** the "Achievements" stat tile navigates to `achievements` (line 104), but that route is commented out in `App.tsx` (line 120). Clicking it leads nowhere useful.
-- **Hardcoded demo data shown as real:** "7-day streak", "8" achievements, every pipeline status and all three content items are constants (lines 6–23, 38, 42, 103–104). PRODUCT.md says not to present placeholder figures as real learner results.
+- **Hardcoded demo data shown as real:** "7-day streak", "8" achievements, every pipeline status and all three content items are constants (lines 6–23, 38, 42, 103–104). PRODUCT.md says not to present placeholder figures as real learner results. The real-account screenshots confirm it: a brand-new learner account still shows a 7-day streak, 8 achievements and 65% / 100% / 0% content progress.
 - **Text too small:** most text is `text-xs`/`text-sm` (12–14px). DESIGN.md sets learner text at 15px minimum for labels and 18px for sentences, in Atkinson Hyperlegible.
 - **Fixed greeting:** "Good morning 👋" shows at any time of day.
 
