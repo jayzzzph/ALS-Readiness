@@ -116,18 +116,18 @@ function Chapter({ id, title, children, mock, flip = false, step, last = false, 
   const [ref, shown] = useShown<HTMLElement>();
   const onRail = step !== undefined;
   return (
-    <section ref={ref} data-shown={shown} aria-labelledby={id} className={onRail ? "" : "border-t border-[#E2E0DA] bg-white"}>
+    <section ref={ref} data-shown={shown} aria-labelledby={id} className={`overflow-x-clip ${onRail ? "" : "border-t border-[#E2E0DA] bg-white"}`}>
       <div className="mx-auto w-full max-w-6xl px-8">
         <div className={`relative grid items-start gap-12 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24 ${onRail ? "pl-16 lg:pl-20" : ""}`}>
           {onRail && <StepRail number={step} first={step === 1} last={last} />}
-          <div className={`max-w-[32rem] ${flip ? "lg:order-2" : ""}`}>
+          <div className={`min-w-0 max-w-[32rem] ${flip ? "lg:order-2" : ""}`}>
             {onRail && <p className="st mb-3 text-[0.8125rem] font-bold uppercase leading-snug tracking-[0.06em] text-[#4A4F5C]">Step {step} of 4</p>}
             <h2 id={id} className="st text-[2rem] leading-[1.2] text-[#1B1D26] lg:text-[2.5rem]" style={{ ...display, ...delay(onRail ? 40 : 0) }}>{title}</h2>
             <div className="st mt-5 space-y-4 text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(onRail ? 100 : 60) }}>{children}</div>
           </div>
           {/* The mocks only illustrate; the words beside them say everything, so they are hidden from screen readers
               unless the mock carries its own description (`mockDescribed`). */}
-          <div aria-hidden={mockDescribed ? undefined : true} className={`st ${flip ? "lg:order-1" : ""}`} style={delay(160)}>{mock(shown)}</div>
+          <div aria-hidden={mockDescribed ? undefined : true} className={`st min-w-0 ${flip ? "lg:order-1" : ""}`} style={delay(160)}>{mock(shown)}</div>
         </div>
       </div>
     </section>
@@ -170,15 +170,15 @@ function PretestMock({ shown }: { shown: boolean }) {
 /** Muse 2 baseline: a navy sensor panel with a trace that keeps scrolling like a live signal. */
 function MuseMock() {
   return (
-    <div aria-hidden="true" className="relative rounded-2xl bg-[#1C1D33] p-6 text-white sm:p-8">
+    <div aria-hidden="true" className="rounded-2xl bg-[#1C1D33] p-5 text-white">
       <div className="flex items-center justify-between gap-4">
-        <p className="text-2xl leading-[1.25]" style={display}>Resting recording</p>
+        <p className="text-xl leading-[1.25]" style={display}>Resting recording</p>
         <p className="inline-flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#CFE4FF]">
           <span className="h-2 w-2 rounded-full bg-[#CFE4FF]" aria-hidden="true" /> Connected
         </p>
       </div>
-      <div className="mt-6 overflow-hidden rounded-xl bg-[#191A2E]">
-        <svg viewBox="0 0 600 160" className="block h-auto w-full" preserveAspectRatio="none">
+      <div className="mt-4 overflow-hidden rounded-xl bg-[#191A2E]">
+        <svg viewBox="0 0 600 160" className="block h-16 w-full" preserveAspectRatio="none">
           <g stroke="#FFFFFF" strokeOpacity="0.12" strokeWidth="1">
             <path d="M0 40H600M0 80H600M0 120H600" />
           </g>
@@ -187,7 +187,6 @@ function MuseMock() {
           </g>
         </svg>
       </div>
-      <p className="mt-5 text-lg leading-snug text-[#D9DBEA]" style={reading}>Nothing to answer. Sit comfortably and stay still.</p>
     </div>
   );
 }
@@ -289,25 +288,25 @@ function CohortMock() {
 }
 
 /**
- * The baseline step's picture: the resting learner with the recording panel tucked in front of them, so they read as one scene.
- * The image has a fixed 820 x 1025 box (width and height set), so nothing shifts while it loads. It fades and rises in with the
- * section, then breathes very slowly (1% over 4s, looping); the breathing is off under reduced motion.
+ * The baseline step's picture: the learner is the main visual (about 430px tall, whole person, chair and side table in view),
+ * with the recording panel as a small card floating at the lower right. The card only touches the blank strip below the
+ * learner's shoes, never the person. The image has a fixed 820 x 1025 box so nothing shifts while it loads. Its background is
+ * white and it uses mix-blend-multiply over the paper-colored scene, so the background disappears into the page; the fade,
+ * rise and breathing therefore sit on the image itself, because a fading ancestor would isolate the blend. It fades and rises
+ * with the section, then breathes very slowly (1% over 4s, looping), which is off under reduced motion.
  */
 function MuseScene() {
   return (
-    <div>
-      <div className="st mx-auto w-full max-w-[19rem]" style={delay(240)}>
-        <div className="lp-breathe">
-          <img
-            src={learnerRecording}
-            width={820}
-            height={1025}
-            alt="A learner sitting and relaxing while wearing an EEG headband"
-            className="block h-auto w-full"
-          />
-        </div>
-      </div>
-      <div className="relative -mt-28">
+    <div className="relative bg-[#F8F6F2] pb-36">
+      <img
+        src={learnerRecording}
+        width={820}
+        height={1025}
+        alt="A learner sitting and relaxing while wearing an EEG headband"
+        className="st lp-breathe mx-auto block h-auto w-[21.5rem] max-w-full mix-blend-multiply"
+        style={delay(240)}
+      />
+      <div className="absolute bottom-0 right-0 w-[min(18.75rem,100%)]">
         <MuseMock />
       </div>
     </div>
@@ -446,7 +445,7 @@ export function LandingPage({ navigate }) {
         </Chapter>
 
         <Chapter id="story-baseline" step={2} title="Then a short recording" flip mockDescribed mock={() => <MuseScene />}>
-          <p>Your facilitator helps you wear a Muse 2 headband at the learning center. It records your resting brain activity for a few minutes.</p>
+          <p>At the learning center, you'll wear a Muse 2 headband for a short recording. It records your resting brain activity for a few minutes.</p>
           <p>There is nothing to answer. You just sit comfortably and stay still.</p>
         </Chapter>
 
