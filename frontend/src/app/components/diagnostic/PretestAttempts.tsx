@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, ArrowLeft, ArrowRight, CircleCheck, Clock, LoaderCircle, X } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { AlertCircle, ArrowLeft, ArrowRight, CircleCheck, Clock, LoaderCircle, Maximize2, X } from "lucide-react";
 import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
@@ -95,24 +96,29 @@ function Countdown({ secondsLeft, expired }: { secondsLeft: number; expired: boo
 /**
  * Focused test mode frame. `title` names the stage in the header ("Pre-test");
  * the exit button closes the attempt - answers are already saved as a draft on
- * every change, so leaving keeps them. `wide` is for the LRI table.
+ * every change, so leaving keeps them. `exitHint` is a visible line under the
+ * exit button saying what leaving does (a tooltip would never open on touch).
+ * `wide` is for the LRI table.
  */
-export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", countdown, wide = false, children }: { title: string; onClose: () => void; exitLabel?: string; countdown?: ReactNode; wide?: boolean; children: ReactNode }) {
+export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", exitHint, countdown, wide = false, children }: { title: string; onClose: () => void; exitLabel?: string; exitHint?: string; countdown?: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
     <div className="min-h-[100dvh] bg-[#F8F6F2] text-[#1B1D26] selection:bg-[#FFAB2E]/50" style={chrome}>
       <style>{fontCss}</style>
-      <header className="sticky top-0 z-10 h-16 bg-white border-b border-[#E2E0DA]">
-        <div className="h-full px-4 sm:px-6 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-10 bg-white border-b border-[#E2E0DA]">
+        <div className="min-h-16 px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-[#00538A] text-[1.75rem] leading-none" style={display}>ALSense</span>
             <span className="h-6 w-px shrink-0 bg-[#E2E0DA]" aria-hidden="true" />
             <span className="text-[0.9375rem] font-bold text-[#4A4F5C] truncate">{title}</span>
           </div>
-          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
-            {countdown}
-            <button onClick={onClose} className={`h-11 px-3 -mr-2 inline-flex items-center gap-1.5 rounded-lg text-[0.9375rem] font-bold text-[#1B1D26] hover:bg-[#F2F1ED] ${press} ${focus}`}>
-              <X className="w-5 h-5" aria-hidden="true" /> {exitLabel}
-            </button>
+          <div className="flex items-start gap-3 sm:gap-5 shrink-0">
+            {countdown && <div className="h-11 flex items-center">{countdown}</div>}
+            <div className="flex flex-col items-end">
+              <button onClick={onClose} aria-describedby={exitHint ? "exit-hint" : undefined} className={`h-11 px-3 -mr-2 inline-flex items-center gap-1.5 rounded-lg text-[0.9375rem] font-bold text-[#1B1D26] hover:bg-[#F2F1ED] ${press} ${focus}`}>
+                <X className="w-5 h-5" aria-hidden="true" /> {exitLabel}
+              </button>
+              {exitHint && <p id="exit-hint" className="max-w-[16rem] sm:max-w-none text-right text-[0.9375rem] leading-5 text-[#4A4F5C]">{exitHint}</p>}
+            </div>
           </div>
         </div>
       </header>
@@ -208,12 +214,60 @@ function AnswerOption({ name, text, selected, locked, onSelect }: { name: string
       className={`flex min-h-[76px] items-center gap-4 rounded-xl border px-6 py-4 transition-[background-color,border-color,box-shadow,scale] duration-150 ${easeOut} has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#00538A] ${state} ${locked ? "cursor-not-allowed" : "cursor-pointer active:scale-[0.99] motion-reduce:active:scale-100"}`}
     >
       <input type="radio" name={name} checked={selected} disabled={locked} onChange={onSelect} className="sr-only" />
-      <span className="flex-1 text-lg leading-[1.6]" style={reading}>{text}</span>
+      {/* Pinned inline at 18px (DESIGN.md, Body Learner) so no inherited label/button size can shrink it. */}
+      <span className="flex-1 font-normal leading-[1.6]" style={{ ...reading, fontSize: "1.125rem" }}>{text}</span>
       <span aria-hidden="true" className={`grid place-items-center w-6 h-6 shrink-0 rounded-full border-2 bg-white transition-colors duration-150 ${easeOut} ${selected ? "border-[#00538A]" : "border-[#8A8F9C]"}`}>
         {/* The dot grows in from half size; under reduced motion it only fades. */}
         <span className={`w-3 h-3 rounded-full bg-[#00538A] transition-[opacity,scale] duration-150 ${easeOut} ${selected ? "opacity-100 scale-100" : "opacity-0 scale-50 motion-reduce:scale-100"}`} />
       </span>
     </label>
+  );
+}
+
+/**
+ * A question's picture (often a reading passage) at the card's full width. The
+ * picture is a button that opens it larger in a dialog; Escape, the Close
+ * button or a click outside closes it, and focus returns to the picture.
+ * Rendered inside the keyed question card, so the open state resets per question.
+ */
+function QuestionImage({ src, label }: { src: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
+      <DialogPrimitive.Trigger
+        disabled={failed}
+        aria-label={`${label}. Open it larger.`}
+        className={`group mb-6 block w-full rounded-xl text-left enabled:cursor-zoom-in ${focus}`}
+      >
+        <ImageWithFallback src={src} alt={label} onError={() => setFailed(true)} className="block w-full h-auto rounded-xl border border-[#E2E0DA]" />
+        {!failed && (
+          <span className="mt-2 inline-flex items-center gap-1.5 text-[0.9375rem] font-bold text-[#00538A] underline-offset-4 group-hover:underline">
+            <Maximize2 className="w-4 h-4" aria-hidden="true" /> See the picture larger
+          </span>
+        )}
+      </DialogPrimitive.Trigger>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className={`fixed inset-0 z-50 bg-[#1B1D26]/70 transition-opacity duration-200 ${easeOut} starting:opacity-0`} />
+        {/* Floats, so it takes the one soft shadow DESIGN.md allows. Enters with a fade and, motion allowing, a slight scale. */}
+        <DialogPrimitive.Content
+          aria-describedby={undefined}
+          className={`fixed inset-3 sm:inset-8 z-50 flex flex-col rounded-2xl bg-white shadow-[0_8px_24px_rgba(27,29,38,0.08)] transition-[opacity,scale] duration-200 ${easeOut} starting:opacity-0 motion-safe:starting:scale-[0.97] focus:outline-none`}
+          style={chrome}
+        >
+          <div className="flex items-center justify-between gap-4 border-b border-[#E2E0DA] py-2 pl-6 pr-3">
+            <DialogPrimitive.Title className="text-[0.9375rem] font-bold text-[#1B1D26]">{label}</DialogPrimitive.Title>
+            <DialogPrimitive.Close className={`h-11 px-3 inline-flex items-center gap-1.5 rounded-lg text-[0.9375rem] font-bold text-[#1B1D26] hover:bg-[#F2F1ED] ${press} ${focus}`}>
+              <X className="w-5 h-5" aria-hidden="true" /> Close
+            </DialogPrimitive.Close>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto bg-[#F2F1ED] p-4 sm:p-6">
+            {/* Width-fitted and scrolled, not shrunk to the screen height: passages stay readable top to bottom. */}
+            <img src={src} alt={label} className="mx-auto block h-auto w-full max-w-5xl rounded-lg" />
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
@@ -314,6 +368,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
     <AttemptShell
       title={stage}
       onClose={onClose}
+      exitHint="Your answers are saved. The timer keeps running."
       countdown={secondsLeft !== null ? <Countdown secondsLeft={secondsLeft} expired={expired} /> : undefined}
     >
       <p className="text-[0.9375rem] font-bold uppercase tracking-[0.06em] leading-snug text-[#4D35BD]">
@@ -337,7 +392,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
           {/* Keyed by item so each new question settles in: a short fade, plus a small rise when motion is allowed. */}
           <section key={item.item_id} className={`mt-12 ${card} p-6 sm:p-8 transition-[opacity,translate] duration-200 ${easeOut} starting:opacity-0 motion-safe:starting:translate-y-1`}>
             {/* Not every question has an image (asset_url is null when there's none, or storage isn't configured). */}
-            {item.asset_url && <ImageWithFallback src={item.asset_url} alt={`Picture for question ${current + 1}`} className="max-h-72 w-auto max-w-full object-contain rounded-xl mb-6" />}
+            {item.asset_url && <QuestionImage src={item.asset_url} label={`Picture for question ${current + 1}`} />}
             <h1 id={stemId} ref={stemRef} tabIndex={-1} className={`text-pretty whitespace-pre-line text-[#1B1D26] outline-none ${stem.className}`} style={stem.style}>{item.question_text}</h1>
             <div role="radiogroup" aria-labelledby={stemId} className="mt-8 space-y-3">
               {item.options.map((option) => (
@@ -437,6 +492,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
       title="Pre-test"
       wide
       onClose={onClose}
+      exitHint={LRI_TEST_TIME_LIMIT_SECONDS === null ? "Your answers are saved." : "Your answers are saved. The timer keeps running."}
       countdown={secondsLeft !== null ? <Countdown secondsLeft={secondsLeft} expired={expired} /> : undefined}
     >
       {/* The table itself is unchanged for now; only its frame follows focused test mode. */}
