@@ -14,7 +14,7 @@ import type { LriTestListItem, StrandCode, StrandTestListItem } from "../../../l
 import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
 import { LriAttempt, StrandAttempt } from "./PretestAttempts";
 import { ScoreCompareModal } from "./ScoreCompareModal";
-import { StrandTestCard, secondaryButton } from "./StrandTestCard";
+import { StrandTestCard, primaryButton, secondaryButton } from "./StrandTestCard";
 import { BaselineEegRecording } from "./BaselineEegRecording";
 
 // Pre-test hub: Part I participant intake, Part II Learner Readiness Inventory,
@@ -41,7 +41,6 @@ type View =
 const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
 const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
 const easeOut = "ease-[cubic-bezier(0.23,1,0.32,1)]";
-const card = "bg-white border border-[#E2E0DA] rounded-2xl p-8";
 const cardTitle = "text-2xl leading-[1.25] text-[#1B1D26]";
 
 function PretestLoadingIndicator() {
@@ -135,23 +134,37 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   const currentPart = partDone.findIndex((d) => !d);
   const statusOf = (index: number): PartStatus => (partDone[index] ? "done" : index === currentPart ? "current" : "locked");
   const doneCount = partDone.filter(Boolean).length;
+  // A finished Part III stays collapsed unless a strand has its "Show Score" reveal to offer.
+  const anyScoreToShow = strands.some((test) => test.attempt_status === "completed" && postByCode[test.strand_code]?.attempt_status === "completed");
+
+  const strandRows = (
+    <ul className="divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
+      {strands.map((test) => (
+        <li key={test.test_id}>
+          <StrandTestCard
+            variant="row"
+            test={test}
+            canAttempt={lriComplete}
+            disabledReason={strandsLockReason}
+            attemptLabel={hasAttemptDraft("strand", learnerId, test.test_id) ? "Resume test" : undefined}
+            onAttempt={() => openAttempt({ name: "strand-attempt", test })}
+            canShowScore={test.attempt_status === "completed" && postByCode[test.strand_code]?.attempt_status === "completed"}
+            onShowScore={() => setScoreStrand(test.strand_code)}
+          />
+        </li>
+      ))}
+      {!strands.length && <li className="py-4 text-lg text-[#4A4F5C]" style={reading}>No pre-test strands are currently available.</li>}
+    </ul>
+  );
 
   return <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="diagnostic-test">
-    <div className="w-full max-w-[60rem] px-6 lg:px-8 py-10">
+    <div className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
       <h2 className="text-[3rem] leading-[1.1] text-[#1B1D26]" style={display}>Pre-test</h2>
-      <p className="mt-4 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
+      <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
         Do these four parts in order. Each one opens when the one before it is done.
       </p>
-      {!loading && !error && (
-        <div className="mt-6 flex items-center gap-4 max-w-[40rem]">
-          <div role="progressbar" aria-labelledby="parts-done-label" aria-valuemin={0} aria-valuemax={partDone.length} aria-valuenow={doneCount} className="h-2 flex-1 rounded-full bg-[#E1E2E7] overflow-hidden">
-            <div className={`h-full rounded-full bg-[#00538A] origin-left motion-safe:transition-[scale] motion-safe:duration-300 ${easeOut}`} style={{ scale: `${doneCount / partDone.length} 1` }} />
-          </div>
-          <p id="parts-done-label" className="shrink-0 text-base font-bold tabular-nums text-[#4A4F5C]">{doneCount} of {partDone.length} parts done</p>
-        </div>
-      )}
 
-      <div className="mt-10">
+      <div className="mt-8">
         {loading ? <PretestLoadingIndicator /> : error ? (
           <div role="alert" className="flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-5 text-[#7A1A12]">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
@@ -161,47 +174,53 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            <PartCard index={1} number="Part I" title="Participant intake" description="Background questionnaire required before all assessment activities." status={statusOf(0)} action={intakeComplete ? "Review intake" : "Complete intake"} onClick={() => navigate("participant-intake")} />
+          /* Same two-column grid as the dashboard: the timeline takes the main column, the aside sits at the right from xl
+             and drops under the timeline below that. */
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <ol aria-label="Pre-test parts" className="min-w-0">
+              <TimelineItem index={1} status={statusOf(0)}>
+                <PartBody number="Part I" title="Participant intake" description="Background questionnaire required before all assessment activities." status={statusOf(0)} note="Finish the earlier parts first" action={intakeComplete ? "Review intake" : "Complete intake"} onClick={() => navigate("participant-intake")} />
+              </TimelineItem>
 
-            {lriTests.length === 0 && <PartCard index={2} number="Part II" title="Learner Readiness Inventory" description="No readiness inventory is currently available." status={statusOf(1)} note="Finish Part I first" />}
-            {lriTests.map((test) => {
-              const done = test.attempt_status === "completed";
-              // Completed, no further action - no score is fetched or shown here.
-              return <PartCard key={test.test_id} index={2} number="Part II" title={test.title} description={test.description} status={statusOf(1)} note="Finish Part I first" disabled={!done && !intakeComplete} action={done ? undefined : hasAttemptDraft("lri", learnerId, test.test_id) ? "Resume LRI" : "Attempt LRI"} onClick={done ? undefined : () => openAttempt({ name: "lri-attempt", test })} />;
-            })}
+              <TimelineItem index={2} status={statusOf(1)}>
+                {lriTests.length === 0 && <PartBody number="Part II" title="Learner Readiness Inventory" description="No readiness inventory is currently available." status={statusOf(1)} note="Finish Part I first" />}
+                {lriTests.map((test) => {
+                  const done = test.attempt_status === "completed";
+                  // Completed, no further action - no score is fetched or shown here.
+                  return <PartBody key={test.test_id} number="Part II" title={test.title} description={test.description} status={statusOf(1)} note="Finish Part I first" disabled={!done && !intakeComplete} action={done ? undefined : hasAttemptDraft("lri", learnerId, test.test_id) ? "Resume LRI" : "Attempt LRI"} onClick={done ? undefined : () => openAttempt({ name: "lri-attempt", test })} />;
+                })}
+              </TimelineItem>
 
-            <PartShell index={3} number="Part III" title="Diagnostic / Equivalency Exams" description="One baseline exam for each enrolled learning strand. Completed pre-tests cannot be retaken." status={statusOf(2)} note={intakeComplete ? "Finish Part II first" : "Finish Part I first"}>
-              <ul className="mt-6 divide-y divide-[#E2E0DA] border-t border-[#E2E0DA] sm:ml-16">
-                {strands.map((test) => (
-                  <li key={test.test_id}>
-                    <StrandTestCard
-                      variant="row"
-                      test={test}
-                      canAttempt={lriComplete}
-                      disabledReason={strandsLockReason}
-                      attemptLabel={hasAttemptDraft("strand", learnerId, test.test_id) ? "Resume test" : undefined}
-                      onAttempt={() => openAttempt({ name: "strand-attempt", test })}
-                      canShowScore={test.attempt_status === "completed" && postByCode[test.strand_code]?.attempt_status === "completed"}
-                      onShowScore={() => setScoreStrand(test.strand_code)}
-                    />
-                  </li>
-                ))}
-              </ul>
-              {!strands.length && <p className="mt-6 text-lg text-[#4A4F5C] sm:ml-16" style={reading}>No pre-test strands are currently available.</p>}
-            </PartShell>
+              <TimelineItem index={3} status={statusOf(2)}>
+                <PartBody number="Part III" title="Diagnostic / Equivalency Exams" description="One baseline exam for each enrolled learning strand. Completed pre-tests cannot be retaken." status={statusOf(2)} note={intakeComplete ? "Finish Part II first" : "Finish Part I first"} open={anyScoreToShow}>
+                  {strandRows}
+                </PartBody>
+              </TimelineItem>
 
-            <PartCard
-              index={4}
-              number="Part IV"
-              title="Baseline EEG Recording"
-              description="A short baseline recording using the Muse 2 headband, taken right after the diagnostic exams."
-              status={statusOf(3)}
-              note="Finish Parts I to III first"
-              disabled={!allComplete}
-              action="Start Recording"
-              onClick={() => setView({ name: "baseline-eeg" })}
-            />
+              <TimelineItem index={4} status={statusOf(3)} last>
+                <PartBody number="Part IV" title="Baseline EEG Recording" description="A short baseline recording using the Muse 2 headband, taken right after the diagnostic exams." status={statusOf(3)} note="Finish Parts I to III first" disabled={!allComplete} action="Start Recording" onClick={() => setView({ name: "baseline-eeg" })} />
+              </TimelineItem>
+            </ol>
+
+            <div className="grid gap-6 content-start lg:grid-cols-2 xl:grid-cols-1">
+              <section aria-labelledby="hub-progress-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+                <h3 id="hub-progress-title" className={`${cardTitle} mb-6`} style={display}>Your progress</h3>
+                <div className="flex justify-center">
+                  <Ring value={doneCount} total={partDone.length}>
+                    <span className="text-[2rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{doneCount} of {partDone.length}</span>
+                    <span className="mt-1.5 text-base font-bold text-[#4A4F5C]">parts done</span>
+                  </Ring>
+                </div>
+              </section>
+
+              {/* Navy is reserved for Muse 2. */}
+              <section aria-labelledby="hub-muse-title" className="rounded-2xl bg-[#1C1D33] p-6 text-white">
+                <h3 id="hub-muse-title" className="text-2xl leading-[1.25]" style={display}>Muse 2 baseline</h3>
+                <p className="mt-3 text-lg leading-relaxed text-[#D9DBEA]" style={reading}>
+                  Part IV is a short recording with your Muse 2 headband. Your facilitator sets it up and records it with you at the learning center, right after the exams.
+                </p>
+              </section>
+            </div>
           </div>
         )}
       </div>
@@ -220,40 +239,77 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
 
 type PartStatus = "done" | "current" | "locked";
 
-/** The part's state as a mark you can read at a glance: done is a check, current is amber with its number, locked is a lock. */
-function StatusMark({ status, index }: { status: PartStatus; index: number }) {
+function Ring({ value, total, size = 136, stroke = 12, children }: { value: number; total: number; size?: number; stroke?: number; children: ReactNode }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = total > 0 ? c * (1 - value / total) : c;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E1E2E7" strokeWidth={stroke} />
+        {value > 0 && (
+          <circle
+            cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#00538A" strokeWidth={stroke} strokeLinecap="round"
+            strokeDasharray={c} strokeDashoffset={offset}
+            className={`motion-safe:transition-[stroke-dashoffset] motion-safe:duration-300 ${easeOut} motion-safe:starting:[stroke-dashoffset:var(--ring-c)]`}
+            style={{ ["--ring-c" as string]: `${c}` }}
+          />
+        )}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>
+    </div>
+  );
+}
+
+/** One stop on the timeline: the marker on the left, the thin line down to the next marker, and the part beside them. */
+function TimelineItem({ index, status, last = false, children }: { index: number; status: PartStatus; last?: boolean; children: ReactNode }) {
+  // The marker is centered on the first line of the part: a 48px band when compact, level with the title when expanded.
+  const markerTop = status === "current" ? "top-5" : "top-1";
+  const lineTop = status === "current" ? "top-[3.75rem]" : "top-11";
   const look = status === "done" ? "bg-[#00538A] border-[#00538A] text-white" : status === "current" ? "bg-[#FFAB2E] border-[#FFAB2E] text-[#1B1D26]" : "bg-white border-[#8A8F9C] text-[#4A4F5C]";
   return (
-    <span className={`w-10 h-10 shrink-0 rounded-full border-2 flex items-center justify-center text-[1.0625rem] font-bold tabular-nums ${look}`} aria-hidden="true">
-      {status === "done" ? <Check className="w-5 h-5" strokeWidth={2.5} /> : status === "locked" ? <Lock className="w-5 h-5" strokeWidth={1.75} /> : index}
-    </span>
+    <li className={`relative pl-16 ${last ? "" : "pb-6"}`}>
+      {!last && <span className={`absolute left-[19px] bottom-0 w-0.5 rounded-full ${lineTop} ${status === "done" ? "bg-[#00538A]" : "bg-[#E1E2E7]"}`} aria-hidden="true" />}
+      <span className={`absolute left-0 ${markerTop} w-10 h-10 rounded-full border-2 flex items-center justify-center text-[1.0625rem] font-bold tabular-nums ${look}`} aria-hidden="true">
+        {status === "done" ? <Check className="w-5 h-5" strokeWidth={2.5} /> : status === "locked" ? <Lock className="w-5 h-5" strokeWidth={1.75} /> : index}
+      </span>
+      <div className="space-y-4">{children}</div>
+    </li>
   );
 }
 
-/** One card per part: the status mark, the title, what it is, and where it stands in words (not color alone). */
-function PartShell({ index, number, title, description, status, note, aside, children }: { index: number; number: string; title: string; description: string; status: PartStatus; note: string; aside?: ReactNode; children?: ReactNode }) {
+/**
+ * A part, in the shape its state calls for (words always say the state, never color alone):
+ *  - done: one compact row, "Done", and its secondary action;
+ *  - current: the only expanded card, with its description, its content and the one deep blue action;
+ *  - locked: one compact row with the reason.
+ * `open` keeps a done part's content (children) visible beneath its row.
+ */
+function PartBody({ number, title, description, status, note, action, onClick, disabled, open = false, children }: { number: string; title: string; description: string; status: PartStatus; note: string; action?: string; onClick?: () => void; disabled?: boolean; open?: boolean; children?: ReactNode }) {
+  const heading = <><span className="text-[#4A4F5C]">{number}: </span>{title}</>;
+
+  if (status === "current") {
+    return (
+      <section aria-label={`${number}: ${title}`} aria-current="step" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+        <h3 className={cardTitle} style={display}>{heading}</h3>
+        <p className="mt-2 max-w-[34rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>{description}</p>
+        <p className="mt-3 text-base font-bold leading-snug text-[#835500]" style={reading}>You are here</p>
+        {children && <div className="mt-4">{children}</div>}
+        {action && onClick && <button onClick={onClick} disabled={disabled} className={`mt-5 ${primaryButton}`}>{action}</button>}
+      </section>
+    );
+  }
+
   return (
-    <section aria-label={`${number}: ${title}`} className={card}>
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <StatusMark status={status} index={index} />
-        <div className="min-w-0 flex-1">
-          <h3 className={cardTitle} style={display}><span className="text-[#4A4F5C]">{number}: </span>{title}</h3>
-          <p className="mt-2 max-w-[34rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>{description}</p>
-          <p className={`mt-3 text-base leading-snug ${status === "current" ? "font-bold text-[#835500]" : status === "done" ? "font-bold text-[#00538A]" : "text-[#4A4F5C]"}`} style={reading}>
-            {status === "done" ? "Done" : status === "current" ? "You are here" : note}
-          </p>
+    <section aria-label={`${number}: ${title}`}>
+      <div className="min-h-12 flex flex-col justify-center gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h3 className={`text-lg font-bold leading-snug ${status === "locked" ? "text-[#4A4F5C]" : "text-[#1B1D26]"}`} style={reading}>{heading}</h3>
+          <p className={`text-base leading-snug ${status === "done" ? "font-bold text-[#00538A]" : "text-[#4A4F5C]"}`} style={reading}>{status === "done" ? "Done" : note}</p>
         </div>
-        {aside}
+        {status === "done" && action && onClick && <button onClick={onClick} className={`shrink-0 ${secondaryButton}`}>{action}</button>}
       </div>
-      {children}
+      {open && children && <div className="mt-3">{children}</div>}
     </section>
   );
-}
-
-/** A part with one action. Only the part the learner is on gets the deep blue button; a finished part's action is outlined; a locked one is muted and disabled. */
-function PartCard({ index, number, title, description, status, note = "", action, onClick, disabled }: { index: number; number: string; title: string; description: string; status: PartStatus; note?: string; action?: string; onClick?: () => void; disabled?: boolean }) {
-  const aside = action && onClick ? (
-    <button onClick={onClick} disabled={disabled} className={`sm:self-center ${status === "done" ? secondaryButton : primaryButton}`}>{action}</button>
-  ) : null;
-  return <PartShell index={index} number={number} title={title} description={description} status={status} note={note} aside={aside} />;
 }
