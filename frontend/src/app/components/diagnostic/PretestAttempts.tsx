@@ -104,9 +104,9 @@ function Countdown({ secondsLeft, expired }: { secondsLeft: number; expired: boo
  * exit button on wide screens, and on its own line under the bar on narrow ones,
  * so the header row itself stays one centered 64px line. `wide` is for the LRI table.
  */
-export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", exitHint, countdown, wide = false, children }: { title: string; onClose: () => void; exitLabel?: string; exitHint?: string; countdown?: ReactNode; wide?: boolean; children: ReactNode }) {
+export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", exitHint, countdown, footer, wide = false, children }: { title: string; onClose: () => void; exitLabel?: string; exitHint?: string; countdown?: ReactNode; footer?: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
-    <div className="min-h-[100dvh] bg-[#F8F6F2] text-[#1B1D26] selection:bg-[#FFAB2E]/50" style={chrome}>
+    <div className="flex min-h-[100dvh] flex-col bg-[#F8F6F2] text-[#1B1D26] selection:bg-[#FFAB2E]/50" style={chrome}>
       <style>{fontCss}</style>
       <header className="sticky top-0 z-10 bg-white border-b border-[#E2E0DA]">
         <div className="h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
@@ -127,9 +127,16 @@ export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", exitHi
         {/* Narrow screens: the same hint, right-aligned under the row (screen readers get it from #exit-hint either way). */}
         {exitHint && <p aria-hidden="true" className="lg:hidden px-4 sm:px-6 pb-2 -mt-1 text-right text-[0.9375rem] leading-5 text-[#4A4F5C]">{exitHint}</p>}
       </header>
-      <main className="px-4 sm:px-6 py-10 sm:py-12">
+      <main className="flex-1 px-4 sm:px-6 py-10 sm:py-12">
         <div className={`mx-auto ${wide ? "max-w-5xl" : "max-w-3xl"}`}>{children}</div>
       </main>
+      {/* Sticks to the bottom of the viewport while its natural spot is below the fold; at the end of a long page it rests
+          under main's bottom padding, so the last answer is never covered. */}
+      {footer && (
+        <div className="sticky bottom-0 z-10 border-t border-[#E2E0DA] bg-white px-4 sm:px-6 pb-[env(safe-area-inset-bottom)]">
+          <div className={`mx-auto py-3 ${wide ? "max-w-5xl" : "max-w-3xl"}`}>{footer}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -371,11 +378,23 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
   const stem = item ? stemStyle(item.question_text) : null;
   const stemId = item ? `question-${item.item_id}` : undefined;
 
+  // Pinned in AttemptShell's footer so Back and Next stay in view whatever notices or question length are above.
+  const footer = detail.status === "ready" && item && (
+    <div className="flex items-center justify-between gap-4">
+      <button onClick={() => goTo(current - 1)} disabled={current === 0} className={secondaryButton}><ArrowLeft className="w-5 h-5" aria-hidden="true" /> Back</button>
+      {showSubmit
+        // After expiry an incomplete attempt is submittable too - that's the retry if the auto-submit failed.
+        ? <SubmitButton disabled={!expired && !complete} saving={saving} onSubmit={submit} />
+        : <button onClick={() => goTo(current + 1)} className={primaryButton}>Next <ArrowRight className="w-5 h-5" aria-hidden="true" /></button>}
+    </div>
+  );
+
   return (
     <AttemptShell
       title={stage}
       onClose={onClose}
       exitHint="Your answers are saved. The timer keeps running."
+      footer={footer || undefined}
       countdown={secondsLeft !== null ? <Countdown secondsLeft={secondsLeft} expired={expired} /> : undefined}
     >
       <p className="text-[0.9375rem] font-bold uppercase tracking-[0.06em] leading-snug text-[#4D35BD]">
@@ -432,14 +451,6 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
               </button>
             </p>
           )}
-
-          <div className="mt-8 flex items-center justify-between gap-4">
-            <button onClick={() => goTo(current - 1)} disabled={current === 0} className={secondaryButton}><ArrowLeft className="w-5 h-5" aria-hidden="true" /> Back</button>
-            {showSubmit
-              // After expiry an incomplete attempt is submittable too - that's the retry if the auto-submit failed.
-              ? <SubmitButton disabled={!expired && !complete} saving={saving} onSubmit={submit} />
-              : <button onClick={() => goTo(current + 1)} className={primaryButton}>Next <ArrowRight className="w-5 h-5" aria-hidden="true" /></button>}
-          </div>
         </>
       )}
     </AttemptShell>
