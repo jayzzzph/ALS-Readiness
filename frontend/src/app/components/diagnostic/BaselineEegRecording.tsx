@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, BatteryMedium, Check, ChevronDown, CircleCheck, Info, LoaderCircle, Minus, TriangleAlert } from "lucide-react";
+import { AlertCircle, BatteryMedium, Check, ChevronDown, CircleCheck, Info, LoaderCircle, Minus, Pause, Play, TriangleAlert } from "lucide-react";
 import { AttemptShell } from "./PretestAttempts";
 import { primaryButton, secondaryButton } from "./StrandTestCard";
 import { useEegSession, WINDOW_SEC, type ConnState, type Level, type SignalBuffer } from "../../features/eeg/useEegSession";
 import { CHANNELS, SAMPLE_RATE } from "../../features/eeg/muse2-ble.js";
-import learnerRecording from "../../../assets/illustrations/learner-recording.webp";
+import museStep1 from "../../../assets/illustrations/muse-step-1.webp";
+import museStep2 from "../../../assets/illustrations/muse-step-2.webp";
+import museStep3 from "../../../assets/illustrations/muse-step-3.webp";
 
 // Part IV of the pre-test flow: a resting baseline recorded with the Muse 2 headband, run by the facilitator.
 // Three modes, each one fits a 1366x768 screen without scrolling:
@@ -113,7 +115,7 @@ export function BaselineEegRecording({ onClose, learnerId }: { onClose: () => vo
       {mode === "setup" && (
         <div className="grid gap-4">
           {banners}
-          <div className="grid gap-6 xl:grid-cols-[27rem_minmax(0,1fr)] xl:items-start">
+          <div className="grid gap-6 xl:grid-cols-[30rem_minmax(0,1fr)] xl:items-start">
             <Rail eeg={eeg} levels={levels} ready={ready} />
             <div className="grid gap-4 min-w-0">
               <SensorCard eeg={eeg} levels={levels} />
@@ -203,10 +205,7 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
   if (step === 1) {
     return (
       <>
-        <p className={p}>Turn on the Muse 2 until its lights blink. Place the band on the learner’s forehead, above the eyebrows, and tuck the ear pieces behind both ears.</p>
-        {/* White-backed art: multiply lets it sit on the card. It shows how the band is worn. */}
-        <img src={learnerRecording} width={820} height={1025} alt="A learner sitting upright with the Muse 2 band across the forehead" className="mx-auto mt-3 block h-32 w-auto mix-blend-multiply" />
-        <button onClick={eeg.continueFromStep1} className={`mt-4 ${primaryButton}`}>The headband is on</button>
+        <StepGuide action={<button onClick={eeg.continueFromStep1} className={primaryButton}>The headband is on</button>} />
       </>
     );
   }
@@ -273,6 +272,105 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
       <button onClick={eeg.startRecording} disabled={eeg.conn.state !== "connected"} className={`mt-4 ${primaryButton}`}>
         {ready === 4 ? `Start ${BASELINE_SECONDS}-second recording` : `Record ${BASELINE_SECONDS} seconds anyway`}
       </button>
+    </>
+  );
+}
+
+/* ───────────────────────── Setup: how to wear it ───────────────────────── */
+
+const GUIDE = [
+  { src: museStep1, caption: "Turn it on", alt: "The learner presses the power button on the Muse 2 band until its light comes on." },
+  { src: museStep2, caption: "Rest it above the eyebrows", alt: "The learner holds the band with both hands and rests it across the forehead, above the eyebrows." },
+  { src: museStep3, caption: "Tuck the ear pieces behind the ears", alt: "The learner tucks the two ends of the band behind the ears." },
+];
+/** How long each frame stays up before the next one fades in. */
+const GUIDE_FRAME_MS = 2500;
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const on = () => setReduced(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return reduced;
+}
+
+/**
+ * Three pictures of how to put the band on. They crossfade one at a time and loop, with a caption, three dots and a
+ * pause button. The loop only runs while this is mounted (step 1), the tab is visible and the guide is not paused.
+ * Under reduced motion nothing fades or loops: the three pictures sit side by side, each with its number and caption.
+ * `action` is the step's one button, shown on the same row as the dots.
+ */
+function StepGuide({ action }: { action: ReactNode }) {
+  const reduced = usePrefersReducedMotion();
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [tabHidden, setTabHidden] = useState(() => typeof document !== "undefined" && document.visibilityState === "hidden");
+
+  useEffect(() => {
+    const on = () => setTabHidden(document.visibilityState === "hidden");
+    document.addEventListener("visibilitychange", on);
+    return () => document.removeEventListener("visibilitychange", on);
+  }, []);
+
+  useEffect(() => {
+    if (reduced || paused || tabHidden) return;
+    const t = setTimeout(() => setIndex((i) => (i + 1) % GUIDE.length), GUIDE_FRAME_MS);
+    return () => clearTimeout(t);
+  }, [index, reduced, paused, tabHidden]);
+
+  if (reduced) {
+    return (
+      <>
+        <ol aria-label="How to put the band on" className="mt-3 grid grid-cols-3 gap-3">
+          {GUIDE.map((g, i) => (
+            <li key={g.caption} className="min-w-0">
+              <img src={g.src} width={528} height={470} alt={g.alt} className="block aspect-[528/470] w-full rounded-lg" />
+              <p className="mt-2 text-[18px] leading-[1.35] text-[#1B1D26]" style={reading}><b className="tabular-nums">{i + 1}.</b> {g.caption}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-4">{action}</div>
+      </>
+    );
+  }
+
+  const fade = `transition-opacity duration-[600ms] ${easeOut}`;
+  return (
+    <>
+      <div role="group" aria-roledescription="carousel" aria-label="How to put the band on" className="mt-3">
+        <div className="relative mx-auto aspect-[528/470] w-[16.5rem] overflow-hidden rounded-xl">
+          {GUIDE.map((g, i) => (
+            <img key={g.caption} src={g.src} width={528} height={470} alt={g.alt} aria-hidden={i !== index}
+              className={`absolute inset-0 h-full w-full ${i === index ? `z-10 opacity-100 ${fade}` : "z-0 opacity-0 transition-opacity duration-0 delay-[600ms]"}`} />
+          ))}
+        </div>
+        {/* The incoming picture fades in over the outgoing one, which is hidden only once it is fully covered. */}
+        <p className="mt-2 text-center text-[18px] leading-[1.6] text-[#1B1D26]" style={reading} aria-live={paused ? "polite" : "off"}>
+          {GUIDE[index].caption}
+        </p>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <div className="flex items-center">
+          <ul className="flex items-center" aria-label="Pictures">
+            {GUIDE.map((g, i) => (
+              <li key={g.caption}>
+                <button onClick={() => { setIndex(i); setPaused(true); }} aria-label={`Show picture ${i + 1}: ${g.caption}`} aria-current={i === index ? "true" : undefined}
+                  className={`grid h-10 w-8 place-items-center rounded-lg ${focus}`}>
+                  <span className={`block h-2.5 rounded-full transition-[width,background-color] duration-200 ${easeOut} ${i === index ? "w-6 bg-[#00538A]" : "w-2.5 bg-[#8A8F9C]"}`} aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button onClick={() => setPaused((v) => !v)} aria-label={paused ? "Play guide" : "Pause guide"}
+            className={`ml-1 grid h-10 w-10 place-items-center rounded-lg text-[#00538A] hover:bg-[#CFE4FF] active:scale-[0.97] transition-[background-color,scale] duration-150 ${easeOut} ${focus}`}>
+            {paused ? <Play className="w-4 h-4" fill="currentColor" aria-hidden="true" /> : <Pause className="w-4 h-4" fill="currentColor" aria-hidden="true" />}
+          </button>
+        </div>
+        {action}
+      </div>
     </>
   );
 }
