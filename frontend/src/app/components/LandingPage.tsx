@@ -1,52 +1,10 @@
-import { createElement, useEffect, useRef, useState, type ReactNode } from "react";
-import { BookOpen, ChevronRight, ClipboardList, Headset, ListChecks } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { BookOpen, ChevronRight, Headphones, Video } from "lucide-react";
 import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
 
 // TEMPORARY: loads fonts from Google Fonts. Replace with @fontsource imports once `pnpm add` works.
 const fontCss = "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Serif+Display&display=swap');";
-
-// Motion, kept to what helps a first-time visitor see where to look: the hero text arrives in order (headline, description,
-// button), the workbook's brainwave line draws itself once and the highlighter sweeps in after it, and the cards arrive as
-// they scroll into view. Opacity, an 8px rise, a stroke draw and a sweep only, on the app's ease-out curve, nothing on hover,
-// and all of it off under prefers-reduced-motion (the picture then simply shows).
-const motionCss = `
-@keyframes lp-rise { from { opacity: 0; translate: 0 8px; } }
-.lp-rise { animation: lp-rise 300ms cubic-bezier(0.23, 1, 0.32, 1) backwards; animation-delay: var(--d, 0ms); }
-.lp-reveal { opacity: 0; translate: 0 8px; transition: opacity 300ms cubic-bezier(0.23, 1, 0.32, 1), translate 300ms cubic-bezier(0.23, 1, 0.32, 1); transition-delay: var(--d, 0ms); }
-.lp-reveal[data-shown="true"] { opacity: 1; translate: 0 0; }
-@keyframes lp-draw { 0% { stroke-dashoffset: 1; opacity: 0; } 1% { opacity: 1; } 100% { stroke-dashoffset: 0; } }
-@keyframes lp-sweep { from { scale: 0 1; } }
-.lp-wave { stroke-dasharray: 1 2; animation: lp-draw 1200ms cubic-bezier(0.23, 1, 0.32, 1) 200ms backwards; }
-.lp-sweep { transform-box: fill-box; transform-origin: 0 50%; animation: lp-sweep 400ms cubic-bezier(0.23, 1, 0.32, 1) backwards; animation-delay: var(--d, 1400ms); }
-@media (prefers-reduced-motion: reduce) {
-  .lp-wave, .lp-sweep { animation: none; }
-  .lp-rise { animation: none; }
-  .lp-reveal { opacity: 1; translate: 0 0; transition: none; }
-}`;
-
-/** Shows once when the element first scrolls into view, then stops watching. Without IntersectionObserver it just shows. */
-function useRevealOnScroll<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === "undefined") { setShown(true); return; }
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setShown(true); observer.disconnect(); }
-    }, { threshold: 0.15, rootMargin: "0px 0px -40px 0px" });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  return [ref, shown] as const;
-}
-
-/** A card that fades in and rises 8px when it scrolls into view; `index` staggers cards that arrive together by 60ms each. */
-function Reveal({ as, index = 0, className, children }: { as: "div" | "li"; index?: number; className: string; children: ReactNode }) {
-  const [ref, shown] = useRevealOnScroll<HTMLElement>();
-  return createElement(as, { ref, className: `lp-reveal ${className}`, "data-shown": shown, style: { ["--d" as string]: `${index * 60}ms` } }, children);
-}
 
 // Type roles from DESIGN.md: serif headings, DM Sans chrome, Atkinson Hyperlegible for every sentence a learner reads.
 const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
@@ -58,13 +16,245 @@ const easeOut = "ease-[cubic-bezier(0.23,1,0.32,1)]";
 const press = `active:scale-[0.97] motion-reduce:active:scale-100 transition-[background-color,color,scale] duration-150 ${easeOut}`;
 const cardClass = "rounded-2xl border border-[#E2E0DA] bg-white";
 
-// The four stops of the learner pipeline, in order, with a plain sentence each. Nothing here is a result, a count or a claim about outcomes.
-const steps = [
-  { title: "Pre-test", desc: "Tell us about yourself, then answer a set of questions for each learning strand.", icon: ClipboardList, sensor: false },
-  { title: "Muse 2 baseline", desc: "Your facilitator helps you wear a headband for a short recording at the learning center.", icon: Headset, sensor: true },
-  { title: "Learning content", desc: "Study lessons you can listen to, watch or read, chosen to fit how you learn.", icon: BookOpen, sensor: false },
-  { title: "Post-test", desc: "After your lessons, answer the strand questions again.", icon: ListChecks, sensor: false },
+// Motion. The page is a scroll story: each section plays once when it scrolls into view (IntersectionObserver), its parts
+// arriving one after another. Everything uses the app's ease-out curve and stays between 150 and 600ms, except the two
+// drawn lines (the hero wave draws once, the baseline wave scrolls slowly like a live trace). Nothing moves on hover, and
+// under prefers-reduced-motion every mock is shown in its final state with no movement.
+const motionCss = `
+@keyframes lp-rise { from { opacity: 0; translate: 0 8px; } }
+.lp-rise { animation: lp-rise 300ms cubic-bezier(0.23, 1, 0.32, 1) backwards; animation-delay: var(--d, 0ms); }
+.st { opacity: 0; translate: 0 8px; transition: opacity 300ms cubic-bezier(0.23, 1, 0.32, 1), translate 300ms cubic-bezier(0.23, 1, 0.32, 1); transition-delay: var(--d, 0ms); }
+[data-shown="true"] .st { opacity: 1; translate: 0 0; }
+@keyframes lp-draw { 0% { stroke-dashoffset: 1; opacity: 0; } 1% { opacity: 1; } 100% { stroke-dashoffset: 0; } }
+@keyframes lp-sweep { from { scale: 0 1; } }
+.lp-wave { stroke-dasharray: 1 2; animation: lp-draw 1200ms cubic-bezier(0.23, 1, 0.32, 1) 200ms backwards; }
+.lp-sweep { transform-box: fill-box; transform-origin: 0 50%; animation: lp-sweep 400ms cubic-bezier(0.23, 1, 0.32, 1) backwards; animation-delay: var(--d, 1400ms); }
+@keyframes lp-scroll { to { translate: -600px 0; } }
+.lp-trace { animation: lp-scroll 6s linear infinite; animation-play-state: paused; }
+[data-shown="true"] .lp-trace { animation-play-state: running; }
+@media (prefers-reduced-motion: reduce) {
+  .lp-rise, .lp-wave, .lp-sweep, .lp-trace { animation: none; }
+  .st { opacity: 1; translate: 0 0; transition: none; }
+}`;
+
+const reducedQuery = "(prefers-reduced-motion: reduce)";
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(reducedQuery).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia(reducedQuery);
+    const update = () => setReduced(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return reduced;
+}
+
+/** Turns true once, the first time the element is mostly in view. Without IntersectionObserver it is true at once. */
+function useShown<T extends HTMLElement>(threshold = 0.3) {
+  const ref = useRef<T>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") { setShown(true); return; }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setShown(true); observer.disconnect(); }
+    }, { threshold });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+  return [ref, shown] as const;
+}
+
+/** A later beat in a mock's sequence: true `ms` after the section is shown. Under reduced motion it is true from the start, so the mock rests in its final state. */
+function useBeat(shown: boolean, ms: number) {
+  const reduced = usePrefersReducedMotion();
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (!shown) return;
+    const timer = setTimeout(() => setOn(true), ms);
+    return () => clearTimeout(timer);
+  }, [shown, ms]);
+  return reduced || on;
+}
+
+const delay = (ms: number) => ({ ["--d" as string]: `${ms}ms` });
+
+/**
+ * One chapter of the story: a full-width band with the words on one side and a mock of the real screen on the other,
+ * alternating sides. The section plays once when it scrolls into view; `mock` gets that moment as `shown`.
+ */
+function Chapter({ id, title, children, mock, flip = false, band = "paper" }: { id: string; title: string; children: ReactNode; mock: (shown: boolean) => ReactNode; flip?: boolean; band?: "paper" | "white" }) {
+  const [ref, shown] = useShown<HTMLElement>();
+  return (
+    <section ref={ref} data-shown={shown} aria-labelledby={id} className={`flex min-h-[85dvh] items-center border-t border-[#E2E0DA] ${band === "white" ? "bg-white" : "bg-[#F8F6F2]"}`}>
+      <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-8 py-16 lg:grid-cols-2 lg:gap-16">
+        <div className={`max-w-[32rem] ${flip ? "lg:order-2" : ""}`}>
+          <h2 id={id} className="st text-[2rem] leading-[1.2] text-[#1B1D26] lg:text-[2.5rem]" style={display}>{title}</h2>
+          <div className="st mt-5 space-y-4 text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(60) }}>{children}</div>
+        </div>
+        {/* The mocks only illustrate; the words beside them say everything, so they are hidden from screen readers. */}
+        <div aria-hidden="true" className={`st ${flip ? "lg:order-1" : ""}`} style={delay(120)}>{mock(shown)}</div>
+      </div>
+    </section>
+  );
+}
+
+// ── Mocks: built from the real screens' styles (DESIGN.md), with invented sample content only ───────────────────────
+
+/** Pre-test: a sample question card. Once shown, one answer gets selected and the progress bar advances. */
+function PretestMock({ shown }: { shown: boolean }) {
+  const picked = useBeat(shown, 900);
+  const options = ["Kilometers", "Liters", "Kilograms"];
+  return (
+    <div className={`${cardClass} p-6 sm:p-8`}>
+      <p className="text-[0.9375rem] font-bold uppercase tracking-[0.06em] text-[#4D35BD]">Sample question</p>
+      <div className="mt-3 flex items-center gap-4">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#E1E2E7]">
+          <div className={`h-full w-full rounded-full bg-[#4D35BD] transition-[translate] duration-[600ms] motion-reduce:transition-none ${easeOut}`} style={{ translate: picked ? "-70% 0" : "-80% 0" }} />
+        </div>
+        <p className="shrink-0 text-[0.9375rem] tabular-nums text-[#4A4F5C]" style={reading}>{picked ? "3" : "2"} of 10 answered</p>
+      </div>
+      <p className="mt-6 text-2xl leading-[1.25] text-[#1B1D26]" style={display}>Which unit is best for measuring the distance between two towns?</p>
+      <div className="mt-6 space-y-3">
+        {options.map((option, index) => {
+          const selected = picked && index === 0;
+          return (
+            <div key={option} className={`flex min-h-16 items-center gap-4 rounded-xl border px-6 py-3 transition-[background-color,border-color,box-shadow] duration-200 motion-reduce:transition-none ${easeOut} ${selected ? "border-[#00538A] bg-[#CFE4FF] shadow-[inset_0_0_0_1px_#00538A]" : "border-[#8A8F9C] bg-white"}`}>
+              <span className="flex-1 text-lg text-[#1B1D26]" style={reading}>{option}</span>
+              <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 bg-white transition-colors duration-200 motion-reduce:transition-none ${easeOut} ${selected ? "border-[#00538A]" : "border-[#8A8F9C]"}`}>
+                <span className={`h-3 w-3 rounded-full bg-[#00538A] transition-[opacity,scale] duration-200 motion-reduce:transition-none ${easeOut} ${selected ? "opacity-100 scale-100" : "opacity-0 scale-50"}`} />
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Muse 2 baseline: a navy sensor panel with a trace that keeps scrolling like a live signal. */
+function MuseMock() {
+  return (
+    <div className="rounded-2xl bg-[#1C1D33] p-6 text-white sm:p-8">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-2xl leading-[1.25]" style={display}>Resting recording</p>
+        <p className="inline-flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#CFE4FF]">
+          <span className="h-2 w-2 rounded-full bg-[#CFE4FF]" aria-hidden="true" /> Connected
+        </p>
+      </div>
+      <div className="mt-6 overflow-hidden rounded-xl bg-[#191A2E]">
+        <svg viewBox="0 0 600 160" className="block h-auto w-full" preserveAspectRatio="none">
+          <g stroke="#FFFFFF" strokeOpacity="0.12" strokeWidth="1">
+            <path d="M0 40H600M0 80H600M0 120H600" />
+          </g>
+          <g className="lp-trace">
+            <path d="M0.0 94.9 C2.1 95.9 8.3 101.8 12.5 101.3 C16.7 100.9 20.8 94.2 25.0 92.2 C29.2 90.2 33.3 89.6 37.5 89.3 C41.7 89.1 45.8 89.4 50.0 90.8 C54.2 92.2 58.3 97.7 62.5 97.8 C66.7 97.8 70.8 91.3 75.0 90.9 C79.2 90.6 83.3 94.5 87.5 95.6 C91.7 96.7 95.8 101.9 100.0 97.6 C104.2 93.4 108.3 77.4 112.5 70.2 C116.7 62.9 120.8 57.1 125.0 54.0 C129.2 51.0 133.3 50.8 137.5 51.6 C141.7 52.5 145.8 56.9 150.0 59.3 C154.2 61.7 158.3 64.3 162.5 65.9 C166.7 67.5 170.8 65.4 175.0 68.9 C179.2 72.5 183.3 84.7 187.5 87.0 C191.7 89.3 195.8 85.3 200.0 82.8 C204.2 80.2 208.3 71.5 212.5 71.8 C216.7 72.0 220.8 79.9 225.0 84.2 C229.2 88.6 233.3 93.7 237.5 97.7 C241.7 101.8 245.8 107.5 250.0 108.5 C254.2 109.4 258.3 104.9 262.5 103.6 C266.7 102.2 270.8 101.9 275.0 100.4 C279.2 98.9 283.3 100.2 287.5 94.4 C291.7 88.5 295.8 71.1 300.0 65.1 C304.2 59.2 308.3 58.2 312.5 58.7 C316.7 59.1 320.8 65.8 325.0 67.8 C329.2 69.8 333.3 70.4 337.5 70.7 C341.7 70.9 345.8 70.6 350.0 69.2 C354.2 67.8 358.3 62.3 362.5 62.2 C366.7 62.2 370.8 68.7 375.0 69.1 C379.2 69.4 383.3 65.5 387.5 64.4 C391.7 63.3 395.8 58.1 400.0 62.4 C404.2 66.6 408.3 82.6 412.5 89.8 C416.7 97.1 420.8 102.9 425.0 106.0 C429.2 109.0 433.3 109.2 437.5 108.4 C441.7 107.5 445.8 103.1 450.0 100.7 C454.2 98.3 458.3 95.7 462.5 94.1 C466.7 92.5 470.8 94.6 475.0 91.1 C479.2 87.5 483.3 75.3 487.5 73.0 C491.7 70.7 495.8 74.7 500.0 77.2 C504.2 79.8 508.3 88.5 512.5 88.2 C516.7 88.0 520.8 80.1 525.0 75.8 C529.2 71.4 533.3 66.3 537.5 62.3 C541.7 58.2 545.8 52.5 550.0 51.5 C554.2 50.6 558.3 55.1 562.5 56.4 C566.7 57.8 570.8 58.1 575.0 59.6 C579.2 61.1 583.3 59.8 587.5 65.6 C591.7 71.5 595.8 88.9 600.0 94.9 C604.2 100.8 608.3 101.8 612.5 101.3 C616.7 100.9 620.8 94.2 625.0 92.2 C629.2 90.2 633.3 89.6 637.5 89.3 C641.7 89.1 645.8 89.4 650.0 90.8 C654.2 92.2 658.3 97.7 662.5 97.8 C666.7 97.8 670.8 91.3 675.0 90.9 C679.2 90.6 683.3 94.5 687.5 95.6 C691.7 96.7 695.8 101.9 700.0 97.6 C704.2 93.4 708.3 77.4 712.5 70.2 C716.7 62.9 720.8 57.1 725.0 54.0 C729.2 51.0 733.3 50.8 737.5 51.6 C741.7 52.5 745.8 56.9 750.0 59.3 C754.2 61.7 758.3 64.3 762.5 65.9 C766.7 67.5 770.8 65.4 775.0 68.9 C779.2 72.5 783.3 84.7 787.5 87.0 C791.7 89.3 795.8 85.3 800.0 82.8 C804.2 80.2 808.3 71.5 812.5 71.8 C816.7 72.0 820.8 79.9 825.0 84.2 C829.2 88.6 833.3 93.7 837.5 97.7 C841.7 101.8 845.8 107.5 850.0 108.5 C854.2 109.4 858.3 104.9 862.5 103.6 C866.7 102.2 870.8 101.9 875.0 100.4 C879.2 98.9 883.3 100.2 887.5 94.4 C891.7 88.5 895.8 71.1 900.0 65.1 C904.2 59.2 908.3 58.2 912.5 58.7 C916.7 59.1 920.8 65.8 925.0 67.8 C929.2 69.8 933.3 70.4 937.5 70.7 C941.7 70.9 945.8 70.6 950.0 69.2 C954.2 67.8 958.3 62.3 962.5 62.2 C966.7 62.2 970.8 68.7 975.0 69.1 C979.2 69.4 983.3 65.5 987.5 64.4 C991.7 63.3 995.8 58.1 1000.0 62.4 C1004.2 66.6 1008.3 82.6 1012.5 89.8 C1016.7 97.1 1020.8 102.9 1025.0 106.0 C1029.2 109.0 1033.3 109.2 1037.5 108.4 C1041.7 107.5 1045.8 103.1 1050.0 100.7 C1054.2 98.3 1058.3 95.7 1062.5 94.1 C1066.7 92.5 1070.8 94.6 1075.0 91.1 C1079.2 87.5 1083.3 75.3 1087.5 73.0 C1091.7 70.7 1095.8 74.7 1100.0 77.2 C1104.2 79.8 1108.3 88.5 1112.5 88.2 C1116.7 88.0 1120.8 80.1 1125.0 75.8 C1129.2 71.4 1133.3 66.3 1137.5 62.3 C1141.7 58.2 1145.8 52.5 1150.0 51.5 C1154.2 50.6 1158.3 55.1 1162.5 56.4 C1166.7 57.8 1170.8 58.1 1175.0 59.6 C1179.2 61.1 1183.3 59.8 1187.5 65.6 C1191.7 71.5 1197.9 90.0 1200.0 94.9" fill="none" stroke="#CFE4FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          </g>
+        </svg>
+      </div>
+      <p className="mt-5 text-lg leading-snug text-[#D9DBEA]" style={reading}>Nothing to answer. Sit comfortably and stay still.</p>
+    </div>
+  );
+}
+
+const lessons = [
+  { title: "Listen", line: "A short audio lesson", icon: Headphones },
+  { title: "Watch", line: "A short video lesson", icon: Video },
+  { title: "Read", line: "A short reading lesson", icon: BookOpen },
 ];
+
+/** Learning content: three lesson cards arrive one by one, then one is marked as matched. */
+function LessonsMock({ shown }: { shown: boolean }) {
+  const matched = useBeat(shown, 1100);
+  return (
+    <div className="space-y-4">
+      {lessons.map(({ title, line, icon: Icon }, index) => {
+        const isMatch = matched && index === 1;
+        return (
+          <div key={title} className="st" style={delay(200 + index * 120)}>
+            <div className={`flex items-center gap-4 rounded-2xl border px-6 py-5 transition-[background-color,border-color] duration-300 motion-reduce:transition-none ${easeOut} ${isMatch ? "border-[#00538A] bg-[#CFE4FF]" : "border-[#E2E0DA] bg-white"}`}>
+              <Icon className="h-6 w-6 shrink-0 text-[#1B1D26]" strokeWidth={1.75} />
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-bold leading-snug text-[#1B1D26]" style={reading}>{title}</p>
+                <p className="text-lg leading-snug text-[#4A4F5C]" style={reading}>{line}</p>
+              </div>
+              <p className={`shrink-0 rounded-full bg-white px-3 py-1 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#00538A] transition-opacity duration-300 motion-reduce:transition-none ${easeOut} ${isMatch ? "opacity-100" : "opacity-0"}`}>Matched to how you learn</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Post-test and progress: a ring that fills once it is shown. It counts steps, not scores. */
+function ProgressMock({ shown }: { shown: boolean }) {
+  const filled = useBeat(shown, 300);
+  const size = 168;
+  const stroke = 14;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className={`${cardClass} flex flex-col items-center p-8 text-center`}>
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E1E2E7" strokeWidth={stroke} />
+          <circle
+            cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#00538A" strokeWidth={stroke} strokeLinecap="round"
+            strokeDasharray={c} strokeDashoffset={filled ? c * 0.25 : c}
+            className={`transition-[stroke-dashoffset] duration-[600ms] motion-reduce:transition-none ${easeOut}`}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[2rem] leading-none tabular-nums text-[#1B1D26]" style={display}>3 of 4</span>
+          <span className="mt-1.5 text-base font-bold text-[#4A4F5C]" style={reading}>steps done</span>
+        </div>
+      </div>
+      <p className="mt-6 text-2xl leading-[1.25] text-[#1B1D26]" style={display}>See how far you've come.</p>
+    </div>
+  );
+}
+
+const cohort = [
+  { initials: "A.R.", strand: "LS1-EN", next: "Pre-test" },
+  { initials: "J.S.", strand: "LS1-FIL", next: "Baseline recording" },
+  { initials: "M.D.", strand: "LS3", next: "Lessons" },
+  { initials: "K.L.", strand: "LS1-EN", next: "Post-test" },
+];
+
+/** For facilitators: a small cohort table whose rows arrive one by one. Initials only, no names. */
+function CohortMock() {
+  return (
+    <div className={`${cardClass} p-6 sm:p-8`}>
+      <p className="text-2xl leading-[1.25] text-[#1B1D26]" style={display}>Cohort overview</p>
+      <table className="mt-5 w-full border-collapse text-left">
+        <thead>
+          <tr className="bg-[#F2F1ED]">
+            <th className="rounded-l-lg px-4 py-3 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#4A4F5C]">Learner</th>
+            <th className="px-4 py-3 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#4A4F5C]">Strand</th>
+            <th className="rounded-r-lg px-4 py-3 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#4A4F5C]">Next step</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cohort.map((row, index) => (
+            <tr key={row.initials} className="st border-b border-[#E2E0DA] last:border-b-0" style={delay(240 + index * 120)}>
+              <td className="px-4 py-3">
+                <span className="inline-flex items-center gap-3 text-lg font-bold text-[#1B1D26]" style={reading}>
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-[#F2F1ED] text-[0.8125rem] font-bold">{row.initials}</span>
+                </span>
+              </td>
+              <td className="px-4 py-3 text-[0.9375rem] font-bold uppercase tracking-[0.06em] text-[#4D35BD]">{row.strand}</td>
+              <td className="px-4 py-3 text-lg text-[#4A4F5C]" style={reading}>{row.next}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 /**
  * The hero illustration, drawn inline from DESIGN.md colors only: an open workbook (white pages, hairline edges, track-grey
@@ -130,11 +320,12 @@ function HeroIllustration() {
 }
 
 export function LandingPage({ navigate }) {
+  const [closingRef, closingShown] = useShown<HTMLElement>(0.4);
   return (
     <div className="min-h-[100dvh] flex flex-col bg-[#F8F6F2] text-[#1B1D26] selection:bg-[#FFAB2E]/50" style={body}>
       <style>{fontCss + motionCss}</style>
 
-      <header className="flex h-20 items-center justify-between px-8 bg-white border-b border-[#E2E0DA]">
+      <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-[#E2E0DA] bg-white px-8">
         <span className="text-[#00538A]" style={{ ...display, fontSize: "1.75rem" }}>ALSense</span>
         <button
           onClick={() => navigate("login")}
@@ -145,64 +336,69 @@ export function LandingPage({ navigate }) {
       </header>
 
       <main className="flex-1">
+        {/* Hero: the message and the one action on the left, the workbook illustration on the right. Stacks below 1024px. */}
         <div className="mx-auto w-full max-w-6xl px-8">
-          {/* Hero: the message and the one action on the left, the four steps as a quiet preview on the right. Stacks below 1024px. */}
-          <section className="grid items-center gap-12 pt-16 pb-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <section className="grid min-h-[calc(100dvh-5rem)] items-center gap-12 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div>
               <h1 className="lp-rise text-[3rem] leading-[1.1] text-[#1B1D26] xl:text-[3.5rem]" style={display}>
                 Study the way that suits you
               </h1>
-              <p className="lp-rise mt-6 max-w-[34rem] text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ["--d" as string]: "60ms" }}>
+              <p className="lp-rise mt-6 max-w-[34rem] text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(60) }}>
                 ALSense is for adult learners in the Alternative Learning System. Take a short test, record a baseline with a headband, and study lessons that match how you learn.
               </p>
               <button
                 onClick={() => navigate("login")}
                 className={`lp-rise mt-10 inline-flex h-14 items-center gap-2 rounded-xl bg-[#00538A] px-8 text-lg font-bold text-white hover:bg-[#004270] ${press} ${focus}`}
-                style={{ ["--d" as string]: "120ms" }}
+                style={delay(120)}
               >
                 Sign In <ChevronRight className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
-
             <HeroIllustration />
           </section>
-
-          {/* How it works: the same four steps with a sentence each. Two by two at laptop width, four across from 1280px. */}
-          <section aria-labelledby="how-it-works" className="pt-8 pb-16">
-            <h2 id="how-it-works" className="text-[2rem] leading-[1.2] text-[#1B1D26]" style={display}>How it works</h2>
-            <ul className="mt-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
-              {steps.map(({ title, desc, icon: Icon, sensor }, index) => (
-                <Reveal as="li" key={title} index={index} className={`${cardClass} p-6`}>
-                  {/* Navy is reserved for the sensor, so only the Muse 2 step carries it. */}
-                  <span className={`flex h-12 w-12 items-center justify-center rounded-xl ${sensor ? "bg-[#1C1D33] text-white" : "bg-[#F2F1ED] text-[#1B1D26]"}`} aria-hidden="true">
-                    <Icon className="w-6 h-6" strokeWidth={1.75} />
-                  </span>
-                  <h3 className="mt-5 text-2xl leading-[1.25] text-[#1B1D26]" style={display}>{title}</h3>
-                  <p className="mt-2 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>{desc}</p>
-                </Reveal>
-              ))}
-            </ul>
-          </section>
-
-          {/* Who it is for: two short notes, one per role. */}
-          <section aria-label="For learners and facilitators" className="grid gap-6 pb-16 md:grid-cols-2">
-            <Reveal as="div" index={0} className={`${cardClass} p-8`}>
-              <h2 className="text-2xl leading-[1.25] text-[#1B1D26]" style={display}>For learners</h2>
-              <p className="mt-3 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
-                Take the pre-test at your learning center, then study lessons that match how you learn. Come back any time to see your progress and your schedule. Your facilitator gives you your ID number.
-              </p>
-            </Reveal>
-            <Reveal as="div" index={1} className={`${cardClass} p-8`}>
-              <h2 className="text-2xl leading-[1.25] text-[#1B1D26]" style={display}>For facilitators</h2>
-              <p className="mt-3 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
-                Run your sessions, manage your cohort, upload learning content for each strand, and read your cohort's analytics after you sign in.
-              </p>
-            </Reveal>
-          </section>
         </div>
+
+        <Chapter id="story-pretest" title="Start with a short pre-test" mock={(shown) => <PretestMock shown={shown} />}>
+          <p>Answer questions about you and your learning, one at a time. Each learning strand has its own set.</p>
+          <p>You can save your answers and come back to finish later.</p>
+        </Chapter>
+
+        <Chapter id="story-baseline" title="Then a short recording" flip band="white" mock={() => <MuseMock />}>
+          <p>Your facilitator helps you wear a Muse 2 headband at the learning center. It records your resting brain activity for a few minutes.</p>
+          <p>There is nothing to answer. You just sit comfortably and stay still.</p>
+        </Chapter>
+
+        <Chapter id="story-content" title="Study in the way that fits you" mock={(shown) => <LessonsMock shown={shown} />}>
+          <p>Lessons come as audio you listen to, video you watch, or text you read.</p>
+          <p>You get the kind that matches how you learn.</p>
+        </Chapter>
+
+        <Chapter id="story-progress" title="Then see how far you have come" flip band="white" mock={(shown) => <ProgressMock shown={shown} />}>
+          <p>After your lessons, take the strand questions again. Your progress page shows where you started and where you are now.</p>
+        </Chapter>
+
+        <Chapter id="story-facilitators" title="For facilitators" mock={() => <CohortMock />}>
+          <p>See your whole cohort in one place. Upload learning content for each strand, read cohort analytics, and export results when you need them.</p>
+        </Chapter>
+
+        {/* Closing: one more way in. */}
+        <section ref={closingRef} data-shown={closingShown} aria-labelledby="closing-title" className="border-t border-[#E2E0DA] bg-white">
+          <div className="mx-auto flex max-w-2xl flex-col items-center px-8 py-24 text-center">
+            <h2 id="closing-title" className="st text-[2rem] leading-[1.2] text-[#1B1D26] lg:text-[2.5rem]" style={display}>Ready to start?</h2>
+            <p className="st mt-4 text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(60) }}>Sign in with the ID number your facilitator gave you.</p>
+            <div className="st mt-10" style={delay(120)}>
+              <button
+                onClick={() => navigate("login")}
+                className={`inline-flex h-14 items-center gap-2 rounded-xl bg-[#00538A] px-8 text-lg font-bold text-white hover:bg-[#004270] ${press} ${focus}`}
+              >
+                Sign In <ChevronRight className="w-5 h-5" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="bg-white border-t border-[#E2E0DA] px-8 py-6 text-base text-[#4A4F5C]">
+      <footer className="border-t border-[#E2E0DA] bg-white px-8 py-6 text-base text-[#4A4F5C]">
         ALSense · A capstone research project
       </footer>
     </div>
