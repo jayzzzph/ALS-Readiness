@@ -10,10 +10,9 @@ import {
   indexByStrandCode,
 } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
-import type { LriTestListItem, StrandCode, StrandTestListItem } from "../../../lib/api/types";
+import type { LriTestListItem, StrandTestListItem } from "../../../lib/api/types";
 import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
 import { LriAttempt, StrandAttempt, type NextStep } from "./PretestAttempts";
-import { ScoreCompareModal } from "./ScoreCompareModal";
 import { StrandTestCard, primaryButton, secondaryButton } from "./StrandTestCard";
 import { BaselineEegRecording } from "./BaselineEegRecording";
 
@@ -56,30 +55,24 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   // back gracefully if `raw.id` isn't populated for some reason.
   const learnerId: string | number = user?.raw?.id ?? user?.id_no ?? "anonymous";
   const [strandTests, setStrandTests] = useState<StrandTestListItem[]>([]);
-  const [postStrandTests, setPostStrandTests] = useState<StrandTestListItem[]>([]);
   const [lriTests, setLriTests] = useState<LriTestListItem[]>([]);
   const [intakeComplete, setIntakeComplete] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [view, setView] = useState<View>({ name: "hub" });
-  const [scoreStrand, setScoreStrand] = useState<StrandCode | null>(null);
   // Only the first hub load after mounting may reopen an attempt (i.e. after a reload).
   const reopenPending = useRef(true);
 
   // Gate for Parts II/III is the learner's real intake record, not a browser-local flag.
-  // The posttest list is fetched too (read-only here) - not to gate anything, but because
-  // "Show Score" needs to know whether the posttest half is also done, and its test_id.
   const loadHub = async () => {
     setLoading(true); setError("");
     try {
-      const [strandData, postStrandData, lriData, intake] = await Promise.all([
+      const [strandData, lriData, intake] = await Promise.all([
         getStrandTests("pretest"),
-        getStrandTests("posttest"),
         getLriTests(),
         getParticipantIntake(),
       ]);
       setStrandTests(strandData.tests);
-      setPostStrandTests(postStrandData.tests);
       setLriTests(lriData.tests);
       setIntakeComplete(intake !== null);
 
@@ -135,7 +128,6 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
 
   // Strands are identified by strand_code, never by name; unknown codes are skipped.
   const byCode = indexByStrandCode(strandTests);
-  const postByCode = indexByStrandCode(postStrandTests);
   const strands = STRAND_CODES.map((code) => byCode[code]).filter((test): test is StrandTestListItem => Boolean(test));
   const completedStrands = strands.filter((test) => test.attempt_status === "completed");
   const lriComplete = lriTests.length > 0 && lriTests.every((test) => test.attempt_status === "completed");
@@ -152,8 +144,6 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   const currentPart = partDone.findIndex((d) => !d);
   const statusOf = (index: number): PartStatus => (partDone[index] ? "done" : index === currentPart ? "current" : "locked");
   const doneCount = partDone.filter(Boolean).length;
-  // A finished Part III stays collapsed unless a strand has its "Show Score" reveal to offer.
-  const anyScoreToShow = strands.some((test) => test.attempt_status === "completed" && postByCode[test.strand_code]?.attempt_status === "completed");
 
   // Only one strand button is the deep blue primary: a test with a saved draft ("Resume test") if there is one, else the first not-done strand.
   const notDone = strands.filter((test) => test.attempt_status !== "completed");
@@ -171,8 +161,6 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
             disabledReason={strandsLockReason}
             attemptLabel={hasAttemptDraft("strand", learnerId, test.test_id) ? "Resume test" : undefined}
             onAttempt={() => openAttempt({ name: "strand-attempt", test })}
-            canShowScore={test.attempt_status === "completed" && postByCode[test.strand_code]?.attempt_status === "completed"}
-            onShowScore={() => setScoreStrand(test.strand_code)}
           />
         </li>
       ))}
@@ -215,7 +203,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
               </TimelineItem>
 
               <TimelineItem index={3} status={statusOf(2)}>
-                <PartBody number="Part III" title="Diagnostic / Equivalency Exams" description="One baseline exam for each enrolled learning strand. Completed pre-tests cannot be retaken." status={statusOf(2)} note={intakeComplete ? "Finish Part II first" : "Finish Part I first"} open={anyScoreToShow}>
+                <PartBody number="Part III" title="Diagnostic / Equivalency Exams" description="One baseline exam for each enrolled learning strand. Completed pre-tests cannot be retaken." status={statusOf(2)} note={intakeComplete ? "Finish Part II first" : "Finish Part I first"}>
                   {strandRows}
                 </PartBody>
               </TimelineItem>
@@ -247,15 +235,6 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
           </div>
         )}
       </div>
-
-      {scoreStrand && byCode[scoreStrand] && postByCode[scoreStrand] && (
-        <ScoreCompareModal
-          strandLabel={STRAND_SHORT_LABEL[scoreStrand]}
-          pretestTestId={byCode[scoreStrand]!.test_id}
-          posttestTestId={postByCode[scoreStrand]!.test_id}
-          onClose={() => setScoreStrand(null)}
-        />
-      )}
     </div>
   </AppLayout>;
 }
@@ -306,9 +285,8 @@ function TimelineItem({ index, status, last = false, children }: { index: number
  *  - done: one compact row, "Done", and its secondary action;
  *  - current: the only expanded card, with its description, its content and the one deep blue action;
  *  - locked: one compact row with the reason.
- * `open` keeps a done part's content (children) visible beneath its row.
  */
-function PartBody({ number, title, description, status, note, action, onClick, disabled, open = false, children }: { number: string; title: string; description: string; status: PartStatus; note: string; action?: string; onClick?: () => void; disabled?: boolean; open?: boolean; children?: ReactNode }) {
+function PartBody({ number, title, description, status, note, action, onClick, disabled, children }: { number: string; title: string; description: string; status: PartStatus; note: string; action?: string; onClick?: () => void; disabled?: boolean; children?: ReactNode }) {
   const heading = <><span className="text-[#4A4F5C]">{number}: </span>{title}</>;
 
   if (status === "current") {
@@ -332,7 +310,6 @@ function PartBody({ number, title, description, status, note, action, onClick, d
         </div>
         {status === "done" && action && onClick && <button onClick={onClick} className={`shrink-0 ${secondaryButton}`}>{action}</button>}
       </div>
-      {open && children && <div className="mt-3">{children}</div>}
     </section>
   );
 }
