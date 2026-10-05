@@ -36,6 +36,9 @@ import { TestOverviewModal } from "./TestOverviewModal";
 
 const ALREADY_SUBMITTED_MESSAGE = "You've already submitted this test (perhaps on another tab or device) - nothing more to do here.";
 const SUBMIT_SUCCESS_MESSAGE = "Your responses have been submitted. Thank you for completing this.";
+/** Shown instead when the clock ran out; unanswered questions are named so the result isn't a surprise. */
+const timeUpMessage = (answered: number, total: number) =>
+  `Time's up. Your answers were submitted. You answered ${answered} of ${total} questions.`;
 
 // ── Look ─────────────────────────────────────────────────────────────────────
 
@@ -293,7 +296,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
   const answers = draft?.answers ?? {};
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [finished, setFinished] = useState<{ alreadySubmitted: boolean } | null>(null);
+  const [finished, setFinished] = useState<{ alreadySubmitted: boolean; timeUp?: { answered: number; total: number } } | null>(null);
 
   const rawItems = detail.status === "ready" ? detail.data.items : [];
   // Computed once per loaded attempt - stable across re-renders while answering,
@@ -310,7 +313,9 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
     try {
       await submitStrandAttempt(test.test_id, toStrandAttemptCreate(items, answers));
       clear();
-      setFinished({ alreadySubmitted: false });
+      // `expired` is the latest render's value, so it is true when the clock triggered this submit.
+      const answered = items.filter((it) => answers[it.item_id] !== undefined).length;
+      setFinished({ alreadySubmitted: false, timeUp: expired ? { answered, total: items.length } : undefined });
     } catch (err) {
       // A 409 means another tab/device already submitted: that's a completed
       // state to show, not an error to surface.
@@ -337,7 +342,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
   if (finished) {
     return (
       <AttemptShell title={stage} onClose={onClose} exitLabel="Exit">
-        <AttemptSuccess message={finished.alreadySubmitted ? ALREADY_SUBMITTED_MESSAGE : SUBMIT_SUCCESS_MESSAGE} closeLabel={backLabel} onClose={onClose} />
+        <AttemptSuccess message={finished.alreadySubmitted ? ALREADY_SUBMITTED_MESSAGE : finished.timeUp ? timeUpMessage(finished.timeUp.answered, finished.timeUp.total) : SUBMIT_SUCCESS_MESSAGE} closeLabel={backLabel} onClose={onClose} />
       </AttemptShell>
     );
   }
@@ -392,6 +397,14 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
             <p id="answered-label" className="shrink-0 text-[0.9375rem] text-[#4A4F5C] tabular-nums">{answeredCount} of {total} answered</p>
           </div>
 
+          {/* Notices sit above the question card, under the progress bar, so they never push Back and Next out of view. */}
+          {(expired || (secondsLeft !== null && secondsLeft <= TIME_WARNING_SECONDS) || submitError) && (
+            <div className="mt-6 space-y-3">
+              {expired ? <TimeUpNotice /> : secondsLeft !== null && secondsLeft <= TIME_WARNING_SECONDS && <TimeWarningNotice />}
+              {submitError && <SubmitError message={submitError} />}
+            </div>
+          )}
+
           {/* Keyed by item so each new question settles in: a short fade, plus a small rise when motion is allowed. */}
           <section key={item.item_id} className={`mt-12 ${card} p-6 sm:p-8 transition-[opacity,translate] duration-200 ${easeOut} starting:opacity-0 motion-safe:starting:translate-y-1`}>
             {/* Not every question has an image (asset_url is null when there's none, or storage isn't configured). */}
@@ -410,13 +423,6 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
               ))}
             </div>
           </section>
-
-          {(expired || (secondsLeft !== null && secondsLeft <= TIME_WARNING_SECONDS) || submitError) && (
-            <div className="mt-6 space-y-3">
-              {expired ? <TimeUpNotice /> : secondsLeft !== null && secondsLeft <= TIME_WARNING_SECONDS && <TimeWarningNotice />}
-              {submitError && <SubmitError message={submitError} />}
-            </div>
-          )}
 
           {showSubmit && !complete && !expired && firstUnanswered >= 0 && (
             <p className="mt-6 text-lg leading-snug text-[#4A4F5C]" style={reading}>
