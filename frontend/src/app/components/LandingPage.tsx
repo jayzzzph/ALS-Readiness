@@ -286,10 +286,10 @@ function CohortMock() {
   );
 }
 
-const levels = ["Gentle pace", "Steady pace", "Faster pace"];
+const levels = ["Low readiness", "Moderate readiness", "High readiness"];
 
 /**
- * The core idea as a small flow: three inputs, lines into a readiness estimate with three paces (one lights up in amber),
+ * The core idea as a small flow: three inputs, lines into a readiness estimate with three readiness levels (one lights up in amber),
  * then a line into one lesson. It plays in order once shown: inputs appear, lines draw, the pace lights up, the lesson appears.
  * Sample content only; it is not anyone's result.
  */
@@ -325,7 +325,7 @@ function CoreIdeaMock({ shown }: { shown: boolean }) {
       </svg>
 
       <div className={`${cardClass} p-5`}>
-        <p className="text-[0.8125rem] font-bold uppercase leading-snug tracking-[0.06em] text-[#4A4F5C]">Estimated readiness</p>
+        <p className="text-[0.8125rem] font-bold uppercase leading-snug tracking-[0.06em] text-[#4A4F5C]">Readiness level</p>
         <div className="mt-3 grid gap-2">
           {levels.map((level, index) => {
             const on = lit && index === 1;
@@ -342,7 +342,7 @@ function CoreIdeaMock({ shown }: { shown: boolean }) {
 
       <div className={`${cardClass} flex items-center gap-3 p-5 transition-[opacity,translate] duration-300 motion-reduce:transition-none ${easeOut} ${lesson ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
         <Video className="h-6 w-6 shrink-0 text-[#1B1D26]" strokeWidth={1.75} />
-        <p className="text-lg font-bold leading-snug text-[#1B1D26]" style={reading}>Short video lesson · Steady pace</p>
+        <p className="text-lg font-bold leading-snug text-[#1B1D26]" style={reading}>Short video lesson · Moderate level</p>
       </div>
     </div>
   );
