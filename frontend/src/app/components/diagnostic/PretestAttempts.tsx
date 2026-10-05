@@ -81,10 +81,10 @@ function useLoad<T>(load: () => Promise<T>, errorFallback: string): [LoadState<T
   return [state, () => setAttempt((n) => n + 1)];
 }
 
-/** Quiet until the warning point: muted text, then amber ink, then error ink. Plain text, not a chip. */
+/** Quiet until the warning point: muted text, then error red, then darker error ink. Plain text, not a chip. */
 function Countdown({ secondsLeft, expired }: { secondsLeft: number; expired: boolean }) {
   const warning = !expired && secondsLeft <= TIME_WARNING_SECONDS;
-  const tone = expired ? "text-[#7A1A12] font-bold" : warning ? "text-[#835500] font-bold" : "text-[#4A4F5C] font-medium";
+  const tone = expired ? "text-[#7A1A12] font-bold" : warning ? "text-[#B42318] font-bold" : "text-[#4A4F5C] font-medium";
   return (
     <span className={`inline-flex items-center gap-1.5 text-[0.9375rem] tabular-nums whitespace-nowrap transition-colors duration-200 ${easeOut} ${tone}`}>
       <Clock className="w-[18px] h-[18px]" aria-hidden="true" />
@@ -185,8 +185,8 @@ function AttemptSuccess({ message, closeLabel, onClose }: { message: string; clo
 /** Shown in the last TIME_WARNING_SECONDS so the auto-submit at zero isn't a surprise. */
 function TimeWarningNotice() {
   return (
-    <p role="status" className="flex items-start gap-3 rounded-xl bg-[#FFDEB5] p-4 text-lg leading-snug text-[#1B1D26]" style={reading}>
-      <Clock className="w-5 h-5 mt-1 shrink-0 text-[#835500]" aria-hidden="true" />
+    <p role="status" className="flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-4 text-lg leading-snug text-[#7A1A12]" style={reading}>
+      <Clock className="w-5 h-5 mt-1 shrink-0 text-[#B42318]" aria-hidden="true" />
       Less than a minute left. When time runs out, your answers will be submitted automatically as they are.
     </p>
   );
@@ -254,7 +254,7 @@ function QuestionImage({ src, label }: { src: string; label: string }) {
         {/* Floats, so it takes the one soft shadow DESIGN.md allows. Enters with a fade and, motion allowing, a slight scale. */}
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className={`fixed inset-3 sm:inset-8 z-50 flex flex-col rounded-2xl bg-white shadow-[0_8px_24px_rgba(27,29,38,0.08)] transition-[opacity,scale] duration-200 ${easeOut} starting:opacity-0 motion-safe:starting:scale-[0.97] focus:outline-none`}
+          className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 flex w-max max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-4rem)] max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-4rem)] flex-col rounded-2xl bg-white shadow-[0_8px_24px_rgba(27,29,38,0.08)] transition-[opacity,scale] duration-200 ${easeOut} starting:opacity-0 motion-safe:starting:scale-[0.97] focus:outline-none`}
           style={chrome}
         >
           <div className="flex items-center justify-between gap-4 border-b border-[#E2E0DA] py-2 pl-6 pr-3">
@@ -264,8 +264,8 @@ function QuestionImage({ src, label }: { src: string; label: string }) {
             </DialogPrimitive.Close>
           </div>
           <div className="min-h-0 flex-1 overflow-auto bg-[#F2F1ED] p-4 sm:p-6">
-            {/* Width-fitted and scrolled, not shrunk to the screen height: passages stay readable top to bottom. */}
-            <img src={src} alt={label} className="mx-auto block h-auto w-full max-w-5xl rounded-lg" />
+            {/* The dialog hugs the picture: as wide as it needs (up to 64rem or the screen), as tall as it is (up to the screen), then it scrolls here. */}
+            <img src={src} alt={label} className="block h-auto w-[min(64rem,calc(100vw-3.5rem))] sm:w-[min(64rem,calc(100vw-7rem))] rounded-lg" />
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
