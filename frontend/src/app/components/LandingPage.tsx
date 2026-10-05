@@ -1,83 +1,80 @@
-import { BookOpen, BarChart3, ChevronRight, Shield, Target, Brain } from "lucide-react";
-import { ALSenseLogo } from "./shared/ALSenseLogo";
+import { ChevronRight } from "lucide-react";
 
-const modules = [
-  { id: "M01", title: "User Authentication & Role Management", desc: "Secure multi-role access for learners, facilitators, and admins with profile setup wizard.", icon: Shield, tag: "Core" },
-  { id: "M02", title: "Diagnostic & Inventory Test Module", desc: "Preparatory Equivalency Exams with validated questionnaires linked to learner accounts.", icon: Target, tag: "Core" },
-  { id: "M03", title: "Readiness Profiling Module", desc: "AI-powered readiness prediction using Ensemble Learning and affective state tagging.", icon: Brain, tag: "AI/ML" },
-  { id: "M04", title: "Learner Dashboard & Stimulus Content", desc: "Personalized stimulus delivery with auditory, visual, and reading content types.", icon: BookOpen, tag: "FE" },
-  { id: "M05", title: "Facilitator / AIS Teacher Dashboard", desc: "Cohort management, analytics, reporting, and exportable results for educators.", icon: BarChart3, tag: "Analytics" },
+// TEMPORARY: loads fonts from Google Fonts. Replace with @fontsource imports once `pnpm add` works.
+const fontCss = "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Serif+Display&display=swap');";
+
+const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
+const body = { fontFamily: "'DM Sans', system-ui, sans-serif" } as const;
+
+const steps = [
+  { title: "Take the diagnostic test", desc: "Answer the preparatory equivalency exam and learner inventory questions." },
+  { title: "See your readiness profile", desc: "Your results show how ready you are to start learning." },
+  { title: "Study content that fits you", desc: "Get auditory, visual, or reading content matched to how you learn." },
 ];
+
+const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A]";
 
 export function LandingPage({ navigate }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0B1F3A] via-[#1a3a5c] to-[#0B1F3A]">
-      {/* Navbar */}
-      <nav className="flex items-center justify-between px-8 py-5 border-b border-white/10">
-        <ALSenseLogo size="md" light showSub subText="Empowering Adult Learners" />
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate("login")} className="px-5 py-2 text-blue-200 hover:text-white border border-blue-400/30 hover:border-blue-300 rounded-lg transition-all duration-200">
-            Sign In
+    <div
+      className="min-h-screen bg-[#F8F6F2] text-[#1B1D26] selection:bg-[#FFAB2E]/50"
+      style={body}
+    >
+      <style>{fontCss}</style>
+      <header className="flex items-center justify-between px-8 py-5 bg-white border-b border-[#E2E0DA]">
+        <span className="text-[#00538A]" style={{ ...display, fontSize: "1.75rem" }}>ALSense</span>
+        <button
+          onClick={() => navigate("login")}
+          className={`px-5 py-2 text-[#00538A] font-medium border border-[#00538A] hover:bg-[#00538A]/5 rounded-lg transition-colors duration-200 ${focus}`}
+        >
+          Sign In
+        </button>
+      </header>
+
+      <main>
+        {/* Hero */}
+        <section className="px-8 pt-24 pb-20 text-center max-w-4xl mx-auto">
+          <h1 className="mb-6 text-[#1B1D26]" style={{ ...display, fontSize: "3.5rem", lineHeight: 1.1 }}>
+            Empowering adult learners in the Alternative Learning System
+          </h1>
+          <p className="text-[#4A4F5C] text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+            A learning platform that profiles the readiness of ALS learners, delivers modality-matched content, and gives facilitators the analytics they need.
+          </p>
+          <button
+            onClick={() => navigate("login")}
+            className={`inline-flex items-center gap-2 px-8 py-4 bg-[#00538A] hover:bg-[#004270] text-white text-lg font-bold rounded-xl transition-colors duration-200 ${focus}`}
+          >
+            Sign In <ChevronRight className="w-5 h-5" aria-hidden="true" />
           </button>
-        </div>
-      </nav>
+        </section>
 
-      {/* Hero */}
-      <div className="px-8 pt-20 pb-16 text-center max-w-5xl mx-auto">
-        <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-400/20 rounded-full px-4 py-2 mb-6">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          <span className="text-blue-200 text-sm">Alternative Learning System — AI-Powered Platform</span>
-        </div>
-        <h1 className="text-white mb-6" style={{ fontSize: "3.5rem", fontWeight: 700, lineHeight: 1.1 }}>
-          ALS Readiness
-          <span className="block bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text" style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            Empowering Adult Learners
-          </span>
-        </h1>
-        <p className="text-blue-200/80 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
-          A comprehensive educational platform with AI-driven readiness profiling, personalized stimulus delivery, and real-time analytics for ALS students and facilitators.
-        </p>
-        <div className="flex items-center justify-center gap-4">
-          <button onClick={() => navigate("login")} className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white rounded-xl transition-all duration-200 shadow-xl shadow-blue-500/30">
-            Sign In <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Modules */}
-      <div className="px-8 pb-20 max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-white mb-3" style={{ fontSize: "2rem", fontWeight: 600 }}>Platform Modules</h2>
-          <p className="text-blue-300">Five integrated modules powering the complete ALS learning experience</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {modules.map((mod) => {
-            const Icon = mod.icon;
-            return (
-              <div key={mod.id} className="bg-white/5 border border-white/10 hover:border-white/25 rounded-2xl p-6 transition-all duration-300 hover:bg-white/8 group cursor-pointer">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/10">
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-blue-400 font-mono bg-blue-500/10 px-2 py-1 rounded">{mod.id}</span>
-                    <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded">{mod.tag}</span>
-                  </div>
+        {/* How it works */}
+        <section aria-labelledby="how-it-works" className="px-8 pb-24 max-w-2xl mx-auto">
+          <h2 id="how-it-works" className="mb-8 text-[#1B1D26]" style={{ ...display, fontSize: "2rem" }}>
+            How it works
+          </h2>
+          <ol>
+            {steps.map((step, i) => (
+              <li key={step.title} className="flex gap-6 py-6 border-t border-[#E2E0DA]">
+                <span className="shrink-0 w-10 text-[#00538A]" style={{ ...display, fontSize: "2.25rem", lineHeight: 1 }} aria-hidden="true">
+                  {i + 1}
+                </span>
+                <div>
+                  <h3 className="mb-1 text-[#1B1D26]" style={{ ...display, fontSize: "1.375rem" }}>{step.title}</h3>
+                  <p className="text-[#4A4F5C] text-lg leading-relaxed">{step.desc}</p>
                 </div>
-                <h3 className="text-white mb-2" style={{ fontSize: "1rem", fontWeight: 600 }}>{mod.title}</h3>
-                <p className="text-blue-200/70 text-sm leading-relaxed">{mod.desc}</p>
-                <div className="mt-4 flex items-center gap-1 text-blue-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span>Explore module</span><ChevronRight className="w-4 h-4" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              </li>
+            ))}
+          </ol>
+          <p className="text-[#4A4F5C] text-lg leading-relaxed border-t border-[#E2E0DA] pt-6">
+            <span className="text-[#1B1D26] font-bold">Facilitators and AIS teachers:</span> manage your cohort, view analytics, and export results after you sign in.
+          </p>
+        </section>
+      </main>
 
-      <div className="border-t border-white/10 px-8 py-6 text-center text-blue-400 text-sm">
-        ALSense — Empowering Adult Learners &copy; 2026
-      </div>
+      <footer className="bg-white border-t border-[#E2E0DA] px-8 py-6 text-[#4A4F5C] text-sm">
+        &copy; 2026 ALSense
+      </footer>
     </div>
   );
 }

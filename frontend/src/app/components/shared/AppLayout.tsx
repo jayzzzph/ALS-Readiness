@@ -25,11 +25,12 @@ const learnerNav = [
 ];
 
 const facilitatorNav = [
-  { page:"facilitator-dashboard", icon:LayoutDashboard, label:"Overview",    group:"main"   },
-  { page:"facilitator-cohort",    icon:Users,           label:"Cohort",      group:"main"   },
-  { page:"facilitator-content",   icon:Cpu,             label:"Content",     group:"manage" },
-  { page:"facilitator-analytics", icon:BarChart3,       label:"Analytics",   group:"manage" },
-  { page:"facilitator-reports",   icon:FileText,        label:"Reports",     group:"manage" },
+  { page:"facilitator-dashboard",         icon:LayoutDashboard, label:"Overview",          group:"main"   },
+  { page:"facilitator-cohort",            icon:Users,           label:"Cohort",            group:"main"   },
+  { page:"facilitator-learning-contents", icon:BookOpen,        label:"Learning Contents", group:"main"   },
+  { page:"facilitator-content",           icon:Cpu,             label:"Content",           group:"manage" },
+  { page:"facilitator-analytics",         icon:BarChart3,       label:"Analytics",         group:"manage" },
+  { page:"facilitator-reports",           icon:FileText,        label:"Reports",           group:"manage" },
 ];
 
 const adminNav = [
