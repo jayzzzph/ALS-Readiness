@@ -22,6 +22,9 @@ export const LRI_TEST_TIME_LIMIT_SECONDS: number | null = null;
 /** Seconds left at which the countdown starts warning that the attempt will auto-submit. */
 export const TIME_WARNING_SECONDS = 60;
 
+/** Seconds left at which the countdown text turns red as a "speed up" cue; display only, no notice or submit hangs off it. */
+export const TIME_RUNNING_LOW_SECONDS = 10 * 60;
+
 /** "12:34"; caps at 59:59 display-wise only if given a value under an hour (these limits are). */
 export function formatCountdown(totalSeconds: number): string {
   const clamped = Math.max(0, totalSeconds);

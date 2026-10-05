@@ -16,7 +16,7 @@ import type { LriAnswerValue, LriTestListItem, StrandTestListItem } from "../../
 import { LIKERT_OPTIONS, isComplete, toLriAttemptCreate, toStrandAttemptCreate } from "./pretestLogic";
 import { useAttemptDraft } from "./attemptDraft";
 import { shuffleForLearner } from "./shuffle";
-import { LRI_TEST_TIME_LIMIT_SECONDS, STRAND_TEST_TIME_LIMIT_SECONDS, TIME_WARNING_SECONDS, formatCountdown, useCountdown, useSubmitOnExpiry } from "./testTiming";
+import { LRI_TEST_TIME_LIMIT_SECONDS, STRAND_TEST_TIME_LIMIT_SECONDS, TIME_RUNNING_LOW_SECONDS, TIME_WARNING_SECONDS, formatCountdown, useCountdown, useSubmitOnExpiry } from "./testTiming";
 import { TestOverviewModal } from "./TestOverviewModal";
 
 // The screens a learner sees while taking a strand test or the LRI: an
@@ -81,10 +81,10 @@ function useLoad<T>(load: () => Promise<T>, errorFallback: string): [LoadState<T
   return [state, () => setAttempt((n) => n + 1)];
 }
 
-/** Quiet until the warning point: muted text, then error red, then darker error ink. Plain text, not a chip. */
+/** Quiet until the warning point: muted text, error red from 10 minutes left, then darker error ink at zero. Plain text, not a chip. */
 function Countdown({ secondsLeft, expired }: { secondsLeft: number; expired: boolean }) {
-  const warning = !expired && secondsLeft <= TIME_WARNING_SECONDS;
-  const tone = expired ? "text-[#7A1A12] font-bold" : warning ? "text-[#B42318] font-bold" : "text-[#4A4F5C] font-medium";
+  const runningLow = !expired && secondsLeft <= TIME_RUNNING_LOW_SECONDS;
+  const tone = expired ? "text-[#7A1A12] font-bold" : runningLow ? "text-[#B42318] font-bold" : "text-[#4A4F5C] font-medium";
   return (
     <span className={`inline-flex items-center gap-1.5 text-[0.9375rem] tabular-nums whitespace-nowrap transition-colors duration-200 ${easeOut} ${tone}`}>
       <Clock className="w-[18px] h-[18px]" aria-hidden="true" />
