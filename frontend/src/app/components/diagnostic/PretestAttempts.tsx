@@ -291,14 +291,6 @@ function stemStyle(text: string): { className: string; style: typeof display | t
   return { className: "text-[2rem] leading-[1.2]", style: display };
 }
 
-/** A blank line splits a reading passage from the question: everything before the last paragraph is the passage. */
-function splitPassage(text: string): { passage: string | null; question: string } {
-  const trimmed = text.trim();
-  const cut = trimmed.lastIndexOf("\n\n");
-  if (cut === -1) return { passage: null, question: trimmed };
-  return { passage: trimmed.slice(0, cut).trim(), question: trimmed.slice(cut).trim() };
-}
-
 const strandTitle = (test: StrandTestListItem) => `${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name} diagnostic exam`;
 
 // ── Strand: take the test ────────────────────────────────────────────────────
@@ -385,8 +377,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
   // Submit takes Next's place on the last question - and on any question once
   // time is up, since that's where a failed auto-submit is retried.
   const showSubmit = current === total - 1 || expired;
-  const { passage, question } = item ? splitPassage(item.question_text) : { passage: null, question: "" };
-  const stem = item ? stemStyle(question) : null;
+  const stem = item ? stemStyle(item.question_text) : null;
   const stemId = item ? `question-${item.item_id}` : undefined;
 
   // Pinned in AttemptShell's footer so Back and Next stay in view whatever notices or question length are above.
@@ -439,13 +430,7 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
           <section key={item.item_id} className={`mt-12 ${card} p-6 sm:p-8 transition-[opacity,translate] duration-200 ${easeOut} starting:opacity-0 motion-safe:starting:translate-y-1`}>
             {/* Not every question has an image (asset_url is null when there's none, or storage isn't configured). */}
             {item.asset_url && <QuestionImage src={item.asset_url} label={`Picture for question ${current + 1}`} />}
-            {passage && (
-              <div className="mb-8 rounded-xl bg-[#F2F1ED] p-5 sm:p-6">
-                <p className="text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#4A4F5C]">Read this</p>
-                <p className="mt-2 whitespace-pre-line text-[1.125rem] leading-[1.6] text-[#1B1D26]" style={reading}>{passage}</p>
-              </div>
-            )}
-            <h1 id={stemId} ref={stemRef} tabIndex={-1} className={`text-pretty whitespace-pre-line text-[#1B1D26] outline-none ${stem.className}`} style={stem.style}>{question}</h1>
+            <h1 id={stemId} ref={stemRef} tabIndex={-1} className={`text-pretty whitespace-pre-line text-[#1B1D26] outline-none ${stem.className}`} style={stem.style}>{item.question_text}</h1>
             <div role="radiogroup" aria-labelledby={stemId} className="mt-8 space-y-3">
               {item.options.map((option) => (
                 <AnswerOption
