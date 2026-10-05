@@ -519,7 +519,6 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
       exitHint={LRI_TEST_TIME_LIMIT_SECONDS === null ? "Your answers are saved." : "Your answers are saved. The timer keeps running."}
       countdown={secondsLeft !== null ? <Countdown secondsLeft={secondsLeft} expired={expired} /> : undefined}
     >
-      {/* The table itself is unchanged for now; only its frame follows focused test mode. */}
       <section className={`${card} p-6 sm:p-8`}>
         <h1 className="text-[2rem] leading-[1.2]" style={display}>{test.title}</h1>
         <p className="mt-2 mb-8 text-lg text-[#4A4F5C]" style={reading}>Select one response for every statement.</p>
@@ -528,28 +527,38 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
         {detail.status === "ready" && items.length === 0 && <p className="text-lg text-[#4A4F5C]" style={reading}>This inventory has no statements yet.</p>}
         {detail.status === "ready" && items.length > 0 && (
           <>
-            <div className="overflow-x-auto border border-slate-800 rounded-sm">
-              <table className="w-full min-w-[700px] table-fixed border-collapse text-sm">
-                <thead className="bg-[#244477] text-white">
-                  <tr>
-                    <th className="w-1/2 border border-slate-800 p-3 text-center font-semibold">Statement</th>
-                    {LIKERT_OPTIONS.map(({ label }) => <th key={label} className="w-[12.5%] border border-slate-800 p-2 text-center font-semibold leading-tight">{label}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, index) => (
-                    <tr key={item.item_id} className="odd:bg-white even:bg-slate-50">
-                      <td className="border border-slate-800 p-3 text-gray-800 align-top"><span className="font-semibold mr-1">{index + 1}.</span>{item.question_text}</td>
-                      {LIKERT_OPTIONS.map(({ label, value }) => (
-                        <td key={value} className="border border-slate-800 p-3 text-center">
-                          <input aria-label={`${item.question_text}: ${label}`} type="radio" name={`item-${item.item_id}`} value={value} checked={answers[item.item_id] === value} disabled={expired} onChange={() => setAnswer(item.item_id, value)} className="h-4 w-4 accent-[#244477]" />
+            {/* Hairline rows on white; the column labels stay under the sticky header while the learner scrolls. Each Likert cell is a
+                48px+ tap target: the whole cell is the label of a visually hidden native radio, drawn like the question screen's answer options. */}
+            <table className="w-full table-fixed border-collapse">
+              <thead>
+                <tr>
+                  <th scope="col" className="sticky top-[5.5rem] lg:top-16 z-[1] bg-[#F2F1ED] border-b border-[#E2E0DA] rounded-tl-xl px-4 py-3 text-left text-[0.9375rem] font-bold tracking-[0.01em] text-[#1B1D26]" style={chrome}>Statement</th>
+                  {LIKERT_OPTIONS.map(({ label }, column) => <th key={label} scope="col" className={`sticky top-[5.5rem] lg:top-16 z-[1] w-[5.5rem] sm:w-28 bg-[#F2F1ED] border-b border-[#E2E0DA] px-1 py-3 text-center text-[0.9375rem] font-bold leading-tight tracking-[0.01em] text-[#1B1D26] ${column === LIKERT_OPTIONS.length - 1 ? "rounded-tr-xl" : ""}`} style={chrome}>{label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => (
+                  <tr key={item.item_id} className="border-b border-[#E2E0DA] last:border-b-0">
+                    <th scope="row" className="px-4 py-4 text-left align-middle font-normal text-[#1B1D26]">
+                      <span className="leading-[1.6]" style={{ ...reading, fontSize: "1.125rem" }}><span className="mr-2 font-bold tabular-nums text-[#4A4F5C]">{index + 1}.</span>{item.question_text}</span>
+                    </th>
+                    {LIKERT_OPTIONS.map(({ label, value }) => {
+                      const selected = answers[item.item_id] === value;
+                      return (
+                        <td key={value} className="p-1 align-middle">
+                          <label className={`flex h-14 items-center justify-center rounded-xl transition-[background-color,scale] duration-150 ${easeOut} has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-[-2px] has-[:focus-visible]:outline-[#00538A] ${selected ? "bg-[#CFE4FF]" : expired ? "" : "hover:bg-[#F2F1ED]"} ${expired ? "cursor-not-allowed" : "cursor-pointer active:scale-[0.97] motion-reduce:active:scale-100"}`}>
+                            <input aria-label={`${item.question_text}: ${label}`} type="radio" name={`item-${item.item_id}`} value={value} checked={selected} disabled={expired} onChange={() => setAnswer(item.item_id, value)} className="sr-only" />
+                            <span aria-hidden="true" className={`grid place-items-center w-6 h-6 rounded-full border-2 transition-colors duration-150 ${easeOut} ${selected ? "border-[#00538A] bg-white" : expired ? "border-[#E2E0DA] bg-[#F2F1ED]" : "border-[#8A8F9C] bg-white"}`}>
+                              <span className={`w-3 h-3 rounded-full bg-[#00538A] transition-[opacity,scale] duration-150 ${easeOut} ${selected ? "opacity-100 scale-100" : "opacity-0 scale-50 motion-reduce:scale-100"}`} />
+                            </span>
+                          </label>
                         </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             {expired && <div className="mt-6"><TimeUpNotice /></div>}
             <SubmitBar disabled={!isComplete(items, answers)} saving={saving} error={submitError} onSubmit={submit} />
           </>
