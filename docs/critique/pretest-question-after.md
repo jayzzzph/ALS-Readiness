@@ -5,7 +5,7 @@
 - **Date:** 2026-10-05, branch `ui-polish`.
 - **Evidence:** the source code, plus the author's browser screenshots in `docs/critique/` (sizes in pixels). No browser check was run for this review, and no answers were submitted.
   - `pretest-question-after.png` (1567 × 866): question 2 of 20 of the English diagnostic exam, with a passage image, the first option selected, "7 of 20 answered" and 13:03 left. **It was taken before `d9972c95`.** So it still shows the old header (items pinned to the top edge, the exit hint stacked under "Save & Exit") and a progress bar that follows the question position (about 10% filled while 7 of 20 are answered). Both are described below as they are in the code now, not as in this image. The page was zoomed out: the 768px column measures about 640px, so everything appears at about 83% of its CSS size (the 18px answer text shows as about 15px).
-  - `pretest-question-image-dialog-after.png`: **not in the repository** when this file was written, so the image dialog is reviewed from the code only.
+  - `pretest-question-image-dialog-after.png` (1565 × 882): the question 2 passage opened in the picture dialog, titled "Picture for question 2" with "Close" at the top right. It was taken after `d9972c95`: behind the dim overlay, the header shows the new single row with the inline hint ("9:19 left | Your answers are saved. The timer keeps running. | Save & Exit"). The passage is shown about 850px wide, so it reads at roughly twice its in-card size. The page is zoomed out by the same amount as the first screenshot.
 - **Scope:** this is a focused Gestalt review done by one reviewer, the same as the before file. The design skill's automated check (`impeccable detect`) found nothing on the file. The LRI table and the overview modal before Start were left unchanged on purpose and aren't scored here.
 
 ## Scorecard
@@ -42,7 +42,7 @@
 ### Figure-Ground ✅
 - **Ground and figure:** the ground is warm paper `#F8F6F2`. The question is one white card with a 1px hairline and no shadow (the Flat Workbook Rule). The header is white with a hairline bottom edge.
 - **Options are visible figures:** unselected rows use the `field-stroke` border `#8A8F9C` (3.24:1 on white), up from about 1.2:1. A selected row gets Blue Wash, a 2px deep-blue edge and a filled radio, as in the Answer Option spec. In the screenshot, the selected row is clearly the strongest row.
-- **The picture dialog is the only floating layer:** it gets the one soft shadow DESIGN.md allows for floating things, over a dim ink overlay (line 255).
+- **The picture dialog is the only floating layer:** it gets the one soft shadow DESIGN.md allows for floating things, over a dim ink overlay (line 255). In the dialog screenshot, the white panel and the passage stand clearly in front of the dimmed test.
 - **Disabled controls still read as "not yet":** the disabled Submit is muted ink on the track gray, and the disabled Back is placeholder ink with a hairline. Neither fades away.
 
 ### Prägnanz (Simplicity) ✅
@@ -104,7 +104,8 @@
 - **The LRI is unchanged:** it sits in the new header and card, but the table itself still has the black grid, the navy header and 16px radios.
 - **Generic picture text:** images are described as "Picture for question N", because the test data has no description to use.
 - **Timing is still client-side:** the timer and auto-submit run in the browser (unchanged, by decision).
-- **Screenshots:** the after screenshot predates the header and progress-bar fix, and the image-dialog screenshot is missing. Both are worth retaking.
+- **The picture dialog is mostly empty for short passages:** the dialog always fills the screen (minus a 32px margin). A wide, four-line passage like question 2's fills only the top fifth, and the rest is an empty sunken area (see `pretest-question-image-dialog-after.png`). That's one large shape holding one small one, against Prägnanz. Sizing the dialog to the picture (up to the screen) would fit short passages without changing how tall ones scroll.
+- **Screenshots:** `pretest-question-after.png` predates the header and progress-bar fix, so it's worth retaking. The dialog screenshot already shows the new header.
 
 ## Before / after
 
