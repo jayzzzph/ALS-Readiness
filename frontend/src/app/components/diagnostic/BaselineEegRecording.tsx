@@ -570,14 +570,14 @@ function SignalCard({ signal, connected }: { signal: { current: SignalBuffer }; 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="eeg-signal-title" className="text-xl leading-[1.25] text-[#1B1D26]" style={display}>Live signal</h2>
         <label className="inline-flex items-center gap-3 text-[0.9375rem] font-bold text-[#1B1D26]">
-          Scale
+          Zoom
           <select value={scale} onChange={(e) => { setScale(Number(e.target.value)); signal.current.dirty = true; }}
             className={`h-10 rounded-lg border border-[#8A8F9C] bg-white px-3 text-[0.9375rem] font-medium text-[#1B1D26] ${focus}`}>
-            <option value={50}>±50 µV</option><option value={100}>±100 µV</option><option value={200}>±200 µV</option>
+            <option value={200}>Small · ±200 µV</option><option value={100}>Normal · ±100 µV</option><option value={50}>Large · ±50 µV</option>
           </select>
         </label>
       </div>
-      <div className={`relative mt-3 overflow-hidden rounded-xl border border-[#E2E0DA] bg-white h-24`}>
+      <div className={`relative mt-3 overflow-hidden rounded-xl border border-[#E2E0DA] bg-white h-[7.5rem]`}>
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" role="img" aria-label={`Live EEG traces for ${CHANNELS.join(", ")}, last ${WINDOW_SEC} seconds`} />
         {!connected && (
           <p className="absolute inset-0 grid place-items-center p-3 text-center text-base text-[#4A4F5C]">The signal appears here after you pair the headband.</p>
