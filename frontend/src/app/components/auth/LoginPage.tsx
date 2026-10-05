@@ -185,6 +185,7 @@ export function LoginPage({ navigate }) {
             <p className="mt-6 border-t border-[#E2E0DA] pt-5 text-center text-[0.9375rem] leading-snug text-[#4A4F5C]" style={reading}>
               Your information is protected under the Data Privacy Act of 2012.
             </p>
+            </div>
           </div>
         </div>
       </main>
