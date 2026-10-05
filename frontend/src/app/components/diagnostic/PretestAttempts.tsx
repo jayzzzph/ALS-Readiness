@@ -294,9 +294,7 @@ function stemStyle(text: string): { className: string; style: typeof display | t
 /** A blank line splits a reading passage from the question: everything before the last paragraph is the passage. */
 function splitPassage(text: string): { passage: string | null; question: string } {
   const trimmed = text.trim();
-  const cut = trimmed.lastIndexOf("
-
-");
+  const cut = trimmed.lastIndexOf("\n\n");
   if (cut === -1) return { passage: null, question: trimmed };
   return { passage: trimmed.slice(0, cut).trim(), question: trimmed.slice(cut).trim() };
 }
