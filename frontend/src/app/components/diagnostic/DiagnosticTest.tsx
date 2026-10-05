@@ -224,13 +224,24 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
                 </div>
               </section>
 
-              {/* Navy is reserved for Muse 2. */}
-              <section aria-labelledby="hub-muse-title" className="rounded-2xl bg-[#1C1D33] p-6 text-white">
-                <h3 id="hub-muse-title" className="text-2xl leading-[1.25]" style={display}>Muse 2 baseline</h3>
-                <p className="mt-3 text-lg leading-relaxed text-[#D9DBEA]" style={reading}>
-                  Part IV is a short recording with your Muse 2 headband. Your facilitator sets it up and records it with you at the learning center, right after the exams.
-                </p>
-              </section>
+              {/* Navy is reserved for Muse 2. While Part IV is the open part its card already says what it is, so the aside gives the practical steps instead. */}
+              {statusOf(3) === "current" ? (
+                <section aria-labelledby="hub-muse-title" className="rounded-2xl bg-[#1C1D33] p-6 text-white">
+                  <h3 id="hub-muse-title" className="text-2xl leading-[1.25]" style={display}>Before you start</h3>
+                  <ol className="mt-3 list-decimal space-y-2 pl-6 text-lg leading-relaxed text-[#D9DBEA] marker:font-bold marker:text-white" style={reading}>
+                    <li>Ask your facilitator to help you put on the Muse 2 headband.</li>
+                    <li>Sit comfortably and stay still.</li>
+                    <li>The recording takes a few minutes.</li>
+                  </ol>
+                </section>
+              ) : (
+                <section aria-labelledby="hub-muse-title" className="rounded-2xl bg-[#1C1D33] p-6 text-white">
+                  <h3 id="hub-muse-title" className="text-2xl leading-[1.25]" style={display}>Muse 2 baseline</h3>
+                  <p className="mt-3 text-lg leading-relaxed text-[#D9DBEA]" style={reading}>
+                    Part IV is a short recording with your Muse 2 headband. Your facilitator sets it up and records it with you at the learning center, right after the exams.
+                  </p>
+                </section>
+              )}
             </div>
           </div>
         )}
