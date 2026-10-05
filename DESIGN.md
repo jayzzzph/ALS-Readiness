@@ -1,5 +1,5 @@
 ---
-name: ALS Readiness
+name: ALSense
 description: Readiness profiling and modality-matched learning for ALS learners and facilitators.
 colors:
   deep-blue: "#00538A"
@@ -153,7 +153,7 @@ components:
     padding: "32px"
 ---
 
-# Design System: ALS Readiness
+# Design System: ALSense
 
 <!-- Sources: shipped light style in frontend/src/app/components/LandingPage.tsx and auth/LoginPage.tsx, plus the visual direction in docs/mockups/ (Learner Dashboard, Facilitator Dashboard, Admin User Management, M02 P2 Question Screen). Mockup colors were sampled from JPEG pixels, so treat them as close but not exact. Mockups are direction, not pixel specs. -->
 
@@ -161,7 +161,7 @@ components:
 
 **Creative North Star: "The Annotated Workbook"**
 
-ALS Readiness should feel like a good study workbook on a classroom desk. Warm paper, headings set in a confident serif, deep blue ink for the things you act on, and an amber highlighter marking where you are and how ready you are. Strand labels are the indigo tabs along the edge of the book, telling you which section you're in. The one exception is the sensor: Muse 2 readings and charts sit on dark navy instrument panels, so measured signal reads as a different kind of information from coursework.
+ALSense should feel like a good study workbook on a classroom desk. Warm paper, headings set in a confident serif, deep blue ink for the things you act on, and an amber highlighter marking where you are and how ready you are. Strand labels are the indigo tabs along the edge of the book, telling you which section you're in. The one exception is the sensor: Muse 2 readings and charts sit on dark navy instrument panels, so measured signal reads as a different kind of information from coursework.
 
 The system is calm, roomy, and literal. Learners are adults, some with little formal schooling, so type runs large, there's one clear action per area, and nothing decorative competes with the task. Facilitator and admin screens are denser (tables, filters, charts) but use the same paper, ink, and highlighter. The light style is the standard on every surface. **The dark navy sidebar and indigo `#3535C5` shell in the current `AppLayout` are old and are being replaced.**
 
@@ -249,7 +249,7 @@ It fits if you split it by job. Use Atkinson for learner body and answer text, a
 
 ## Layout
 
-- **App shell:** a fixed light sidebar (240px, `sunken`, hairline right border) with the ALS Readiness wordmark and tagline at top, role nav in the middle, and the primary session action, Support, and Logout at the bottom. A 64px white top bar holds the page context, notifications, settings, and avatar. Content sits on `paper` with 24px gutters.
+- **App shell:** a fixed light sidebar (240px, `sunken`, hairline right border) with the ALSense wordmark and tagline at top, role nav in the middle, and the primary session action, Support, and Logout at the bottom. A 64px white top bar holds the page context, notifications, settings, and avatar. Content sits on `paper` with 24px gutters.
 - **Dashboard grid:** at 1280px, a main column of about 2/3 and an aside of about 1/3 (minimum 300px) with 24px gaps. Below about 1100px the aside drops under the main column. Below 1024px the sidebar collapses to a 72px icon rail with tooltips.
 - **Focused test mode:** the diagnostic test drops the sidebar. A white header shows the wordmark, the test name, and "Save & Exit". The content is one centered column (max 768px): strand overline, "Question 4 of 20", the indigo progress bar, the question card, then Back and Next on opposite sides. It keeps the same layout at every width.
 - **Spacing rhythm:** 4 / 8 / 16 / 24 / 32 / 48 / 64. Cards pad 32px. Sections sit 48px apart.
@@ -317,7 +317,7 @@ An instrument-navy card for Muse 2 readings: "Sensor Status" with a Connected/Di
 - **Do** set learner sentences in Atkinson Hyperlegible at 18px or more, and interface chrome in DM Sans.
 - **Do** print the number and the word with every readiness ring, bar, and chip.
 - **Do** check every screen at 1280px and 1024px.
-- **Do** write sample content in metric units and say "ALS Readiness" as the product name.
+- **Do** write sample content in metric units and say "ALSense" as the product name.
 
 ### Don't:
 - **Don't** bring back the dark navy sidebar or the `#3535C5` indigo-everywhere shell from the current `AppLayout`.
@@ -327,4 +327,4 @@ An instrument-navy card for Muse 2 readings: "Sensor Status" with a Connected/Di
 - **Don't** set long passages in DM Serif Display, or learner text below 15px.
 - **Don't** use all-caps button labels, or a monospace typeface.
 - **Don't** add shadows to cards.
-- **Don't** show "Brainwaves ALS" or "ALSense" in new screens, or NeuroSky/MindWave anywhere. The headset is Muse 2.
+- **Don't** show "ALS Readiness" or "Brainwaves ALS" (old mockup names) in new screens, or NeuroSky/MindWave anywhere. The headset is Muse 2.

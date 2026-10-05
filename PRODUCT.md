@@ -18,7 +18,7 @@ Three roles, set by the account (no self-registration). Everyone signs in with a
 
 ## Product Purpose
 
-ALS Readiness profiles how ready an ALS learner is to start learning. It combines a diagnostic pre-test (the preparatory equivalency exam plus a learner inventory) with an EEG baseline recorded on a Muse 2 headband. It then delivers learning content in the modality that fits the learner (auditory, visual, or reading) and measures change with a post-test. Facilitators get cohort-level analytics to act on.
+ALSense profiles how ready an ALS learner is to start learning. It combines a diagnostic pre-test (the preparatory equivalency exam plus a learner inventory) with an EEG baseline recorded on a Muse 2 headband. It then delivers learning content in the modality that fits the learner (auditory, visual, or reading) and measures change with a post-test. Facilitators get cohort-level analytics to act on.
 
 It is a **capstone/thesis research system, not yet deployed.** Success right now means the research pipeline works end to end for a study cohort and the results are readable by learners and facilitators.
 
@@ -44,7 +44,7 @@ What makes it different is the pairing of an ALS-aligned diagnostic test with an
 
 ## Brand Commitments
 
-- **Official name: ALS Readiness.** "Brainwaves ALS" (mockup footers and the test header) and "ALSense" (current landing, login, `ALSenseLogo`, footers) are names still to unify into ALS Readiness.
+- **Official name: ALSense.** "ALS Readiness" (mockup sidebars) and "Brainwaves ALS" (mockup footers, the diagnostic test header, the admin directory copy) are old names from the mockups. Replace them with ALSense wherever they appear.
 - Tagline seen in the mockups: "Empowering Learners" / "Empowering Adult Learners". Neither is confirmed as final.
 
 ## Evidence on Hand
