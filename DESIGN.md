@@ -328,3 +328,57 @@ An instrument-navy card for Muse 2 readings: "Sensor Status" with a Connected/Di
 - **Don't** use all-caps button labels, or a monospace typeface.
 - **Don't** add shadows to cards.
 - **Don't** show "ALS Readiness" or "Brainwaves ALS" (old mockup names) in new screens, or NeuroSky/MindWave anywhere. The headset is Muse 2.
+
+## Gestalt Principles
+
+The thesis uses these ten Gestalt principles as the design basis for ALSense. Each one maps to rules already set above, so this section explains why the system looks the way it does and adds no new visual direction. Every principle gives a definition, the ALSense rule, and an example from the mockups (`docs/mockups/`) or current screens.
+
+### Proximity
+- **Definition:** Elements placed close together are read as one group.
+- **ALSense rule:** Spacing gets tighter inside a group and wider between groups, using the 4 / 8 / 16 / 24 / 32 / 48 / 64 rhythm. A label sits 8px above its field. Fields sit 24px apart. Card content is padded 32px from the card edge. Sections sit 48px apart. A heading always has more space above it than below it.
+- **Example:** On the Login page, each label is 8px above its input and the two field groups are 24px apart, so "ID Number" clearly belongs to its own input. On the Learner Dashboard, each recommendation's meta line ("15 min", "Video") sits right under its title, apart from the next card.
+
+### Similarity
+- **Definition:** Elements that look alike are read as having the same role.
+- **ALSense rule:** The One Job Rule. Deep blue means act, amber means here or readiness, indigo means learning strand, navy means sensor. Every primary action is the same deep-blue 48px button with 12px corners. Every strand label is an indigo overline. Every readiness chip is a fully rounded pill of the same size, with only its color and word changing.
+- **Example:** "LS1: Communication" and "LS3: Problem Solving" on the Learner Dashboard share the same indigo overline style. "Start Session", "Add User", "Next" and the login "Sign In" share one primary button style. HIGH, MED and LOW in the Facilitator Dashboard table are the same chip in three tints.
+
+### Continuity
+- **Definition:** The eye follows a smooth line or path and groups the elements along it.
+- **ALSense rule:** Each card keeps one left edge for its content, set by its 32px padding. Focused flows run in one vertical column (max 768px for the test, about 448px for sign-in) and read top to bottom with no side branches. Bars in a table column start on the same x-position.
+- **Example:** The M02 Question Screen reads in one straight line: strand label, "Question 4 of 20", progress bar, question, answer options, then Back and Next. In the Facilitator Dashboard's Active Learners table, the strand-progress bars line up so they can be compared at a glance.
+
+### Figure-Ground
+- **Definition:** People separate a scene into a figure in front and a ground behind it.
+- **ALSense rule:** Paper (`paper`) is always the ground. White cards with a 1px hairline are the figure. Instrument navy is the strongest figure and is kept for sensor readings, so measured signal stands apart from coursework. Only floating layers (menus, popovers, dialogs) get a soft shadow.
+- **Example:** The Login card sits as one white figure on the warm paper ground. On the Learner Dashboard, the navy Sensor Status card stands out from the white readiness and recommendation cards around it.
+
+### Prägnanz (Simplicity)
+- **Definition:** People read a layout in its simplest stable form, so simpler layouts are understood faster.
+- **ALSense rule:** One primary action per area, flat surfaces with no card shadows, and plain-word values instead of raw metrics. Rings and capsules are kept for measured progress only. Learner screens show one task at a time.
+- **Example:** The Login page is one card with one heading, two fields and one button. On the Learner Dashboard, Signal Quality says "Excellent" instead of a number.
+
+### Symmetry
+- **Definition:** Symmetrical arrangements read as stable, balanced and complete.
+- **ALSense rule:** Symmetry is for focused tasks. Sign-in and the diagnostic test are centered columns, with matching controls given equal width and height. Dashboards are asymmetric on purpose (a 2/3 main column and a 1/3 aside) so the main task leads.
+- **Example:** On the M02 Question Screen, the column is centered, all four answer options are the same full width and about 76px tall, and Back and Next balance each other on opposite sides. The Login card is centered on the page.
+
+### Connectedness
+- **Definition:** Elements joined by a line, fill or shared shape read as related, even more strongly than elements that are only close together.
+- **ALSense rule:** A progress fill always sits on its own track, with its label and percentage on the same row. Table cells are joined into rows by hairline rules. The amber active nav pill joins the icon and label into one item. Chart lines join each series' points, with a text legend.
+- **Example:** In the Learner Dashboard's Diagnostic Progress card, "LS1 - LS2" connects to its 100% bar and value. In the Facilitator Dashboard, each learner row links their name, strand progress, readiness chip and last activity.
+
+### Common Region
+- **Definition:** Elements inside the same bounded area read as one group.
+- **ALSense rule:** A card (white, 16px corners, 1px hairline) holds one topic. Cards never nest. The sunken tone marks secondary regions: the sidebar, search fields and table header rows. Errors get their own error-tint region.
+- **Example:** In Admin User Management, Search, Role, Status and Clear sit inside one filter card, separate from the user table card. On the Login page, the error message is its own tinted region above the fields it refers to.
+
+### Focal Point
+- **Definition:** The element that contrasts most with its surroundings draws attention first.
+- **ALSense rule:** One focal point per screen: the Display heading or a signature element such as the readiness ring. Amber appears only where the learner is or how ready they are. Each card has at most one primary button.
+- **Example:** On the Learner Dashboard, the amber 78% readiness ring is the focal point. On the Login page, the eye goes from "Sign In" straight to the deep-blue button, the only saturated element.
+
+### Common Fate
+- **Definition:** Elements that move or change together are read as one group.
+- **ALSense rule:** Things that change together change at the same moment, with the same duration (150 to 200ms) and the same `cubic-bezier(0.23, 1, 0.32, 1)` curve. Under reduced motion they keep fading together but stop moving. Progress fills and readiness values that update together should animate together.
+- **Example:** On the Login page, when an error appears, the error message fades in at the same moment both inputs turn their error border, so the message and the fields read as one event. The show/hide password icons crossfade as one control.
