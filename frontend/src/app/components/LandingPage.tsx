@@ -32,11 +32,14 @@ const motionCss = `
 @keyframes lp-sweep { from { scale: 0 1; } }
 .lp-wave { stroke-dasharray: 1 2; animation: lp-draw 1200ms cubic-bezier(0.23, 1, 0.32, 1) 200ms backwards; }
 .lp-sweep { transform-box: fill-box; transform-origin: 0 50%; animation: lp-sweep 400ms cubic-bezier(0.23, 1, 0.32, 1) backwards; animation-delay: var(--d, 1400ms); }
+@keyframes lp-breathe { to { scale: 1.015; } }
+.lp-breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: lp-breathe 4s cubic-bezier(0.77, 0, 0.175, 1) infinite alternate; animation-play-state: paused; }
+[data-shown="true"] .lp-breathe { animation-play-state: running; }
 @keyframes lp-scroll { to { translate: -600px 0; } }
 .lp-trace { animation: lp-scroll 6s linear infinite; animation-play-state: paused; }
 [data-shown="true"] .lp-trace { animation-play-state: running; }
 @media (prefers-reduced-motion: reduce) {
-  .lp-rise, .lp-wave, .lp-sweep, .lp-trace { animation: none; }
+  .lp-rise, .lp-wave, .lp-sweep, .lp-trace, .lp-breathe { animation: none; }
   .st { opacity: 1; translate: 0 0; transition: none; }
   .lp-line { scale: 1 1; transition: none; }
 }`;
@@ -111,7 +114,7 @@ function StepRail({ number, first = false, last = false }: { number?: number; fi
  * It takes its natural height, so the next chapter always peeks in. It plays once when it scrolls into view; `mock` gets that
  * moment as `shown`.
  */
-function Chapter({ id, title, children, mock, flip = false, step, last = false }: { id: string; title: string; children: ReactNode; mock: (shown: boolean) => ReactNode; flip?: boolean; step?: number; last?: boolean }) {
+function Chapter({ id, title, children, mock, flip = false, step, last = false, mockDescribed = false }: { id: string; title: string; children: ReactNode; mock: (shown: boolean) => ReactNode; flip?: boolean; step?: number; last?: boolean; mockDescribed?: boolean }) {
   const [ref, shown] = useShown<HTMLElement>();
   const onRail = step !== undefined;
   return (
@@ -124,8 +127,9 @@ function Chapter({ id, title, children, mock, flip = false, step, last = false }
             <h2 id={id} className="st text-[2rem] leading-[1.2] text-[#1B1D26] lg:text-[2.5rem]" style={{ ...display, ...delay(onRail ? 40 : 0) }}>{title}</h2>
             <div className="st mt-5 space-y-4 text-xl leading-relaxed text-[#4A4F5C]" style={{ ...reading, ...delay(onRail ? 100 : 60) }}>{children}</div>
           </div>
-          {/* The mocks only illustrate; the words beside them say everything, so they are hidden from screen readers. */}
-          <div aria-hidden="true" className={`st ${flip ? "lg:order-1" : ""}`} style={delay(160)}>{mock(shown)}</div>
+          {/* The mocks only illustrate; the words beside them say everything, so they are hidden from screen readers
+              unless the mock carries its own description (`mockDescribed`). */}
+          <div aria-hidden={mockDescribed ? undefined : true} className={`st ${flip ? "lg:order-1" : ""}`} style={delay(160)}>{mock(shown)}</div>
         </div>
       </div>
     </section>
@@ -165,10 +169,69 @@ function PretestMock({ shown }: { shown: boolean }) {
   );
 }
 
+/**
+ * A learner resting during the baseline recording: an adult seated in a chair, hands in their lap, eyes closed, wearing a
+ * generic EEG headband (a thin band across the forehead and two arms that run down the sides of the head over and behind the
+ * ears, in dark warm gray, with one small light accent). Flat shapes in DESIGN.md colors plus the band's gray; no face detail,
+ * no logo, no text. It breathes very slowly (about 1.5% over 4s) while its section is on screen, and sits still under
+ * reduced motion.
+ */
+function RestingLearner() {
+  const band = "#4B4642";
+  return (
+    <svg
+      role="img"
+      aria-label="A learner sitting and relaxing while wearing an EEG headband"
+      viewBox="0 0 400 320"
+      className="mx-auto block h-auto w-full max-w-[26rem]"
+    >
+      {/* A soft amber glow behind the head, like the readiness hero's. */}
+      <circle cx="200" cy="130" r="118" fill="#FFDEB5" opacity="0.55" />
+
+      {/* The chair: a back and two arms. */}
+      <rect x="112" y="168" width="176" height="140" rx="18" fill="#F2F1ED" stroke="#E2E0DA" strokeWidth="1.5" />
+      <rect x="102" y="238" width="30" height="72" rx="10" fill="#E1E2E7" />
+      <rect x="268" y="238" width="30" height="72" rx="10" fill="#E1E2E7" />
+
+      {/* Neck, shoulders and sleeves; this group breathes. */}
+      <g className="lp-breathe">
+        <rect x="186" y="156" width="28" height="30" rx="8" fill="#FFDEB5" />
+        <path d="M128 310C128 222 148 190 186 184H214C252 190 272 222 272 310Z" fill="#4A4F5C" />
+        <path d="M186 178L200 198L214 178Z" fill="#FFDEB5" />
+        <path d="M142 206C132 238 150 260 178 266" fill="none" stroke="#4A4F5C" strokeWidth="26" strokeLinecap="round" />
+        <path d="M258 206C268 238 250 260 222 266" fill="none" stroke="#4A4F5C" strokeWidth="26" strokeLinecap="round" />
+
+        {/* Head: ears first so the headband arms sit over them, then face, hair, band. */}
+        <ellipse cx="154" cy="124" rx="7" ry="11" fill="#FFDEB5" stroke="#835500" strokeOpacity="0.25" />
+        <ellipse cx="246" cy="124" rx="7" ry="11" fill="#FFDEB5" stroke="#835500" strokeOpacity="0.25" />
+        <ellipse cx="200" cy="118" rx="44" ry="52" fill="#FFDEB5" />
+        <path d="M157 102C155 68 245 68 243 102C236 85 164 85 157 102Z" fill="#1B1D26" />
+        <g fill="none" stroke="#1B1D26" strokeWidth="2" strokeLinecap="round">
+          <path d="M178 124Q186 129 194 124" />
+          <path d="M206 124Q214 129 222 124" />
+          <path d="M191 142Q200 148 209 142" />
+        </g>
+        {/* The headband: across the forehead, with an arm down each side of the head, over and behind the ear. */}
+        <g fill="none" stroke={band} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M158 106Q200 98 242 106" strokeWidth="6" />
+          <path d="M160 105C151 104 146 113 146 122C146 131 150 139 157 141" strokeWidth="4.5" />
+          <path d="M240 105C249 104 254 113 254 122C254 131 250 139 243 141" strokeWidth="4.5" />
+        </g>
+        <rect x="165" y="102" width="11" height="4" rx="2" fill="#CFE4FF" />
+      </g>
+
+      {/* Lap and hands, resting still. */}
+      <rect x="122" y="286" width="156" height="34" rx="14" fill="#8A8F9C" />
+      <ellipse cx="182" cy="270" rx="17" ry="10" fill="#FFDEB5" />
+      <ellipse cx="218" cy="270" rx="17" ry="10" fill="#FFDEB5" />
+    </svg>
+  );
+}
+
 /** Muse 2 baseline: a navy sensor panel with a trace that keeps scrolling like a live signal. */
 function MuseMock() {
   return (
-    <div className="rounded-2xl bg-[#1C1D33] p-6 text-white sm:p-8">
+    <div aria-hidden="true" className="relative rounded-2xl bg-[#1C1D33] p-6 text-white sm:p-8">
       <div className="flex items-center justify-between gap-4">
         <p className="text-2xl leading-[1.25]" style={display}>Resting recording</p>
         <p className="inline-flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#CFE4FF]">
@@ -282,6 +345,18 @@ function CohortMock() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** The baseline step's picture: the resting learner behind, the recording panel just in front of them. */
+function MuseScene() {
+  return (
+    <div>
+      <RestingLearner />
+      <div className="relative -mt-4">
+        <MuseMock />
+      </div>
     </div>
   );
 }
@@ -480,7 +555,7 @@ export function LandingPage({ navigate }) {
           <p>You can save your answers and come back to finish later.</p>
         </Chapter>
 
-        <Chapter id="story-baseline" step={2} title="Then a short recording" flip mock={() => <MuseMock />}>
+        <Chapter id="story-baseline" step={2} title="Then a short recording" flip mockDescribed mock={() => <MuseScene />}>
           <p>Your facilitator helps you wear a Muse 2 headband at the learning center. It records your resting brain activity for a few minutes.</p>
           <p>There is nothing to answer. You just sit comfortably and stay still.</p>
         </Chapter>
