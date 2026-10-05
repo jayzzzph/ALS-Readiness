@@ -50,7 +50,7 @@ export function ScoreCompareModal({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-lg rounded-2xl border-[#E2E0DA] bg-white p-8 gap-6">
+      <DialogContent className="sm:max-w-lg rounded-2xl border-[#E2E0DA] bg-white p-8 gap-6 shadow-[0_8px_24px_rgba(27,29,38,0.08)]">
         <DialogHeader className="gap-2">
           <DialogTitle className="text-2xl leading-[1.25] font-normal text-[#1B1D26]" style={display}>{strandLabel}: your score before and after the lessons</DialogTitle>
           <DialogDescription className="text-lg leading-relaxed text-[#4A4F5C]" style={reading}>How you did on the pre-test, and how you did on the post-test.</DialogDescription>

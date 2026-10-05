@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, LoaderCircle, LockKeyhole } from "lucide-react";
+import { AlertCircle, LoaderCircle, Lock } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import { STRAND_CODES, STRAND_SHORT_LABEL, getStrandTests, indexByStrandCode } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { StrandCode, StrandTestListItem } from "../../../lib/api/types";
 import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "../diagnostic/attemptDraft";
+import { Ring } from "../diagnostic/DiagnosticTest";
 import { StrandAttempt, type NextStep } from "../diagnostic/PretestAttempts";
 import { ScoreCompareModal } from "../diagnostic/ScoreCompareModal";
-import { StrandTestCard } from "../diagnostic/StrandTestCard";
+import { StrandTestCard, primaryButton, secondaryButton } from "../diagnostic/StrandTestCard";
 
 // Post-test hub: one real diagnostic exam per in-scope strand (LS1-EN, LS1-FIL,
 // LS3 - no Science/AP, those were never in scope). Reuses Phase 2's overview
@@ -20,10 +21,15 @@ import { StrandTestCard } from "../diagnostic/StrandTestCard";
 
 type View = { name: "hub" } | { name: "strand-attempt"; test: StrandTestListItem };
 
+// Type roles from DESIGN.md: serif headings, Atkinson Hyperlegible for sentences learners read.
+const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
+const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
+const cardTitle = "text-2xl leading-[1.25] text-[#1B1D26]";
+
 function PostTestLoadingIndicator() {
   return (
-    <div className="py-12 flex justify-center">
-      <LoaderCircle className="w-6 h-6 text-[#3535C5] animate-spin" />
+    <div role="status" className="py-12 flex items-center justify-center gap-3 text-lg text-[#4A4F5C]" style={reading}>
+      <LoaderCircle className="w-6 h-6 text-[#00538A] motion-safe:animate-spin" aria-hidden="true" /> Loading your post-test...
     </div>
   );
 }
@@ -97,68 +103,106 @@ export function PostTest({ navigate, user, onLogout }) {
 
   // Strands are identified by strand_code, never by name; unknown codes are skipped.
   const byCode = indexByStrandCode(postTests);
-  // Reuses Phase 3's pretest/posttest cross-reference (same indexByStrandCode
-  // pattern that already powers the pretest-before-posttest gate) - here it
-  // also drives "Show Score" instead of an attempt gate.
+  // Same pretest/posttest cross-reference as the attempt gate; it also drives "Show Score".
   const preByCode = indexByStrandCode(preTests);
   const strands = STRAND_CODES.map((code) => byCode[code]).filter((test): test is StrandTestListItem => Boolean(test));
   const completedStrands = strands.filter((test) => test.attempt_status === "completed");
   const allComplete = strands.length > 0 && completedStrands.length === strands.length;
+  const pretestDone = (test: StrandTestListItem) => preByCode[test.strand_code]?.attempt_status === "completed";
+  const someOpen = strands.some(pretestDone);
+  const someLocked = strands.some((test) => test.attempt_status !== "completed" && !pretestDone(test));
+
+  // Only one strand button is the deep blue primary: a test with a saved draft ("Resume post-test") if there is one,
+  // else the first strand that is open and not done.
+  const openStrands = strands.filter((test) => test.attempt_status !== "completed" && pretestDone(test));
+  const nextStrand = openStrands.find((test) => hasAttemptDraft("strand", learnerId, test.test_id)) ?? openStrands[0];
+
+  const lockedState = (
+    <section aria-labelledby="post-locked-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+      <h3 id="post-locked-title" className={`${cardTitle} flex items-center gap-3`} style={display}>
+        <Lock className="w-6 h-6 shrink-0 text-[#4A4F5C]" strokeWidth={1.75} aria-hidden="true" /> The post-test opens after your pre-test
+      </h3>
+      <p className="mt-3 max-w-[34rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
+        Finish the pre-test for a strand first. Then you can answer that strand's questions again here.
+      </p>
+      <button onClick={() => navigate("diagnostic-test")} className={`mt-5 ${primaryButton}`}>Go to the pre-test</button>
+    </section>
+  );
+
+  const strandRows = (
+    <section aria-labelledby="post-strands-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+      <h3 id="post-strands-title" className={cardTitle} style={display}>Strand post-tests</h3>
+      <p className="mt-2 max-w-[34rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>One for each strand. A finished post-test can't be retaken.</p>
+      <ul className="mt-4 divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
+        {strands.map((test) => (
+          <li key={test.test_id}>
+            <StrandTestCard
+              variant="row"
+              emphasis={test.test_id === nextStrand?.test_id ? "primary" : "secondary"}
+              test={test}
+              canAttempt={pretestDone(test)}
+              disabledReason="Complete the pre-test for this strand first"
+              attemptLabel={hasAttemptDraft("strand", learnerId, test.test_id) ? "Resume post-test" : "Start post-test"}
+              onAttempt={() => openAttempt(test)}
+              canShowScore={pretestDone(test) && test.attempt_status === "completed"}
+              onShowScore={() => setScoreStrand(test.strand_code)}
+            />
+          </li>
+        ))}
+        {!strands.length && <li className="py-4 text-lg text-[#4A4F5C]" style={reading}>No post-test strands are currently available.</li>}
+      </ul>
+      {someLocked && (
+        <p className="mt-4 flex items-start gap-2 text-lg leading-snug text-[#4A4F5C]" style={reading}>
+          <Lock className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={1.75} aria-hidden="true" /> A strand without a start button opens after its pre-test is done.
+        </p>
+      )}
+    </section>
+  );
 
   return <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="post-test">
-    <main className="p-6 max-w-6xl mx-auto w-full">
-      <section className="bg-gradient-to-r from-orange-600 to-amber-600 rounded-2xl p-7 text-white mb-6">
-        <p className="text-orange-100 text-xs font-semibold uppercase tracking-[0.16em] mb-2">After stimulus content</p>
-        <h2 className="text-2xl font-bold mb-2">Post-test</h2>
-        <p className="text-orange-100 text-sm max-w-2xl leading-relaxed">Complete one post-test for each learning strand you've studied. Each strand needs its pre-test done first.</p>
-      </section>
+    <div className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
+      <h2 className="text-[3rem] leading-[1.1] text-[#1B1D26]" style={display}>Post-test</h2>
+      <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
+        Answer the strand questions again to see how far you've come.
+      </p>
 
-      {loading ? <PostTestLoadingIndicator /> : error ? (
-        <div role="alert" className="flex items-center justify-between gap-4 bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-sm">
-          <span>{error}</span><button onClick={loadHub} className="font-semibold underline shrink-0">Try again</button>
-        </div>
-      ) : <>
-        <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-5">
+      <div className="mt-8">
+        {loading ? <PostTestLoadingIndicator /> : error ? (
+          <div role="alert" className="flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-5 text-[#7A1A12]">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
             <div>
-              <h3 className="text-gray-800 font-bold text-lg">Diagnostic / Equivalency Exams</h3>
-              <p className="text-gray-500 text-sm mt-1">One post-test for each enrolled learning strand. Completed post-tests cannot be retaken.</p>
+              <p className="text-lg leading-snug" style={reading}>{error}</p>
+              <button onClick={loadHub} className={`mt-3 ${secondaryButton}`}>Try again</button>
             </div>
-            {allComplete && strands.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full text-xs font-medium bg-green-50 text-green-700"><LockKeyhole className="w-3.5 h-3.5" /> All post-tests complete</span>
-            )}
           </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            {strands.map((test) => {
-              const pretestDone = preByCode[test.strand_code]?.attempt_status === "completed";
-              return (
-                <StrandTestCard
-                  key={test.test_id}
-                  test={test}
-                  canAttempt={pretestDone}
-                  disabledReason="Complete the pretest for this strand first"
-                  attemptLabel={hasAttemptDraft("strand", learnerId, test.test_id) ? "Resume post-test" : "Start post-test"}
-                  onAttempt={() => openAttempt(test)}
-                  canShowScore={pretestDone && test.attempt_status === "completed"}
-                  onShowScore={() => setScoreStrand(test.strand_code)}
-                />
-              );
-            })}
-            {!strands.length && <p className="text-sm text-gray-500">No post-test strands are currently available.</p>}
-          </div>
-        </section>
+        ) : (
+          /* Same two-column grid as the pre-test hub: main column, with the progress aside at the right from xl. */
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="min-w-0 space-y-6">
+              {strands.length > 0 && !someOpen && !allComplete ? lockedState : strandRows}
+              {allComplete && (
+                <section aria-labelledby="post-done-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+                  <h3 id="post-done-title" className={cardTitle} style={display}>All three post-tests are done</h3>
+                  <p className="mt-2 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>See how you are doing across the lessons.</p>
+                  <button onClick={() => navigate("my-progress")} className={`mt-5 ${primaryButton}`}>View progress</button>
+                </section>
+              )}
+            </div>
 
-        {allComplete && strands.length > 0 && (
-          <div className="mt-6 bg-green-50 border border-green-200 rounded-2xl p-5 flex items-center gap-4">
-            <CheckCircle2 className="w-8 h-8 text-green-500 flex-shrink-0" />
-            <div className="flex-1">
-              <h3 className="text-green-800 font-bold">All post-tests complete!</h3>
-              <p className="text-green-700 text-sm">You've completed the full diagnostic-to-delivery pipeline.</p>
+            <div className="content-start">
+              <section aria-labelledby="post-progress-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
+                <h3 id="post-progress-title" className={`${cardTitle} mb-6`} style={display}>Your progress</h3>
+                <div className="flex justify-center">
+                  <Ring value={completedStrands.length} total={strands.length}>
+                    <span className="text-[2rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{completedStrands.length} of {strands.length}</span>
+                    <span className="mt-1.5 text-base font-bold text-[#4A4F5C]">done</span>
+                  </Ring>
+                </div>
+              </section>
             </div>
-            <button onClick={() => navigate("my-progress")} className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-medium transition-colors">View Progress</button>
           </div>
         )}
-      </>}
+      </div>
 
       {scoreStrand && preByCode[scoreStrand] && byCode[scoreStrand] && (
         <ScoreCompareModal
@@ -168,6 +212,6 @@ export function PostTest({ navigate, user, onLogout }) {
           onClose={() => setScoreStrand(null)}
         />
       )}
-    </main>
+    </div>
   </AppLayout>;
 }

@@ -241,7 +241,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
 
 type PartStatus = "done" | "current" | "locked";
 
-function Ring({ value, total, size = 136, stroke = 12, children }: { value: number; total: number; size?: number; stroke?: number; children: ReactNode }) {
+export function Ring({ value, total, size = 136, stroke = 12, children }: { value: number; total: number; size?: number; stroke?: number; children: ReactNode }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = total > 0 ? c * (1 - value / total) : c;
