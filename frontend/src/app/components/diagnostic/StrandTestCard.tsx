@@ -47,7 +47,8 @@ export function StrandTestCard({
     <div className="min-w-0 flex-1">
       <p className="text-[0.9375rem] font-bold uppercase tracking-[0.06em] leading-snug text-[#4D35BD]">{test.strand_code}</p>
       <h4 className="mt-1 text-lg font-bold leading-snug text-[#1B1D26]" style={reading}>{STRAND_SHORT_LABEL[test.strand_code]}</h4>
-      <p className="mt-0.5 text-base leading-snug text-[#4A4F5C]" style={reading}>{test.title}</p>
+      {/* In a row the strand name and code already say it, so the test title (which repeats them) is left out. */}
+      {!row && <p className="mt-0.5 text-base leading-snug text-[#4A4F5C]" style={reading}>{test.title}</p>}
     </div>
   );
 
