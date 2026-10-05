@@ -26,6 +26,7 @@ export function StrandTestCard({
   canShowScore = false,
   onShowScore,
   variant = "card",
+  emphasis = "primary",
 }: {
   test: StrandTestListItem;
   /** Whether the precondition for starting an attempt is met (e.g. intake done, or pretest done). */
@@ -39,6 +40,8 @@ export function StrandTestCard({
   onShowScore?: () => void;
   /** "card" stands alone; "row" sits in a divided list inside a part's card, so cards are never nested. */
   variant?: "card" | "row";
+  /** Which unfinished test is the one to do next gets "primary"; the others are outlined. A locked test is always the muted look. */
+  emphasis?: "primary" | "secondary";
 }) {
   const done = test.attempt_status === "completed";
   const row = variant === "row";
@@ -60,7 +63,7 @@ export function StrandTestCard({
   const action = done ? (
     canShowScore && onShowScore ? <button onClick={onShowScore} className={secondaryButton}>Show Score</button> : null
   ) : (
-    <button onClick={onAttempt} disabled={!canAttempt} className={primaryButton}>{attemptLabel}</button>
+    <button onClick={onAttempt} disabled={!canAttempt} className={canAttempt && emphasis === "secondary" ? secondaryButton : primaryButton}>{attemptLabel}</button>
   );
 
   const lockNote = !done && !canAttempt && (

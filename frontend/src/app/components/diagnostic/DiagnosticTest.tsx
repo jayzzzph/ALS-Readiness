@@ -137,12 +137,17 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   // A finished Part III stays collapsed unless a strand has its "Show Score" reveal to offer.
   const anyScoreToShow = strands.some((test) => test.attempt_status === "completed" && postByCode[test.strand_code]?.attempt_status === "completed");
 
+  // Only one strand button is the deep blue primary: a test with a saved draft ("Resume test") if there is one, else the first not-done strand.
+  const notDone = strands.filter((test) => test.attempt_status !== "completed");
+  const nextStrand = notDone.find((test) => hasAttemptDraft("strand", learnerId, test.test_id)) ?? notDone[0];
+
   const strandRows = (
     <ul className="divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
       {strands.map((test) => (
         <li key={test.test_id}>
           <StrandTestCard
             variant="row"
+            emphasis={test.test_id === nextStrand?.test_id ? "primary" : "secondary"}
             test={test}
             canAttempt={lriComplete}
             disabledReason={strandsLockReason}
