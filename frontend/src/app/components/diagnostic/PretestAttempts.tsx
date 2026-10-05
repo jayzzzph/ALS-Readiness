@@ -499,6 +499,8 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
     );
   }
 
+  const answeredCount = items.filter((it) => answers[it.item_id] !== undefined).length;
+
   const submit = async () => {
     setSaving(true); setSubmitError("");
     try {
@@ -527,7 +529,13 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
         {detail.status === "ready" && items.length === 0 && <p className="text-lg text-[#4A4F5C]" style={reading}>This inventory has no statements yet.</p>}
         {detail.status === "ready" && items.length > 0 && (
           <>
-            {/* Hairline rows on white; the column labels stay under the sticky header while the learner scrolls. Each Likert cell is a
+            <div className="mb-6 flex items-center gap-4">
+              <div role="progressbar" aria-labelledby="lri-answered-label" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={answeredCount} className="h-2 flex-1 rounded-full bg-[#E1E2E7] overflow-hidden">
+                <div className={`h-full rounded-full bg-[#00538A] motion-safe:transition-[translate] duration-200 ${easeOut}`} style={{ translate: `${(answeredCount / items.length) * 100 - 100}% 0` }} />
+              </div>
+              <p id="lri-answered-label" className="shrink-0 text-[0.9375rem] text-[#4A4F5C] tabular-nums">{answeredCount} of {items.length} answered</p>
+            </div>
+            {/* Hairline rows on white; answered rows take a faint blue wash so the unanswered ones stand out; the column labels stay under the sticky header while the learner scrolls. Each Likert cell is a
                 48px+ tap target: the whole cell is the label of a visually hidden native radio, drawn like the question screen's answer options. */}
             <table className="w-full table-fixed border-collapse">
               <thead>
@@ -538,7 +546,7 @@ export function LriAttempt({ test, learnerId, onClose }: { test: LriTestListItem
               </thead>
               <tbody>
                 {items.map((item, index) => (
-                  <tr key={item.item_id} className="border-b border-[#E2E0DA] last:border-b-0">
+                  <tr key={item.item_id} className={`border-b border-[#E2E0DA] last:border-b-0 transition-colors duration-150 ${easeOut} ${answers[item.item_id] !== undefined ? "bg-[#CFE4FF]/25" : ""}`}>
                     <th scope="row" className="px-4 py-4 text-left align-middle font-normal text-[#1B1D26]">
                       <span className="leading-[1.6]" style={{ ...reading, fontSize: "1.125rem" }}><span className="mr-2 font-bold tabular-nums text-[#4A4F5C]">{index + 1}.</span>{item.question_text}</span>
                     </th>
