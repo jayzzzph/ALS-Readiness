@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, ArrowLeft, CheckCircle2, ClipboardCheck, LoaderCircle } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, LoaderCircle } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import { getParticipantIntake, submitParticipantIntake } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
@@ -10,8 +10,17 @@ import {
   intakeFormFromIntake,
   toIntakeUpsert,
 } from "./intakeForm";
+import { primaryButton } from "./StrandTestCard";
 
-const inputClass = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none transition focus:border-[#3535C5] focus:ring-2 focus:ring-[#3535C5]/15";
+// Type roles from DESIGN.md: serif headings, DM Sans chrome, Atkinson Hyperlegible (18px) for what learners read and fill in.
+const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
+const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
+const cardTitle = "text-2xl leading-[1.25] text-[#1B1D26]";
+const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A]";
+
+// 48px tall, 12px corners, field-stroke border; focus turns the border deep blue with a 30% ring.
+const inputClass = "block w-full h-12 rounded-xl border border-[#8A8F9C] bg-white px-4 text-lg text-[#1B1D26] placeholder:text-[#6B7080] outline-none transition-[border-color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus:border-[#00538A] focus:ring-2 focus:ring-[#00538A]/30 disabled:border-[#E2E0DA] disabled:bg-[#F2F1ED] disabled:text-[#4A4F5C] disabled:cursor-not-allowed";
+const selectClass = `${inputClass} appearance-none pr-11`;
 
 // The server reports rule violations as "Value error, <rule>"; show just the rule.
 const readable = (message) => message.replace(/^Value error,\s*/, "");
@@ -66,36 +75,92 @@ export function ParticipantIntake({ navigate, user, onLogout }) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="participant-intake">
-      <main className="p-6 max-w-3xl mx-auto w-full">
-        <button onClick={() => navigate("diagnostic-test")} className="mb-5 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#3535C5]"><ArrowLeft className="w-4 h-4" /> Back to pre-test</button>
-        <section className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-          <div className="bg-gradient-to-r from-[#182f68] to-[#3535C5] p-7 text-white">
-            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center mb-4"><ClipboardCheck className="w-6 h-6" /></div>
-            <p className="text-blue-200 text-xs font-semibold uppercase tracking-[0.16em] mb-2">Pre-test · Part I</p>
-            <h2 className="text-2xl font-bold mb-2">Participant intake</h2>
-            <p className="text-blue-100 text-sm leading-relaxed">Complete this background questionnaire once before beginning the Learner Readiness Inventory and diagnostic exams.</p>
-          </div>
+      <div className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
+        <button onClick={() => navigate("diagnostic-test")} className={`inline-flex items-center gap-2 min-h-11 -ml-1 px-1 rounded-lg text-[0.9375rem] font-bold tracking-[0.01em] text-[#00538A] hover:text-[#004270] hover:underline underline-offset-4 ${focusRing}`}>
+          <ArrowLeft className="w-5 h-5" aria-hidden="true" /> Back to pre-test
+        </button>
 
-          {loading ? <div className="p-12 flex justify-center"><LoaderCircle className="w-6 h-6 text-[#3535C5] animate-spin" /></div> : <form onSubmit={submit} className="p-7 space-y-6">
-            <div className="flex gap-3 p-4 rounded-xl border border-blue-100 bg-blue-50"><AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" /><p className="text-blue-900 text-sm">All fields are required. You can come back and update your answers at any time.</p></div>
-            {message && <div role="status" className="flex gap-2 p-4 rounded-xl bg-green-50 text-green-800 text-sm"><CheckCircle2 className="w-5 h-5 shrink-0" />{message}</div>}
-            {error && <p role="alert" className="p-4 rounded-xl bg-red-50 text-red-700 text-sm">{error}</p>}
+        <h2 className="mt-4 text-[3rem] leading-[1.1] text-[#1B1D26]" style={display}>Participant intake</h2>
+        <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
+          Part I of the pre-test. Answer these questions once before the Learner Readiness Inventory and diagnostic exams. All fields are required, and you can come back and update your answers at any time.
+        </p>
 
-            <div className="grid sm:grid-cols-3 gap-4">
-              <Field label="Age"><input required min="15" max="120" type="number" value={form.age} onChange={(event) => update("age", event.target.value)} className={inputClass} /></Field>
-              <Field label="Sex"><select required value={form.sex} onChange={(event) => update("sex", event.target.value)} className={inputClass}><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></Field>
-              <Field label="Civil status"><select required value={form.civil_status} onChange={(event) => update("civil_status", event.target.value)} className={inputClass}><option value="">Select</option>{civilStatusChoices(form.civil_status).map((status) => <option key={status} value={status}>{status}</option>)}</select></Field>
+        <div className="mt-8 max-w-3xl">
+          {loading ? (
+            <div role="status" className="py-12 flex items-center justify-center gap-3 text-lg text-[#4A4F5C]" style={reading}>
+              <LoaderCircle className="w-6 h-6 text-[#00538A] motion-safe:animate-spin" aria-hidden="true" /> Loading your intake...
             </div>
-            <Field label="Highest educational attainment prior to ALS"><input required value={form.highest_educational_attainment} onChange={(event) => update("highest_educational_attainment", event.target.value)} className={inputClass} placeholder="e.g., Grade 10" /></Field>
-            <fieldset><legend className="text-sm font-medium text-gray-700 mb-2">ALS learning strand(s) currently enrolled in</legend><div className="grid sm:grid-cols-3 gap-3">{INTAKE_STRAND_OPTIONS.map(({ code, label }) => <label key={code} className="flex items-center gap-2 p-3 rounded-xl border border-gray-200 text-sm text-gray-700 cursor-pointer"><input type="checkbox" checked={form.als_learning_strands.includes(code)} onChange={() => toggleStrand(code)} className="accent-[#3535C5]" />{label}</label>)}</div></fieldset>
-            <Field label="Length of time enrolled in ALS (months)"><input required min="0" max="1200" type="number" value={form.als_enrollment_months} onChange={(event) => update("als_enrollment_months", event.target.value)} className={inputClass} /></Field>
-            <div className="grid sm:grid-cols-2 gap-4"><Field label="Have you taken the A&E test before?"><select required value={form.has_taken_ae_test} onChange={(event) => { update("has_taken_ae_test", event.target.value); if (event.target.value === "false") update("ae_test_attempt_count", "0"); }} className={inputClass}><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select></Field><Field label="Number of previous A&E attempts"><input required min={form.has_taken_ae_test === "true" ? "1" : "0"} max="100" disabled={form.has_taken_ae_test !== "true"} type="number" value={form.ae_test_attempt_count} onChange={(event) => update("ae_test_attempt_count", event.target.value)} className={`${inputClass} disabled:bg-gray-100`} /></Field></div>
-            <div className="border-t border-gray-100 pt-5 flex justify-end"><button disabled={saving || form.als_learning_strands.length === 0} className="px-5 py-2.5 rounded-xl bg-[#3535C5] text-white hover:bg-[#2929a8] disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium">{saving ? "Saving…" : existingIntake ? "Update intake" : "Submit participant intake"}</button></div>
-          </form>}
-        </section>
-      </main>
+          ) : (
+            <form onSubmit={submit} className="space-y-6">
+              {message && (
+                <div role="status" className="flex items-start gap-3 rounded-xl border border-[#00538A] bg-[#CFE4FF] p-5 text-[#1B1D26]">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-[#00538A]" aria-hidden="true" />
+                  <p className="text-lg leading-snug" style={reading}>{message}</p>
+                </div>
+              )}
+              {error && (
+                <div role="alert" className="flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-5 text-[#7A1A12]">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+                  <p className="text-lg leading-snug" style={reading}>{error}</p>
+                </div>
+              )}
+
+              <section aria-labelledby="intake-about" className="rounded-2xl border border-[#E2E0DA] bg-white p-6 sm:p-8">
+                <h3 id="intake-about" className={cardTitle} style={display}>About you</h3>
+                <div className="mt-6 grid gap-6 sm:grid-cols-3">
+                  <Field label="Age"><input required min="15" max="120" type="number" value={form.age} onChange={(event) => update("age", event.target.value)} className={inputClass} style={reading} /></Field>
+                  <Field label="Sex"><SelectBox><select required value={form.sex} onChange={(event) => update("sex", event.target.value)} className={selectClass} style={reading}><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></SelectBox></Field>
+                  <Field label="Civil status"><SelectBox><select required value={form.civil_status} onChange={(event) => update("civil_status", event.target.value)} className={selectClass} style={reading}><option value="">Select</option>{civilStatusChoices(form.civil_status).map((status) => <option key={status} value={status}>{status}</option>)}</select></SelectBox></Field>
+                </div>
+              </section>
+
+              <section aria-labelledby="intake-als" className="rounded-2xl border border-[#E2E0DA] bg-white p-6 sm:p-8">
+                <h3 id="intake-als" className={cardTitle} style={display}>Your ALS learning</h3>
+                <div className="mt-6 space-y-6">
+                  <Field label="Highest educational attainment prior to ALS"><input required value={form.highest_educational_attainment} onChange={(event) => update("highest_educational_attainment", event.target.value)} className={inputClass} style={reading} placeholder="e.g., Grade 10" /></Field>
+                  <fieldset>
+                    <legend className="text-[1.125rem] font-bold leading-snug text-[#1B1D26]" style={reading}>ALS learning strand(s) currently enrolled in</legend>
+                    <p className="mt-1 text-base leading-snug text-[#4A4F5C]" style={reading}>Choose at least one.</p>
+                    <div className="mt-3 grid gap-3">
+                      {INTAKE_STRAND_OPTIONS.map(({ code, label }) => (
+                        <label key={code} className="flex min-h-14 items-center gap-4 rounded-xl border border-[#8A8F9C] bg-white px-4 py-3 text-lg text-[#1B1D26] cursor-pointer transition-[background-color,border-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-[#00538A] has-[:checked]:border-[#00538A] has-[:checked]:bg-[#CFE4FF] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#00538A]" style={reading}>
+                          <input type="checkbox" checked={form.als_learning_strands.includes(code)} onChange={() => toggleStrand(code)} className="w-6 h-6 shrink-0 accent-[#00538A]" />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <Field label="Length of time enrolled in ALS (months)"><input required min="0" max="1200" type="number" value={form.als_enrollment_months} onChange={(event) => update("als_enrollment_months", event.target.value)} className={`${inputClass} sm:max-w-48`} style={reading} /></Field>
+                </div>
+              </section>
+
+              <section aria-labelledby="intake-ae" className="rounded-2xl border border-[#E2E0DA] bg-white p-6 sm:p-8">
+                <h3 id="intake-ae" className={cardTitle} style={display}>A&amp;E test history</h3>
+                <div className="mt-6 grid gap-6 sm:grid-cols-2">
+                  <Field label="Have you taken the A&E test before?"><SelectBox><select required value={form.has_taken_ae_test} onChange={(event) => { update("has_taken_ae_test", event.target.value); if (event.target.value === "false") update("ae_test_attempt_count", "0"); }} className={selectClass} style={reading}><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select></SelectBox></Field>
+                  <Field label="Number of previous A&E attempts"><input required min={form.has_taken_ae_test === "true" ? "1" : "0"} max="100" disabled={form.has_taken_ae_test !== "true"} type="number" value={form.ae_test_attempt_count} onChange={(event) => update("ae_test_attempt_count", event.target.value)} className={inputClass} style={reading} /></Field>
+                </div>
+              </section>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button disabled={saving || form.als_learning_strands.length === 0} aria-busy={saving} className={primaryButton}>
+                  {saving ? <><LoaderCircle className="w-5 h-5 mr-2 motion-safe:animate-spin" aria-hidden="true" />Saving…</> : existingIntake ? "Update intake" : "Submit participant intake"}
+                </button>
+                {form.als_learning_strands.length === 0 && <p className="text-base leading-snug text-[#4A4F5C]" style={reading}>Choose at least one learning strand to continue.</p>}
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
     </AppLayout>
   );
 }
 
-function Field({ label, children }) { return <label className="block text-sm font-medium text-gray-700">{label}<div className="mt-1.5">{children}</div></label>; }
+function Field({ label, children }) {
+  return <label className="block text-[1.125rem] font-bold leading-snug text-[#1B1D26]" style={reading}>{label}<div className="mt-2 font-normal">{children}</div></label>;
+}
+
+/** A native select with the chevron drawn over it, so every field in the form has the same 48px shape. */
+function SelectBox({ children }) {
+  return <div className="relative">{children}<ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#4A4F5C]" aria-hidden="true" /></div>;
+}
