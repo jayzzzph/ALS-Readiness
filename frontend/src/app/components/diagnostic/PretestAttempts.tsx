@@ -96,31 +96,33 @@ function Countdown({ secondsLeft, expired }: { secondsLeft: number; expired: boo
 /**
  * Focused test mode frame. `title` names the stage in the header ("Pre-test");
  * the exit button closes the attempt - answers are already saved as a draft on
- * every change, so leaving keeps them. `exitHint` is a visible line under the
- * exit button saying what leaving does (a tooltip would never open on touch).
- * `wide` is for the LRI table.
+ * every change, so leaving keeps them. `exitHint` says what leaving does, as
+ * visible text (a tooltip would never open on touch): inline just before the
+ * exit button on wide screens, and on its own line under the bar on narrow ones,
+ * so the header row itself stays one centered 64px line. `wide` is for the LRI table.
  */
 export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", exitHint, countdown, wide = false, children }: { title: string; onClose: () => void; exitLabel?: string; exitHint?: string; countdown?: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
     <div className="min-h-[100dvh] bg-[#F8F6F2] text-[#1B1D26] selection:bg-[#FFAB2E]/50" style={chrome}>
       <style>{fontCss}</style>
       <header className="sticky top-0 z-10 bg-white border-b border-[#E2E0DA]">
-        <div className="min-h-16 px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
+        <div className="h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-[#00538A] text-[1.75rem] leading-none" style={display}>ALSense</span>
             <span className="h-6 w-px shrink-0 bg-[#E2E0DA]" aria-hidden="true" />
             <span className="text-[0.9375rem] font-bold text-[#4A4F5C] truncate">{title}</span>
           </div>
-          <div className="flex items-start gap-3 sm:gap-5 shrink-0">
-            {countdown && <div className="h-11 flex items-center">{countdown}</div>}
-            <div className="flex flex-col items-end">
-              <button onClick={onClose} aria-describedby={exitHint ? "exit-hint" : undefined} className={`h-11 px-3 -mr-2 inline-flex items-center gap-1.5 rounded-lg text-[0.9375rem] font-bold text-[#1B1D26] hover:bg-[#F2F1ED] ${press} ${focus}`}>
-                <X className="w-5 h-5" aria-hidden="true" /> {exitLabel}
-              </button>
-              {exitHint && <p id="exit-hint" className="max-w-[16rem] sm:max-w-none text-right text-[0.9375rem] leading-5 text-[#4A4F5C]">{exitHint}</p>}
-            </div>
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
+            {countdown}
+            {countdown && exitHint && <span className="hidden lg:block h-6 w-px bg-[#E2E0DA]" aria-hidden="true" />}
+            {exitHint && <p id="exit-hint" className="hidden lg:block text-[0.9375rem] text-[#4A4F5C]">{exitHint}</p>}
+            <button onClick={onClose} aria-describedby={exitHint ? "exit-hint" : undefined} className={`h-11 px-3 -mr-2 inline-flex items-center gap-1.5 rounded-lg text-[0.9375rem] font-bold text-[#1B1D26] hover:bg-[#F2F1ED] ${press} ${focus}`}>
+              <X className="w-5 h-5" aria-hidden="true" /> {exitLabel}
+            </button>
           </div>
         </div>
+        {/* Narrow screens: the same hint, right-aligned under the row (screen readers get it from #exit-hint either way). */}
+        {exitHint && <p aria-hidden="true" className="lg:hidden px-4 sm:px-6 pb-2 -mt-1 text-right text-[0.9375rem] leading-5 text-[#4A4F5C]">{exitHint}</p>}
       </header>
       <main className="px-4 sm:px-6 py-10 sm:py-12">
         <div className={`mx-auto ${wide ? "max-w-5xl" : "max-w-3xl"}`}>{children}</div>
@@ -380,13 +382,14 @@ export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", ba
       {detail.status === "ready" && total === 0 && <p className="mt-6 text-lg text-[#4A4F5C]" style={reading}>This test has no questions yet.</p>}
       {detail.status === "ready" && item && stem && (
         <>
-          <div className="mt-3 flex items-baseline justify-between gap-4 text-[0.9375rem] tabular-nums">
-            <p className="font-bold">Question {current + 1} of {total}</p>
-            <p className="text-[#4A4F5C]">{answeredCount} of {total} answered</p>
-          </div>
-          {/* Position in the test. The fill slides rather than stretches, so its rounded end keeps its shape. */}
-          <div role="progressbar" aria-label="Progress through the test" aria-valuemin={1} aria-valuemax={total} aria-valuenow={current + 1} aria-valuetext={`Question ${current + 1} of ${total}`} className="mt-2 h-2 rounded-full bg-[#E1E2E7] overflow-hidden">
-            <div className={`h-full rounded-full bg-[#4D35BD] motion-safe:transition-[translate] duration-200 ${easeOut}`} style={{ translate: `${((current + 1) / total) * 100 - 100}% 0` }} />
+          <p className="mt-2 text-[0.9375rem] font-bold tabular-nums">Question {current + 1} of {total}</p>
+          {/* Answered progress, with its label on the same row (DESIGN.md, Connectedness), so it can't be read as
+              the question position above. The fill slides rather than stretches, so its rounded end keeps its shape. */}
+          <div className="mt-2 flex items-center gap-4">
+            <div role="progressbar" aria-labelledby="answered-label" aria-valuemin={0} aria-valuemax={total} aria-valuenow={answeredCount} className="h-2 flex-1 rounded-full bg-[#E1E2E7] overflow-hidden">
+              <div className={`h-full rounded-full bg-[#4D35BD] motion-safe:transition-[translate] duration-200 ${easeOut}`} style={{ translate: `${(answeredCount / total) * 100 - 100}% 0` }} />
+            </div>
+            <p id="answered-label" className="shrink-0 text-[0.9375rem] text-[#4A4F5C] tabular-nums">{answeredCount} of {total} answered</p>
           </div>
 
           {/* Keyed by item so each new question settles in: a short fade, plus a small rise when motion is allowed. */}
