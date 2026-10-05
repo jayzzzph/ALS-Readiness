@@ -1,7 +1,7 @@
 # Learner Dashboard: Gestalt Critique (After)
 
-- **Target:** `frontend/src/app/components/learner/LearnerDashboard.tsx` and the rebuilt `frontend/src/app/components/shared/AppLayout.tsx` shell (commit `797cb132`).
-- **Checked against:** the Gestalt Principles section of `DESIGN.md` (commit `c481359c`). The same method as `learner-dashboard-before.md`.
+- **Target:** `frontend/src/app/components/learner/LearnerDashboard.tsx` and the rebuilt `frontend/src/app/components/shared/AppLayout.tsx` shell (commit `73858b56`).
+- **Checked against:** the Gestalt Principles section of `DESIGN.md` (commit `c87b0624`). The same method as `learner-dashboard-before.md`.
 - **Date:** 2026-10-05, branch `ui-polish`.
 - **Evidence:** the source code, plus the page rendered in Chromium after signing in through `/login` with a real seeded learner account against the local backend. No session was faked. Layout measurements were taken at 100% zoom (device pixel ratio 1) at 1280px and 1024px.
 - **Screenshots:** `learner-dashboard-after-1280.png` and `learner-dashboard-after-1024.png`, taken in Chrome at 100% zoom with the page laid out at 1280px and 1024px. The saved images are about 82% of CSS size, **1050×1148** and **828×1456**, so they are smaller than the before images (1280×1162 and 1024×1162) even though the layout widths match. They were captured as WebP and converted to PNG with no other change.

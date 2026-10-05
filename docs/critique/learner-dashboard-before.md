@@ -1,8 +1,8 @@
 # Learner Dashboard: Gestalt Critique (Before)
 
 - **Target:** `frontend/src/app/components/learner/LearnerDashboard.tsx` (169 lines), shown inside the shared `AppLayout` shell.
-- **Checked against:** the Gestalt Principles section of `DESIGN.md` (commit `c481359c`).
-- **Date:** 2026-10-05, branch `ui-polish`, code at commit `7cd7e23f`.
+- **Checked against:** the Gestalt Principles section of `DESIGN.md` (commit `c87b0624`).
+- **Date:** 2026-10-05, branch `ui-polish`, code at commit `25fb0a79`.
 - **Evidence:** the source code, plus the page rendered in Chromium after signing in through `/login` with a real seeded learner account against the local backend. No session was faked. Full-page screenshots: `learner-dashboard-before-1280.png` and `learner-dashboard-before-1024.png`. The design skill's automated check (`impeccable detect`) flagged one problem: a purple gradient at line 125.
 - **Scope:** this is a focused Gestalt review done by one reviewer. It isn't the full multi-reviewer `impeccable critique`. No code was changed.
 
