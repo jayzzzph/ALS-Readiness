@@ -14,12 +14,16 @@ const body = { fontFamily: "'DM Sans', system-ui, sans-serif" } as const;
 const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
 
 const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A]";
+// Strong ease-out: responds immediately, settles softly. All motion here stays under 200ms.
+const easeOut = "ease-[cubic-bezier(0.23,1,0.32,1)]";
 const labelClass = "block mb-2 text-[0.9375rem] font-bold leading-snug tracking-[0.01em] text-[#1B1D26]";
 const iconClass = "pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#4A4F5C]";
+const toggleIcon = "absolute inset-0 w-5 h-5 transition-[opacity,scale,filter] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]";
+const toggleIconHidden = "opacity-0 scale-[0.8] blur-[2px] motion-reduce:scale-100 motion-reduce:blur-none";
 const inputClass =
   "w-full h-12 pl-12 bg-white border border-[#8A8F9C] rounded-xl text-lg text-[#1B1D26] caret-[#00538A] placeholder:text-[#6B7080] " +
   "hover:border-[#4A4F5C] focus:outline-none focus:border-[#00538A] focus:ring-2 focus:ring-[#00538A]/30 " +
-  "aria-[invalid=true]:border-[#B42318] autofill:shadow-[inset_0_0_0_1000px_#FFFFFF] transition-colors duration-150";
+  "aria-[invalid=true]:border-[#B42318] autofill:shadow-[inset_0_0_0_1000px_#FFFFFF] transition-[border-color,box-shadow] duration-150 " + easeOut;
 
 export function LoginPage({ navigate }) {
   const [idNo, setIdNo] = useState("");
@@ -76,7 +80,7 @@ export function LoginPage({ navigate }) {
               <div
                 id="login-error"
                 role="alert"
-                className="mb-6 flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-4 text-[#7A1A12]"
+                className={`mb-6 flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-4 text-[#7A1A12] transition-[opacity,translate] duration-200 ${easeOut} starting:opacity-0 starting:-translate-y-1 motion-reduce:starting:translate-y-0`}
               >
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
                 <span className="text-lg leading-snug" style={reading}>{error}</span>
@@ -120,10 +124,15 @@ export function LoginPage({ navigate }) {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    onMouseDown={e => e.preventDefault()}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className={`absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-lg text-[#4A4F5C] hover:text-[#1B1D26] hover:bg-[#F2F1ED] transition-colors duration-150 ${focus}`}
+                    className={`group absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-lg text-[#4A4F5C] hover:text-[#1B1D26] hover:bg-[#F2F1ED] active:scale-95 motion-reduce:active:scale-100 transition-[color,background-color,scale] duration-150 ${easeOut} focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#00538A]`}
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" aria-hidden="true" /> : <Eye className="w-5 h-5" aria-hidden="true" />}
+                    {/* Both icons stay mounted so the swap can crossfade instead of popping. */}
+                    <span className="relative w-5 h-5" aria-hidden="true">
+                      <Eye className={`${toggleIcon} ${showPassword ? toggleIconHidden : "opacity-100"}`} />
+                      <EyeOff className={`${toggleIcon} ${showPassword ? "opacity-100" : toggleIconHidden}`} />
+                    </span>
                   </button>
                 </div>
               </div>
@@ -132,15 +141,16 @@ export function LoginPage({ navigate }) {
                 type="submit"
                 disabled={isLoading}
                 aria-busy={isLoading}
-                className={`w-full h-12 px-6 flex items-center justify-center gap-3 rounded-xl bg-[#00538A] text-white text-base font-bold tracking-[0.01em] hover:bg-[#004270] active:translate-y-px transition-[background-color,transform] duration-150 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:translate-y-0 ${focus}`}
+                className={`w-full h-12 px-6 flex items-center justify-center rounded-xl bg-[#00538A] text-white text-base font-bold tracking-[0.01em] hover:bg-[#004270] active:scale-[0.98] motion-reduce:active:scale-100 transition-[background-color,scale] duration-150 ${easeOut} disabled:cursor-wait disabled:active:scale-100 ${focus}`}
               >
+                {/* The busy label fades in on mount; the button keeps full color while busy instead of looking disabled. */}
                 {isLoading ? (
-                  <>
-                    <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                  <span key="busy" className={`inline-flex items-center gap-3 transition-opacity duration-150 ${easeOut} starting:opacity-0`}>
+                    <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-[spin_0.7s_linear_infinite] motion-reduce:animate-none" aria-hidden="true" />
                     Signing in…
-                  </>
+                  </span>
                 ) : (
-                  "Sign In"
+                  <span key="idle">Sign In</span>
                 )}
               </button>
             </form>
