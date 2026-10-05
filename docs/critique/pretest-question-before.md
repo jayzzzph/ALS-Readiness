@@ -3,7 +3,15 @@
 - **Target:** `frontend/src/app/components/diagnostic/PretestAttempts.tsx` (325 lines). The main subject is the strand question screen in `StrandAttempt` (lines 136–233), rendered inside `AttemptShell` (lines 65–81). The LRI variant in `LriAttempt` (lines 237–325) is covered in its own section at the end.
 - **Checked against:** the Gestalt Principles section of `DESIGN.md` (commit `c87b0624`), with the M02 P2 Question Screen mockup (`docs/mockups/M02 P2 Question Screen (1).jpg`) as the visual reference.
 - **Date:** 2026-10-05, branch `ui-polish`, code at commit `9495d7a6` (file last changed in `48045ecd`).
-- **Evidence:** the source code only. The screen isn't rendered here: reaching it takes a signed-in learner and pressing Start in the overview modal, which begins a timed draft. No browser check was run, and no answers were submitted. The author will add the screenshots.
+- **Evidence:** the source code. No browser check was run for this review, and no answers were submitted. The author took screenshots of the whole pre-test flow afterwards (in `docs/critique/`, sizes in pixels):
+  - `pretest-overview-before.png` (1902 × 836): the pre-test hub.
+  - `pretest-intake-empty-before.png` (1897 × 836): Participant intake, empty.
+  - `pretest-intake-filled-before.png` (1907 × 838): Participant intake, filled in.
+  - `pretest-lri-before.png` (1896 × 836): the LRI table.
+  - `pretest-lri-submitted-before.png` (918 × 347): the LRI after submitting.
+  - `pretest-overview-after-lri-before.png` (1023 × 765): the hub after the LRI.
+  - `pretest-start-modal-before.png` (1807 × 765): the test overview modal before Start.
+  - `pretest-question-before.png` (1820 × 813): this screen, question 1 of 20 of the English diagnostic exam. It shows the issues described below: the faint Previous link, the indigo Next button and the disabled "Submit baseline responses" button on the first question.
 - **Where it appears:** `/diagnostic-test` (`DiagnosticTest.tsx`, line 109) after the learner presses Start in the overview modal. The post-test reuses the same component (`learner/PostTest.tsx`, line 74). It renders full screen, outside `AppLayout`, so the sidebar isn't shown.
 - **Scope:** this is a focused Gestalt review done by one reviewer. It isn't the full multi-reviewer `impeccable critique`. No code was changed.
 
