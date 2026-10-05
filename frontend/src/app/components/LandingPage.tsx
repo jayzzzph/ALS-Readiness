@@ -290,7 +290,7 @@ const levels = ["Low readiness", "Moderate readiness", "High readiness"];
 
 /**
  * The core idea as a small flow: three inputs, lines into a readiness estimate with three readiness levels (one lights up in amber),
- * then a line into one lesson. It plays in order once shown: inputs appear, lines draw, the pace lights up, the lesson appears.
+ * then a line into one lesson. It plays in order once shown: inputs appear, lines draw, the readiness level lights up, the lesson appears.
  * Sample content only; it is not anyone's result.
  */
 function CoreIdeaMock({ shown }: { shown: boolean }) {
