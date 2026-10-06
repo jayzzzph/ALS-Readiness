@@ -1,5 +1,3 @@
-from app.core.config import settings
-from app.storage import build_key, get_read_url, get_upload_url, s3_client
+from app.storage import get_read_url
 
-read_url = get_read_url("test-assets/e5a45f63-7a11-4f4a-b679-9476f0992e34_math-01.png")
-print("Read URL:", read_url)
+print(get_read_url("learning-contents/7f07284d-2f85-40f2-9c53-fe724ea304af_fil_med.mp4"))

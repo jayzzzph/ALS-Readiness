@@ -207,21 +207,21 @@ CURRICULUM_DATA = {
 CONTENT_DATA = {
     ("LS1-EN", "Reading Comprehension Basics"): [
         {
-            "file_key": "learning-contents/a1e1cd18-cb42-48ba-ad84-4dd9bc6ca5ef_en_low.mp4",
+            "file_key": "learning-contents/3088137f-eaea-4b30-bf3d-6634e362b0c1_en_low.mp4",
             "title": "Reading Made Simple",
             "description": "Low-stimulus version: a calm, beginner-friendly walkthrough.",
             "stimulus_level": StimulusLevel.LOW,
             "cognitive_sustainability_rating": 0.88,
         },
         {
-            "file_key": "learning-contents/71001e73-aafb-42d0-9bc6-867ba3a6b3f1_en_med.mp4",
+            "file_key": "learning-contents/33979385-0725-4c8e-ac37-f364abcf1cc6_en_med.mp4",
             "title": "Master Everyday English",
             "description": "Medium-stimulus version: balanced pacing with everyday examples.",
             "stimulus_level": StimulusLevel.MEDIUM,
             "cognitive_sustainability_rating": 0.72,
         },
         {
-            "file_key": "learning-contents/311b9410-125c-4eab-b5e7-a9b3eedd7887_en_high.mp4",
+            "file_key": "learning-contents/26a98d13-cb4b-4ae4-b0d2-da540b5c7bb4_en_high.mp4",
             "title": "Cognitive Exam Breakdown",
             "description": "High-stimulus version: fast-paced, exam-style breakdown.",
             "stimulus_level": StimulusLevel.HIGH,
@@ -230,21 +230,21 @@ CONTENT_DATA = {
     ],
     ("LS1-FIL", "Pag-unawa sa Binasa"): [
         {
-            "file_key": "learning-contents/2deaa9c6-d5d0-46e2-994f-4e853b0f067d_fil_low.mp4",
+            "file_key": "learning-contents/89374324-2de8-4e53-8e8f-d498cb0f715b_fil_low.mp4",
             "title": "Mga Susi sa Pag-unawa",
             "description": "Mababang stimulus: mahinahon at payak na paliwanag.",
             "stimulus_level": StimulusLevel.LOW,
             "cognitive_sustainability_rating": 0.86,
         },
         {
-            "file_key": "learning-contents/ba5271cf-69cf-4016-a104-02c6218d80cd_fil_med.mp4",
+            "file_key": "learning-contents/7f07284d-2f85-40f2-9c53-fe724ea304af_fil_med.mp4",
             "title": "Reading Toolkit Mo",
             "description": "Katamtamang stimulus: balanseng bilis na may mga halimbawa.",
             "stimulus_level": StimulusLevel.MEDIUM,
             "cognitive_sustainability_rating": 0.70,
         },
         {
-            "file_key": "learning-contents/58e3fdb1-8e02-4e51-b83e-6ec8ca53af32_fil_high.mp4",
+            "file_key": "learning-contents/93e0b20d-f8dc-4cc7-a54d-0f92745a1503_fil_high.mp4",
             "title": "Kasanayang Pangkomunikasyon",
             "description": "Mataas na stimulus: mabilis at masiglang talakayan.",
             "stimulus_level": StimulusLevel.HIGH,
@@ -253,21 +253,21 @@ CONTENT_DATA = {
     ],
     ("LS3", "Whole Numbers and Place Value"): [
         {
-            "file_key": "learning-contents/429760dd-5522-4ec8-952d-4fa39ba87732_mat_low.mp4",
+            "file_key": "learning-contents/86215003-8c3d-489d-a4fc-2aa3ef40aecb_mat_low.mp4",
             "title": "Mastering Math Visuals",
             "description": "Low-stimulus version: slow, visual-first explanation.",
             "stimulus_level": StimulusLevel.LOW,
             "cognitive_sustainability_rating": 0.90,
         },
         {
-            "file_key": "learning-contents/829ec187-8d7d-475b-bd40-517fa4527659_mat_med.mp4",
+            "file_key": "learning-contents/a12d5caf-19b6-4048-ba61-1af6ee843920_mat_med.mp4",
             "title": "Real World Math Toolkit",
             "description": "Medium-stimulus version: balanced pacing with real-world examples.",
             "stimulus_level": StimulusLevel.MEDIUM,
             "cognitive_sustainability_rating": 0.68,
         },
         {
-            "file_key": "learning-contents/ed2740df-5d8e-491e-86f9-e0770b451a70_mat_high.mp4",
+            "file_key": "learning-contents/a9af7312-de11-4cba-8344-532539840927_mat_high.mp4",
             "title": "Deconstructing Math",
             "description": "High-stimulus version: dense, fast-moving breakdown.",
             "stimulus_level": StimulusLevel.HIGH,
