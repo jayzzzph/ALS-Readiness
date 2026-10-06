@@ -187,7 +187,7 @@ async def seed_participants(session: AsyncSession) -> None:
         await session.refresh(ls3_attempt)
         await session.refresh(user_profile)
 
-        print(f"{user.id_no} - password: {temp_pass}, name: {user_profile.first_name} {user_profile.last_name}")
+        print(f"{user_profile.first_name} {user_profile.last_name} - id_no: {user.id_no}, password: {temp_pass}")
 
 
 async def main() -> None:

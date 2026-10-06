@@ -199,33 +199,31 @@ CURRICULUM_DATA = {
     },
 }
 
-# Contents are keyed by (strand code, lesson title). The video-to-lesson mapping
-# is a best guess from the titles; adjust as needed. Ratings are dummy values
-# that drop as stimulus level rises (low ~0.9, medium ~0.7, high ~0.45).
+# Each strand has one lesson that carries all three stimulus-level versions
+# (low / medium / high) of the same video content. Contents are keyed by
+# (strand code, lesson title). Which lesson hosts the videos is a best guess;
+# change the lesson titles below if they belong elsewhere. Ratings are dummy
+# values that drop as stimulus level rises (low ~0.9, medium ~0.7, high ~0.45).
 CONTENT_DATA = {
     ("LS1-EN", "Reading Comprehension Basics"): [
         {
             "file_key": "learning-contents/a1e1cd18-cb42-48ba-ad84-4dd9bc6ca5ef_en_low.mp4",
             "title": "Reading Made Simple",
-            "description": "A beginner-friendly walkthrough of finding main ideas and details.",
+            "description": "Low-stimulus version: a calm, beginner-friendly walkthrough.",
             "stimulus_level": StimulusLevel.LOW,
             "cognitive_sustainability_rating": 0.88,
         },
-    ],
-    ("LS1-EN", "Everyday Conversations"): [
         {
             "file_key": "learning-contents/71001e73-aafb-42d0-9bc6-867ba3a6b3f1_en_med.mp4",
             "title": "Master Everyday English",
-            "description": "Common phrases and exchanges for daily situations.",
+            "description": "Medium-stimulus version: balanced pacing with everyday examples.",
             "stimulus_level": StimulusLevel.MEDIUM,
             "cognitive_sustainability_rating": 0.72,
         },
-    ],
-    ("LS1-EN", "Writing Simple Paragraphs"): [
         {
             "file_key": "learning-contents/311b9410-125c-4eab-b5e7-a9b3eedd7887_en_high.mp4",
             "title": "Cognitive Exam Breakdown",
-            "description": "A fast-paced breakdown of exam-style reading and writing tasks.",
+            "description": "High-stimulus version: fast-paced, exam-style breakdown.",
             "stimulus_level": StimulusLevel.HIGH,
             "cognitive_sustainability_rating": 0.46,
         },
@@ -234,25 +232,21 @@ CONTENT_DATA = {
         {
             "file_key": "learning-contents/2deaa9c6-d5d0-46e2-994f-4e853b0f067d_fil_low.mp4",
             "title": "Mga Susi sa Pag-unawa",
-            "description": "Mga payak na paraan upang maunawaan ang binasang teksto.",
+            "description": "Mababang stimulus: mahinahon at payak na paliwanag.",
             "stimulus_level": StimulusLevel.LOW,
             "cognitive_sustainability_rating": 0.86,
         },
-    ],
-    ("LS1-FIL", "Pagsulat ng Simpleng Talata"): [
         {
             "file_key": "learning-contents/ba5271cf-69cf-4016-a104-02c6218d80cd_fil_med.mp4",
             "title": "Reading Toolkit Mo",
-            "description": "Mga kagamitan sa pagbasa at pagsulat ng talata.",
+            "description": "Katamtamang stimulus: balanseng bilis na may mga halimbawa.",
             "stimulus_level": StimulusLevel.MEDIUM,
             "cognitive_sustainability_rating": 0.70,
         },
-    ],
-    ("LS1-FIL", "Pang-araw-araw na Pakikipag-usap"): [
         {
             "file_key": "learning-contents/58e3fdb1-8e02-4e51-b83e-6ec8ca53af32_fil_high.mp4",
             "title": "Kasanayang Pangkomunikasyon",
-            "description": "Masiglang talakayan ng mga kasanayan sa pakikipagtalastasan.",
+            "description": "Mataas na stimulus: mabilis at masiglang talakayan.",
             "stimulus_level": StimulusLevel.HIGH,
             "cognitive_sustainability_rating": 0.44,
         },
@@ -261,25 +255,21 @@ CONTENT_DATA = {
         {
             "file_key": "learning-contents/429760dd-5522-4ec8-952d-4fa39ba87732_mat_low.mp4",
             "title": "Mastering Math Visuals",
-            "description": "Visual aids for understanding numbers and place value.",
+            "description": "Low-stimulus version: slow, visual-first explanation.",
             "stimulus_level": StimulusLevel.LOW,
             "cognitive_sustainability_rating": 0.90,
         },
-    ],
-    ("LS3", "Word Problems in Daily Life"): [
         {
             "file_key": "learning-contents/829ec187-8d7d-475b-bd40-517fa4527659_mat_med.mp4",
             "title": "Real World Math Toolkit",
-            "description": "Applying arithmetic to everyday word problems.",
+            "description": "Medium-stimulus version: balanced pacing with real-world examples.",
             "stimulus_level": StimulusLevel.MEDIUM,
             "cognitive_sustainability_rating": 0.68,
         },
-    ],
-    ("LS3", "Patterns and Logical Reasoning"): [
         {
             "file_key": "learning-contents/ed2740df-5d8e-491e-86f9-e0770b451a70_mat_high.mp4",
             "title": "Deconstructing Math",
-            "description": "Dense, fast-moving breakdown of patterns and reasoning.",
+            "description": "High-stimulus version: dense, fast-moving breakdown.",
             "stimulus_level": StimulusLevel.HIGH,
             "cognitive_sustainability_rating": 0.42,
         },

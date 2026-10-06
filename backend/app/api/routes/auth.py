@@ -16,6 +16,7 @@ async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     auth_service: AuthServiceDep,
 ):
+    print("Here")
     auth_tokens = await auth_service.login(
         LoginRequest(
             id_no=form_data.username,

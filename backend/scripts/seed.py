@@ -1,21 +1,18 @@
 import asyncio
 import sys
-from pathlib import Path
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from app.db.session import AsyncSessionLocal
-from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .seed_admin import create_admin
-from .seed_cohort import create_cohort_with_members
+from .seed_data.seed_cohort import create_cohort_with_members
 from .seed_data.seed_curriculum import seed_curriculum
 from .seed_data.seed_participants import seed_participants
 from .seed_facilitator import create_facilitator
 from .seed_learner import create_learner
-from .seed_learning_strand import create_strands_with_structure
 from .seed_lri_attempt import create_lri_attempt
 from .seed_lri_test import create_lri_test
 from .seed_strand_test import create_strand_tests
@@ -63,5 +60,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    #asyncio.run(main())
-    pass
+    asyncio.run(main())
+ 
