@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowDown, ArrowUp, History, Minus } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, CircleCheck, History, Minus } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import { SectionError } from "../shared/SectionError";
 import {
-  STRAND_CODES, STRAND_SHORT_LABEL, getLriAttemptResult, getLriTests, getStrandAttemptResult, getStrandTests, indexByStrandCode,
+  STRAND_CODES, STRAND_SHORT_LABEL, getLriTests, getStrandAttemptResult, getStrandTests, indexByStrandCode,
 } from "../../../lib/api/diagnostic";
 import { getMyStrands } from "../../../lib/api/learningContents";
-import type { LearningStrandProgress, LriAttemptResult, StrandAttemptResult, StrandTestListItem } from "../../../lib/api/types";
+import type { LearningStrandProgress, StrandAttemptResult, StrandTestListItem } from "../../../lib/api/types";
 
 // Type roles from DESIGN.md: serif headings, Atkinson Hyperlegible for the sentences and numbers a learner reads.
 // Everything here comes from the learner's own records. Where nothing exists yet, a calm note says what will appear.
@@ -48,10 +48,10 @@ async function loadScores(): Promise<StrandScores[]> {
   );
 }
 
-async function loadLri(): Promise<LriAttemptResult | null> {
+/** Whether the readiness inventory is done. Its score is never shown to the learner, so it is not even fetched. */
+async function loadLriDone(): Promise<boolean> {
   const { tests } = await getLriTests();
-  const test = tests[0];
-  return test && test.attempt_status === "completed" ? getLriAttemptResult(test.test_id) : null;
+  return tests[0]?.attempt_status === "completed";
 }
 
 /** null when the learner is not in an active cohort yet (the backend answers 404). */
@@ -96,6 +96,8 @@ const points = (n: number) => `${n} ${n === 1 ? "point" : "points"}`;
 
 function StrandScoreRow({ strand }: { strand: StrandScores }) {
   const { pre, post } = strand;
+  // The pre-test score stays hidden until this strand's post-test is also done, so seeing it never colors the post-test.
+  const showPre = !!pre && !!post;
   const change = pre && post ? Math.round((post.mps - pre.mps) * 100) / 100 : null;
   const improved = change !== null && change >= 0;
   const changeWords = change === null ? "" : change === 0 ? "No change" : `${improved ? "Up" : "Down"} ${points(Math.abs(change))}`;
@@ -106,11 +108,13 @@ function StrandScoreRow({ strand }: { strand: StrandScores }) {
       <div className="mt-4 grid gap-4 sm:grid-cols-2" style={reading}>
         <div className="rounded-xl bg-[#F2F1ED] p-5 text-center">
           <p className="text-lg font-bold text-[#4A4F5C]">Before the lessons</p>
-          {pre ? (
+          {pre && showPre ? (
             <>
               <p className="mt-1 text-[2.5rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{pre.mps}%</p>
               <p className="mt-2 text-base text-[#4A4F5C]">{pre.total_score} of {pre.item_count} correct</p>
             </>
+          ) : pre ? (
+            <p className="mt-3 flex items-center justify-center gap-2 text-lg text-[#1B1D26]"><CircleCheck className="w-5 h-5 text-[#00538A]" aria-hidden="true" /> Pre-test done</p>
           ) : (
             <p className="mt-3 text-lg text-[#4A4F5C]">Not taken yet</p>
           )}
@@ -154,7 +158,7 @@ export function MyProgress({ navigate, user, onLogout }) {
   const [attempt, setAttempt] = useState(0);
   const retry = () => setAttempt((n) => n + 1);
   const scores = useLoad(loadScores, attempt);
-  const lri = useLoad(loadLri, attempt);
+  const lri = useLoad(loadLriDone, attempt);
   const strands = useLoad(loadStrands, attempt);
 
   return (
@@ -218,11 +222,11 @@ export function MyProgress({ navigate, user, onLogout }) {
                 <SectionError message="Your inventory result could not be loaded. Please try again." onRetry={retry} />
               ) : lri.value ? (
                 <div style={reading}>
-                  <p className="text-[2.5rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{lri.value.lri_score} <span className="text-lg text-[#4A4F5C]" style={reading}>of 4</span></p>
-                  <p className="mt-3 text-lg leading-relaxed text-[#4A4F5C]">The average of your answers, on a scale from 1 to 4.</p>
+                  <p className="flex items-center gap-3 text-lg font-bold text-[#1B1D26]"><CircleCheck className="w-6 h-6 text-[#00538A]" aria-hidden="true" /> Done</p>
+                  <p className="mt-3 text-lg leading-relaxed text-[#4A4F5C]">Thank you for answering. Your answers help match lessons to you.</p>
                 </div>
               ) : (
-                <Note icon={History} title="Not taken yet">Your result appears here after you finish the readiness inventory in the pre-test.</Note>
+                <Note icon={History} title="Not yet">You will find the readiness inventory in the pre-test.</Note>
               )}
             </section>
 
