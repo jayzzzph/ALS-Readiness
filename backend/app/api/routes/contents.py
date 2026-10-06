@@ -60,7 +60,8 @@ async def evaluate_content(
     stimulus_level, cognitive_sustainability_rating = await service.evaluate_content(file)
     
     return {
-        cognitive_sustainability_rating
+        cognitive_sustainability_rating,
+        
     }
     
 
