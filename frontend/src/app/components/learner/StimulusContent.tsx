@@ -71,7 +71,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [pretest, setPretest] = useState<PretestState>({ status: "loading" });
-  const [playing, setPlaying] = useState<{ content: LearningContentNode; lessonTitle: string; strandId: number } | null>(null);
+  const [playing, setPlaying] = useState<{ contentId: number } | null>(null);
   // A slow response for a strand the learner has already moved away from must not replace the current one.
   const latestStrand = useRef<number | null>(null);
 
@@ -148,8 +148,8 @@ export function StimulusContent({ navigate, user, onLogout }) {
     : !isPretestComplete(pretest.progress) ? <PretestLocked progress={pretest.progress} onGo={() => navigate("diagnostic-test")} />
     : null;
 
-  if (playing) {
-    return <ContentPlayer contentId={playing.content.content_id} strandId={playing.strandId} fileUrl={playing.content.file_url} title={playing.content.title} lessonTitle={playing.lessonTitle} onClose={() => setPlaying(null)} />;
+  if (playing && curriculum) {
+    return <ContentPlayer initialContentId={playing.contentId} strandId={curriculum.strand_id} strandCode={curriculum.strand_code} strandName={curriculum.strand_name} modules={visibleModules} onClose={() => setPlaying(null)} />;
   }
 
   return (
@@ -190,7 +190,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
                         <section key={module.module_id} aria-labelledby={`module-${module.module_id}`} className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
                           <h2 id={`module-${module.module_id}`} className={cardTitle} style={display}>Module {moduleIndex + 1}: {module.title}</h2>
                           <ol className="mt-4 divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
-                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} onOpen={(content) => setPlaying({ content, lessonTitle: lesson.title, strandId: curriculum.strand_id })} />)}
+                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} onOpen={(content) => setPlaying({ contentId: content.content_id })} />)}
                           </ol>
                         </section>
                       ))}
