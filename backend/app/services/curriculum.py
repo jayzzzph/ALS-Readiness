@@ -10,6 +10,7 @@ from app.schemas.curriculum import (
 )
 from app.services.cohort_learner import CohortLearnerService
 from app.services.learner import LearnerService
+from app.storage import get_read_url
 
 
 class CurriculumService:
@@ -89,6 +90,7 @@ class CurriculumService:
                                         if content.id in progress_map
                                         else "not_opened"
                                     ),
+                                    file_url=get_read_url(content.file_key)
                                 )
                                 for content in lesson.contents
                                 if include(content)
