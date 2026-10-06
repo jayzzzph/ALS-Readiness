@@ -120,7 +120,11 @@ export function StimulusContent({ navigate, user, onLogout }) {
 
   const selected = strands.find((strand) => strand.strand_id === selectedId) ?? null;
   const noCohort = !loadingPage && cohorts.length === 0 && strands.length === 0;
-  const hasContents = curriculum?.modules.some((module) => module.lessons.some((lesson) => lesson.contents.length > 0)) ?? false;
+  // The progress count only includes lessons that have items, so the outline hides empty lessons (and modules left with none).
+  const visibleModules = (curriculum?.modules ?? [])
+    .map((module) => ({ ...module, lessons: module.lessons.filter((lesson) => lesson.contents.length > 0) }))
+    .filter((module) => module.lessons.length > 0);
+  const hasContents = visibleModules.length > 0;
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="stimulus-content">
@@ -159,16 +163,12 @@ export function StimulusContent({ navigate, user, onLogout }) {
                       </p>
                       {!hasContents ? (
                         <Notice title="Nothing here yet">This strand has no lessons yet. Check back soon.</Notice>
-                      ) : curriculum.modules.map((module, moduleIndex) => (
+                      ) : visibleModules.map((module, moduleIndex) => (
                         <section key={module.module_id} aria-labelledby={`module-${module.module_id}`} className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
                           <h2 id={`module-${module.module_id}`} className={cardTitle} style={display}>Module {moduleIndex + 1}: {module.title}</h2>
-                          {module.lessons.length === 0 ? (
-                            <p className="mt-3 text-lg text-[#4A4F5C]" style={reading}>No lessons in this module yet.</p>
-                          ) : (
-                            <ol className="mt-4 divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
-                              {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} />)}
-                            </ol>
-                          )}
+                          <ol className="mt-4 divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
+                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} />)}
+                          </ol>
                         </section>
                       ))}
                     </>
@@ -256,7 +256,7 @@ function ItemRow({ content }: { content: LearningContentNode }) {
       </div>
       <div className="sm:w-36 shrink-0"><StatusLabel status={ITEM_STATUS[content.progress_status] ?? "not_started"} /></div>
       {/* There is no learner endpoint to open content yet, so this stays disabled. */}
-      <button type="button" disabled aria-describedby={COMING_SOON_ID} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#8A8F9C] bg-white text-[0.9375rem] font-bold text-[#4A4F5C] cursor-not-allowed">Open</button>
+      <button type="button" disabled aria-describedby={COMING_SOON_ID} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#D3D5DC] bg-transparent text-[0.9375rem] font-bold text-[#767B88] cursor-not-allowed">Open</button>
     </li>
   );
 }
