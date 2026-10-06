@@ -57,7 +57,7 @@ def seed_bucket_posttest_contents():
         upload_file(
             f"{BASE_PATH}/{filename}.{ext}",
             key,
-            f"image/{ext if ext != 'jpg' else 'jpeg'}",
+            "video/mp4",
         )
 
         print(f"{filename} - {key}")
