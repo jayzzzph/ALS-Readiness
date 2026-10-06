@@ -4,6 +4,8 @@ import { getMyCohorts, getMyCurriculum, getMyStrands } from "../../../lib/api/le
 import type { CurriculumLesson, LearningContentNode, LearningStrandProgress, MyCohort, MyCurriculumResponse } from "../../../lib/api/types";
 import { getErrorMessage } from "../../../lib/api/errors";
 import { AppLayout } from "../shared/AppLayout";
+import { ContentPlayer } from "./ContentPlayer";
+import { CONTENT_OPEN_READY } from "../../../lib/api/contentPlayback";
 import { Ring } from "../diagnostic/DiagnosticTest";
 import { secondaryButton } from "../diagnostic/StrandTestCard";
 
@@ -66,6 +68,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
   const [loadingCurriculum, setLoadingCurriculum] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [playing, setPlaying] = useState<{ content: LearningContentNode; lessonTitle: string } | null>(null);
   // A slow response for a strand the learner has already moved away from must not replace the current one.
   const latestStrand = useRef<number | null>(null);
 
@@ -126,6 +129,10 @@ export function StimulusContent({ navigate, user, onLogout }) {
     .filter((module) => module.lessons.length > 0);
   const hasContents = visibleModules.length > 0;
 
+  if (playing) {
+    return <ContentPlayer contentId={playing.content.content_id} title={playing.content.title} lessonTitle={playing.lessonTitle} onClose={() => setPlaying(null)} />;
+  }
+
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="stimulus-content">
       <main className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
@@ -159,7 +166,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
                   {loadingCurriculum ? <OutlineSkeleton /> : curriculum ? (
                     <>
                       <p id={COMING_SOON_ID} className="flex items-start gap-2 text-lg leading-snug text-[#4A4F5C]" style={reading}>
-                        <Clock className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={1.75} aria-hidden="true" /> Opening lessons is coming soon.
+                        <Clock className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={1.75} aria-hidden="true" /> {CONTENT_OPEN_READY ? "Video lessons can be opened. Audio and reading lessons are coming soon." : "Opening lessons is coming soon."}
                       </p>
                       {!hasContents ? (
                         <Notice title="Nothing here yet">This strand has no lessons yet. Check back soon.</Notice>
@@ -167,7 +174,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
                         <section key={module.module_id} aria-labelledby={`module-${module.module_id}`} className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
                           <h2 id={`module-${module.module_id}`} className={cardTitle} style={display}>Module {moduleIndex + 1}: {module.title}</h2>
                           <ol className="mt-4 divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
-                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} />)}
+                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} onOpen={(content) => setPlaying({ content, lessonTitle: lesson.title })} />)}
                           </ol>
                         </section>
                       ))}
@@ -224,7 +231,7 @@ function StrandTab({ strand, selected, disabled, onSelect }: { strand: LearningS
   );
 }
 
-function LessonRow({ lesson, number }: { lesson: CurriculumLesson; number: number }) {
+function LessonRow({ lesson, number, onOpen }: { lesson: CurriculumLesson; number: number; onOpen: (content: LearningContentNode) => void }) {
   const status = lessonStatus(lesson);
   const count = lesson.contents.length;
   return (
@@ -238,14 +245,14 @@ function LessonRow({ lesson, number }: { lesson: CurriculumLesson; number: numbe
       </div>
       {count > 0 && (
         <ul className="mt-3 sm:ml-4 divide-y divide-[#E2E0DA] rounded-xl bg-[#F2F1ED] px-4">
-          {lesson.contents.map((content) => <ItemRow key={content.content_id} content={content} />)}
+          {lesson.contents.map((content) => <ItemRow key={content.content_id} content={content} onOpen={() => onOpen(content)} />)}
         </ul>
       )}
     </li>
   );
 }
 
-function ItemRow({ content }: { content: LearningContentNode }) {
+function ItemRow({ content, onOpen }: { content: LearningContentNode; onOpen: () => void }) {
   const { verb, icon: Icon } = CONTENT_TYPE[content.content_type] ?? CONTENT_TYPE.reading;
   return (
     <li className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
@@ -255,8 +262,12 @@ function ItemRow({ content }: { content: LearningContentNode }) {
         {RECOMMENDED_CONTENT_IDS.has(content.content_id) && <p className="mt-1 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#835500]">Recommended for you</p>}
       </div>
       <div className="sm:w-36 shrink-0"><StatusLabel status={ITEM_STATUS[content.progress_status] ?? "not_started"} /></div>
-      {/* There is no learner endpoint to open content yet, so this stays disabled. */}
-      <button type="button" disabled aria-describedby={COMING_SOON_ID} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#D3D5DC] bg-transparent text-[0.9375rem] font-bold text-[#767B88] cursor-not-allowed">Open</button>
+      {/* Only video has a player so far, and the open route does not exist in production yet (see CONTENT_OPEN_READY). */}
+      {CONTENT_OPEN_READY && content.content_type === "video" ? (
+        <button type="button" onClick={onOpen} aria-label={`Open ${content.title}`} className={`h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#00538A] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>Open</button>
+      ) : (
+        <button type="button" disabled aria-describedby={COMING_SOON_ID} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#D3D5DC] bg-transparent text-[0.9375rem] font-bold text-[#767B88] cursor-not-allowed">Open</button>
+      )}
     </li>
   );
 }

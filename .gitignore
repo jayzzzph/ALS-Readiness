@@ -59,3 +59,6 @@ context/
 .agents/
 .claude/skills/
 skills-lock.json
+
+# Local sample video for the dev-only content player mock
+frontend/public/dev/
