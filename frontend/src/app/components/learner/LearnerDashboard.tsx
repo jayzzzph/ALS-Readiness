@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ClipboardList, BookOpen, TrendingUp, Target, Check, CircleCheck, Clock, Lock, ArrowRight, AlertCircle } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
+import { SectionError } from "../shared/SectionError";
 import { STRAND_CODES, STRAND_SHORT_LABEL, getLriTests, getParticipantIntake, getStrandTests, indexByStrandCode } from "../../../lib/api/diagnostic";
 import { getMyStrands } from "../../../lib/api/learningContents";
 import { getErrorMessage } from "../../../lib/api/errors";
@@ -127,21 +128,6 @@ function TryAgain({ onClick }) {
     <button onClick={onClick} className={`mt-3 h-11 px-5 rounded-xl border border-[#00538A] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>
       Try again
     </button>
-  );
-}
-
-/** Calm inline error for one section: icon, message and a small secondary button on one line (wraps on narrow cards). */
-function SectionError({ message, onRetry }) {
-  return (
-    <div role="alert" className="flex flex-wrap items-center gap-x-4 gap-y-3">
-      <div className="flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-[#B42318]" aria-hidden="true" />
-        <p className="text-base leading-snug text-[#1B1D26]" style={reading}>{message}</p>
-      </div>
-      <button onClick={onRetry} className={`h-9 px-4 rounded-lg border border-[#8A8F9C] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>
-        Try again
-      </button>
-    </div>
   );
 }
 
