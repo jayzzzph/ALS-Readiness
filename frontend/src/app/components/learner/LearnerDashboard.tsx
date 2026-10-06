@@ -20,6 +20,8 @@ const overline = "text-[0.9375rem] font-bold uppercase tracking-[0.06em] leading
 
 type StepStatus = "done" | "current" | "locked";
 
+type Part = "intake" | "lri" | "pre" | "post" | "strands";
+
 /** Everything the dashboard shows comes from the learner's real records; nothing is sample data. */
 interface DashboardData {
   intakeDone: boolean;
@@ -28,26 +30,47 @@ interface DashboardData {
   posttestDone: boolean;
   /** null when the learner is not in an active cohort yet (the backend answers 404). */
   strands: LearningStrandProgress[] | null;
+  /** Parts whose request failed. Each section shows its own error instead of guessing from missing data. */
+  failed: Set<Part>;
+  /** Message from the first failed request, for the full-page error. */
+  failureMessage: string;
 }
 
+/** Each request settles on its own, so one failing endpoint does not blank the whole page. */
 async function loadDashboard(): Promise<DashboardData> {
-  const [intake, lri, pre, post, strands] = await Promise.all([
+  const [intake, lri, pre, post, strands] = await Promise.allSettled([
     getParticipantIntake(),
     getLriTests(),
     getStrandTests("pretest"),
     getStrandTests("posttest"),
     getMyStrands().catch((err) => { if (err?.response?.status === 404) return null; throw err; }),
   ]);
-  const preByCode = indexByStrandCode(pre.tests);
-  const postTests = STRAND_CODES.map((c) => indexByStrandCode(post.tests)[c]).filter(Boolean);
+  const failed = new Set<Part>();
+  const parts = { intake, lri, pre, post, strands };
+  let failureMessage = "";
+  (Object.keys(parts) as Part[]).forEach((key) => {
+    const result = parts[key];
+    if (result.status === "rejected") {
+      failed.add(key);
+      failureMessage ||= getErrorMessage(result.reason, "Your progress could not be loaded. Please try again.");
+    }
+  });
+  const preTests = pre.status === "fulfilled" ? pre.value.tests : [];
+  const postTests = post.status === "fulfilled" ? post.value.tests : [];
+  const preByCode = indexByStrandCode(preTests);
+  const postByCode = indexByStrandCode(postTests);
+  const postList = STRAND_CODES.map((c) => postByCode[c]).filter(Boolean);
+  const lriTests = lri.status === "fulfilled" ? lri.value.tests : [];
   return {
-    intakeDone: intake !== null,
-    lriDone: lri.tests.length > 0 && lri.tests.every((t) => t.attempt_status === "completed"),
+    intakeDone: intake.status === "fulfilled" && intake.value !== null,
+    lriDone: lriTests.length > 0 && lriTests.every((t) => t.attempt_status === "completed"),
     pretestStrands: STRAND_CODES.filter((c) => preByCode[c]).map((c) => ({
       code: c.startsWith("LS1") ? "LS1" : c, label: STRAND_SHORT_LABEL[c], done: preByCode[c].attempt_status === "completed",
     })),
-    posttestDone: postTests.length > 0 && postTests.every((t) => t.attempt_status === "completed"),
-    strands,
+    posttestDone: postList.length > 0 && postList.every((t) => t.attempt_status === "completed"),
+    strands: strands.status === "fulfilled" ? strands.value : null,
+    failed,
+    failureMessage,
   };
 }
 
@@ -99,6 +122,29 @@ function Bar({ percent }) {
   );
 }
 
+function TryAgain({ onClick }) {
+  return (
+    <button onClick={onClick} className={`mt-3 h-11 px-5 rounded-xl border border-[#00538A] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>
+      Try again
+    </button>
+  );
+}
+
+/** Calm inline error for one section: icon, message and a small secondary button on one line (wraps on narrow cards). */
+function SectionError({ message, onRetry }) {
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-[#B42318]" aria-hidden="true" />
+        <p className="text-base leading-snug text-[#1B1D26]" style={reading}>{message}</p>
+      </div>
+      <button onClick={onRetry} className={`h-9 px-4 rounded-lg border border-[#8A8F9C] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>
+        Try again
+      </button>
+    </div>
+  );
+}
+
 function Skeleton({ className }) {
   return <div className={`rounded-lg bg-[#F2F1ED] motion-safe:animate-pulse ${className}`} aria-hidden="true" />;
 }
@@ -107,20 +153,21 @@ function Skeleton({ className }) {
 
 export function LearnerDashboard({ navigate, user, onLogout }) {
   const [data, setData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    setError("");
-    loadDashboard()
-      .then((d) => { if (!cancelled) setData(d); })
-      .catch((err) => { if (!cancelled) setError(getErrorMessage(err, "Your progress could not be loaded. Please try again.")); });
+    loadDashboard().then((d) => { if (!cancelled) setData(d); });
     return () => { cancelled = true; };
   }, [attempt]);
 
+  const retry = () => setAttempt((n) => n + 1);
   const firstName = user?.name?.split(" ")[0] || "Learner";
-  const steps = data ? pipelineFor(data) : [];
+  const failed = data?.failed;
+  const allFailed = !!failed && failed.size === 5;
+  const stepsFailed = !!failed && failed.size > 0;
+  const pretestFailed = !!failed && (failed.has("intake") || failed.has("lri") || failed.has("pre"));
+  const steps = data && !stepsFailed ? pipelineFor(data) : [];
   const current = steps.find((s) => s.status === "current");
 
   return (
@@ -128,14 +175,12 @@ export function LearnerDashboard({ navigate, user, onLogout }) {
       <div className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
         <h2 className="mb-10 text-[3rem] leading-[1.1] text-[#1B1D26]" style={display}>Welcome, {firstName}!</h2>
 
-        {error ? (
+        {allFailed ? (
           <div role="alert" className="flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-5 text-[#7A1A12]">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
             <div>
-              <p className="text-lg leading-snug" style={reading}>{error}</p>
-              <button onClick={() => setAttempt((n) => n + 1)} className={`mt-3 h-11 px-5 rounded-xl border border-[#00538A] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>
-                Try again
-              </button>
+              <p className="text-lg leading-snug" style={reading}>{data?.failureMessage}</p>
+              <TryAgain onClick={retry} />
             </div>
           </div>
         ) : (
@@ -155,7 +200,7 @@ export function LearnerDashboard({ navigate, user, onLogout }) {
                     <p className="mt-3 max-w-[34rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
                       Your readiness profile appears here after you finish the pre-test and your Muse 2 baseline recording at the learning center.
                     </p>
-                    {current && (
+                    {current && !stepsFailed && (
                       <button
                         onClick={() => navigate(current.page)}
                         className={`mt-6 h-12 px-6 inline-flex items-center gap-2 rounded-xl bg-[#00538A] text-white text-base font-bold tracking-[0.01em] hover:bg-[#004270] active:scale-[0.98] motion-reduce:active:scale-100 transition-[background-color,scale] duration-150 ${easeOut} ${focus}`}
@@ -175,6 +220,8 @@ export function LearnerDashboard({ navigate, user, onLogout }) {
                 <h3 id="pipeline-title" className={`${cardTitle} mb-8`} style={display}>Your learning steps</h3>
                 {!data ? (
                   <div className="grid grid-cols-4 gap-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}</div>
+                ) : stepsFailed ? (
+                  <SectionError message="Your learning steps could not be loaded. Please try again." onRetry={retry} />
                 ) : (
                   <ol className="grid grid-cols-4">
                     {steps.map((step, i) => {
@@ -218,6 +265,8 @@ export function LearnerDashboard({ navigate, user, onLogout }) {
                 </div>
                 {!data ? (
                   <div className="space-y-5">{[0, 1].map((i) => <Skeleton key={i} className="h-16" />)}</div>
+                ) : failed?.has("strands") ? (
+                  <SectionError message="Your learning strands could not be loaded. Please try again." onRetry={retry} />
                 ) : !data.strands?.length ? (
                   <div className="py-6 text-center">
                     <BookOpen className="mx-auto mb-3 w-7 h-7 text-[#4A4F5C]" strokeWidth={1.5} aria-hidden="true" />
@@ -263,6 +312,8 @@ export function LearnerDashboard({ navigate, user, onLogout }) {
                 <h3 id="diagnostic-title" className={`${cardTitle} mb-6`} style={display}>Pre-test progress</h3>
                 {!data ? (
                   <Skeleton className="h-64" />
+                ) : pretestFailed ? (
+                  <SectionError message="Your pre-test progress could not be loaded. Please try again." onRetry={retry} />
                 ) : (() => {
                   const parts = [
                     { label: "Participant Intake", done: data.intakeDone },
