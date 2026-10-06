@@ -10,6 +10,7 @@ class ContentNode(BaseModel):
     content_type: ContentType
     stimulus_level: StimulusLevel | None
     progress_status: str
+    file_url: str
 
 
 class LessonNode(BaseModel):
