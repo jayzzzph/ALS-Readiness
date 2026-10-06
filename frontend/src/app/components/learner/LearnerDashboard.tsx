@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { ClipboardList, BookOpen, TrendingUp, Target, Check, CircleCheck, Clock, Lock, ArrowRight, AlertCircle } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import { SectionError } from "../shared/SectionError";
-import { STRAND_CODES, STRAND_SHORT_LABEL, getLriTests, getParticipantIntake, getStrandTests, indexByStrandCode } from "../../../lib/api/diagnostic";
+import { STRAND_CODES, getLriTests, getParticipantIntake, getStrandTests, indexByStrandCode } from "../../../lib/api/diagnostic";
+import { isPretestComplete, pretestParts, toPretestProgress } from "../diagnostic/pretestLogic";
 import { getMyStrands } from "../../../lib/api/learningContents";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { LearningStrandProgress } from "../../../lib/api/types";
@@ -56,18 +57,15 @@ async function loadDashboard(): Promise<DashboardData> {
       failureMessage ||= getErrorMessage(result.reason, "Your progress could not be loaded. Please try again.");
     }
   });
-  const preTests = pre.status === "fulfilled" ? pre.value.tests : [];
   const postTests = post.status === "fulfilled" ? post.value.tests : [];
-  const preByCode = indexByStrandCode(preTests);
   const postByCode = indexByStrandCode(postTests);
   const postList = STRAND_CODES.map((c) => postByCode[c]).filter(Boolean);
-  const lriTests = lri.status === "fulfilled" ? lri.value.tests : [];
   return {
-    intakeDone: intake.status === "fulfilled" && intake.value !== null,
-    lriDone: lriTests.length > 0 && lriTests.every((t) => t.attempt_status === "completed"),
-    pretestStrands: STRAND_CODES.filter((c) => preByCode[c]).map((c) => ({
-      code: c.startsWith("LS1") ? "LS1" : c, label: STRAND_SHORT_LABEL[c], done: preByCode[c].attempt_status === "completed",
-    })),
+    ...toPretestProgress(
+      intake.status === "fulfilled" ? intake.value : null,
+      lri.status === "fulfilled" ? lri.value.tests : [],
+      pre.status === "fulfilled" ? pre.value.tests : [],
+    ),
     posttestDone: postList.length > 0 && postList.every((t) => t.attempt_status === "completed"),
     strands: strands.status === "fulfilled" ? strands.value : null,
     failed,
@@ -76,7 +74,7 @@ async function loadDashboard(): Promise<DashboardData> {
 }
 
 function pipelineFor(d: DashboardData) {
-  const pretestDone = d.intakeDone && d.lriDone && d.pretestStrands.length > 0 && d.pretestStrands.every((s) => s.done);
+  const pretestDone = isPretestComplete(d);
   const contentDone = !!d.strands?.length && d.strands.every((s) => s.progress_percent === 100);
   const raw = [
     { label: "Pre-test",         icon: ClipboardList, page: "diagnostic-test",  done: pretestDone,   action: "Continue to Pre-test" },
@@ -301,11 +299,7 @@ export function LearnerDashboard({ navigate, user, onLogout }) {
                 ) : pretestFailed ? (
                   <SectionError message="Your pre-test progress could not be loaded. Please try again." onRetry={retry} />
                 ) : (() => {
-                  const parts = [
-                    { label: "Participant Intake", done: data.intakeDone },
-                    { label: "Readiness Inventory", done: data.lriDone },
-                    ...data.pretestStrands.map((s) => ({ label: s.label, code: s.code, done: s.done })),
-                  ];
+                  const parts = pretestParts(data);
                   const doneCount = parts.filter((p) => p.done).length;
                   return (
                     <>

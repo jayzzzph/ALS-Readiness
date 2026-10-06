@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, BookOpen, Check, Circle, CircleCheck, Clock, Headphones, Video, type LucideIcon } from "lucide-react";
+import { AlertCircle, BookOpen, Check, Circle, CircleCheck, Clock, Headphones, Lock, Video, type LucideIcon } from "lucide-react";
 import { getMyCohorts, getMyCurriculum, getMyStrands } from "../../../lib/api/learningContents";
+import { getLriTests, getParticipantIntake, getStrandTests } from "../../../lib/api/diagnostic";
 import type { CurriculumLesson, LearningContentNode, LearningStrandProgress, MyCohort, MyCurriculumResponse } from "../../../lib/api/types";
 import { getErrorMessage } from "../../../lib/api/errors";
 import { AppLayout } from "../shared/AppLayout";
 import { ContentPlayer } from "./ContentPlayer";
 import { CONTENT_OPEN_READY } from "../../../lib/api/contentPlayback";
 import { Ring } from "../diagnostic/DiagnosticTest";
-import { secondaryButton } from "../diagnostic/StrandTestCard";
+import { primaryButton, secondaryButton } from "../diagnostic/StrandTestCard";
+import { isPretestComplete, pretestParts, toPretestProgress, type PretestProgress } from "../diagnostic/pretestLogic";
+import { SectionError } from "../shared/SectionError";
 
 // Learning Content: a course outline. Strands on top (tabs), the selected strand's modules and lessons below like a
 // workbook's table of contents. Type roles and colors follow DESIGN.md: serif headings, Atkinson Hyperlegible for
@@ -59,6 +62,8 @@ function StatusLabel({ status }: { status: Status }) {
 
 const COMING_SOON_ID = "lesson-open-note";
 
+type PretestState = { status: "loading" } | { status: "error" } | { status: "ready"; progress: PretestProgress };
+
 export function StimulusContent({ navigate, user, onLogout }) {
   const [cohorts, setCohorts] = useState<MyCohort[]>([]);
   const [strands, setStrands] = useState<LearningStrandProgress[]>([]);
@@ -68,6 +73,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
   const [loadingCurriculum, setLoadingCurriculum] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [pretest, setPretest] = useState<PretestState>({ status: "loading" });
   const [playing, setPlaying] = useState<{ content: LearningContentNode; lessonTitle: string } | null>(null);
   // A slow response for a strand the learner has already moved away from must not replace the current one.
   const latestStrand = useRef<number | null>(null);
@@ -94,6 +100,16 @@ export function StimulusContent({ navigate, user, onLogout }) {
       }
     }
     void loadPage();
+    return () => { cancelled = true; };
+  }, [reloadKey]);
+
+  // Lessons are matched to the learner's pre-test results, so the page stays locked until Parts I to III are done.
+  useEffect(() => {
+    let cancelled = false;
+    setPretest({ status: "loading" });
+    Promise.all([getParticipantIntake(), getLriTests(), getStrandTests("pretest")])
+      .then(([intake, lri, pre]) => { if (!cancelled) setPretest({ status: "ready", progress: toPretestProgress(intake, lri.tests, pre.tests) }); })
+      .catch(() => { if (!cancelled) setPretest({ status: "error" }); });
     return () => { cancelled = true; };
   }, [reloadKey]);
 
@@ -129,6 +145,12 @@ export function StimulusContent({ navigate, user, onLogout }) {
     .filter((module) => module.lessons.length > 0);
   const hasContents = visibleModules.length > 0;
 
+  const gate =
+    pretest.status === "loading" ? <PageSkeleton />
+    : pretest.status === "error" ? <SectionError message="Your pre-test progress could not be loaded. Please try again." onRetry={() => setReloadKey((key) => key + 1)} />
+    : !isPretestComplete(pretest.progress) ? <PretestLocked progress={pretest.progress} onGo={() => navigate("diagnostic-test")} />
+    : null;
+
   if (playing) {
     return <ContentPlayer contentId={playing.content.content_id} title={playing.content.title} lessonTitle={playing.lessonTitle} onClose={() => setPlaying(null)} />;
   }
@@ -140,7 +162,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
         <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>Lessons for each of your learning strands.</p>
 
         <div className="mt-8">
-          {loadingPage ? <PageSkeleton /> : noCohort && !error ? (
+          {gate ?? (loadingPage ? <PageSkeleton /> : noCohort && !error ? (
             <Notice title="No lessons yet">Your lessons will appear here after your facilitator adds you to a cohort.</Notice>
           ) : strands.length === 0 && !error ? (
             <Notice title="No lessons yet">No learning strands are available for your cohort yet.</Notice>
@@ -204,7 +226,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
                 </div>
               </div>
             </>
-          )}
+          ))}
         </div>
       </main>
     </AppLayout>
@@ -269,6 +291,35 @@ function ItemRow({ content, onOpen }: { content: LearningContentNode; onOpen: ()
         <button type="button" disabled aria-describedby={COMING_SOON_ID} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#D3D5DC] bg-transparent text-[0.9375rem] font-bold text-[#767B88] cursor-not-allowed">Open</button>
       )}
     </li>
+  );
+}
+
+/** Shown instead of the outline until the pre-test is done: the order, what is left, and the way to the pre-test. */
+function PretestLocked({ progress, onGo }: { progress: PretestProgress; onGo: () => void }) {
+  const parts = pretestParts(progress);
+  return (
+    <section aria-labelledby="locked-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-8">
+      <h2 id="locked-title" className={`${cardTitle} flex items-center gap-3`} style={display}>
+        <Lock className="w-6 h-6 shrink-0 text-[#4A4F5C]" strokeWidth={1.75} aria-hidden="true" /> Finish your pre-test first
+      </h2>
+      <p className="mt-3 max-w-[34rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
+        Your lessons are matched to you from your results.
+      </p>
+      <ul className="mt-6 max-w-[28rem] space-y-3" aria-label="Pre-test parts">
+        {parts.map((part) => (
+          <li key={part.label} className="flex items-center gap-3">
+            {part.done
+              ? <CircleCheck className="w-5 h-5 shrink-0 text-[#00538A]" strokeWidth={2.25} aria-hidden="true" />
+              : <Clock className="w-5 h-5 shrink-0 text-[#4A4F5C]" strokeWidth={1.75} aria-hidden="true" />}
+            <span className="flex-1 min-w-0 text-base font-bold text-[#1B1D26]" style={reading}>
+              {part.code && <span className="mr-1.5 text-[#4D35BD]">{part.code}</span>}{part.label}
+            </span>
+            <span className="text-base text-[#4A4F5C]" style={reading}>{part.done ? "Done" : "Not yet"}</span>
+          </li>
+        ))}
+      </ul>
+      <button type="button" onClick={onGo} className={`mt-8 ${primaryButton}`}>Go to the pre-test</button>
+    </section>
   );
 }
 
