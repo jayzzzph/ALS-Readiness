@@ -1,56 +1,28 @@
 // Opening a content item and reporting progress on it.
-//
-// The backend has no learner route for either yet (see the Learning Content notes: it needs an "open" route that checks
-// the content is assigned to the learner's cohort and returns a signed storage URL, and a progress route). Until they
-// exist these two functions are the only place the app talks about them, so wiring the real routes means editing only
-// the bodies below and flipping CONTENT_OPEN_READY.
+
+import { getMyCurriculum } from "./learningContents";
 
 /** What the player reports. "not_opened" is the default and is never sent. */
 export type ReportedProgress = "in_progress" | "completed";
 
-/** What the player needs to play one item. `url` is a temporary signed URL, so it expires. */
-export interface OpenContentResponse {
-  url: string;
-  title: string;
-  content_type: "video" | "audio" | "reading";
-  /** ISO timestamp after which `url` stops working. */
-  expires_at: string;
-}
-
 /**
- * Whether learners may press Open. False in production builds until the real route exists; flip it (or remove it)
- * together with the real openContent below. In dev the mock makes Open usable so the player can be built and tried.
- */
-export const CONTENT_OPEN_READY: boolean = import.meta.env.DEV;
-
-/** Dev only: where the mock reads a video from when VITE_CONTENT_DEV_URL is not set. Gitignored; drop any mp4 there. */
-const LOCAL_SAMPLE_URL = "/dev/sample-video.mp4";
-const MOCK_LIFETIME_MS = 15 * 60 * 1000;
-
-/**
- * Will be: GET /api/me/contents/{contentId}/open  ->  { url, title, content_type, expires_at }
- * (404 when the content is not assigned to the learner's active cohort).
+ * Where to play one item. The curriculum response carries a presigned storage URL on every content (`file_url`),
+ * which stops working after about 2 hours.
  *
- * Mock (dev builds only): returns VITE_CONTENT_DEV_URL (paste a signed URL there) or the local sample file.
+ * With `knownUrl` (the item's file_url from the outline already on screen) it returns that. Without it, it refetches
+ * the strand's curriculum and reads a fresh file_url, which is how the player recovers from an expired URL.
  */
-export async function openContent(contentId: number): Promise<OpenContentResponse> {
-  if (!import.meta.env.DEV) {
-    throw new Error("The open-content route does not exist yet.");
+export async function openContent(contentId: number, strandId: number, knownUrl?: string): Promise<string> {
+  if (knownUrl) return knownUrl;
+  const curriculum = await getMyCurriculum(strandId);
+  for (const module of curriculum.modules) {
+    for (const lesson of module.lessons) {
+      const found = lesson.contents.find((content) => content.content_id === contentId);
+      if (found?.file_url) return found.file_url;
+    }
   }
-  const pasted = (import.meta.env.VITE_CONTENT_DEV_URL as string | undefined)?.trim();
-  return {
-    url: pasted || LOCAL_SAMPLE_URL,
-    title: `Content ${contentId}`,
-    content_type: "video",
-    expires_at: new Date(Date.now() + MOCK_LIFETIME_MS).toISOString(),
-  };
+  throw new Error("This content has no file URL.");
 }
 
-/**
- * Will be: PUT /api/me/contents/{contentId}/progress  with { status }  ->  { content_id, progress_status }
- *
- * Mock: logs only. The player calls it with "in_progress" when playback starts and "completed" when the video ends.
- */
-export async function updateProgress(contentId: number, status: ReportedProgress): Promise<void> {
-  console.info(`[mock] updateProgress(${contentId}, "${status}")`);
-}
+/** Waits for the progress route (PUT /api/me/contents/{contentId}/progress), which the backend does not have yet. */
+export async function updateProgress(_contentId: number, _status: ReportedProgress): Promise<void> {}

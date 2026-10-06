@@ -6,7 +6,6 @@ import type { CurriculumLesson, LearningContentNode, LearningStrandProgress, MyC
 import { getErrorMessage } from "../../../lib/api/errors";
 import { AppLayout } from "../shared/AppLayout";
 import { ContentPlayer } from "./ContentPlayer";
-import { CONTENT_OPEN_READY } from "../../../lib/api/contentPlayback";
 import { Ring } from "../diagnostic/DiagnosticTest";
 import { primaryButton, secondaryButton } from "../diagnostic/StrandTestCard";
 import { isPretestComplete, pretestParts, toPretestProgress, type PretestProgress } from "../diagnostic/pretestLogic";
@@ -60,8 +59,6 @@ function StatusLabel({ status }: { status: Status }) {
   return <span className={`inline-flex items-center gap-2 text-base ${className}`}><Icon className="w-5 h-5 shrink-0" strokeWidth={status === "done" ? 2.25 : 1.75} aria-hidden="true" /> {label}</span>;
 }
 
-const COMING_SOON_ID = "lesson-open-note";
-
 type PretestState = { status: "loading" } | { status: "error" } | { status: "ready"; progress: PretestProgress };
 
 export function StimulusContent({ navigate, user, onLogout }) {
@@ -74,7 +71,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [pretest, setPretest] = useState<PretestState>({ status: "loading" });
-  const [playing, setPlaying] = useState<{ content: LearningContentNode; lessonTitle: string } | null>(null);
+  const [playing, setPlaying] = useState<{ content: LearningContentNode; lessonTitle: string; strandId: number } | null>(null);
   // A slow response for a strand the learner has already moved away from must not replace the current one.
   const latestStrand = useRef<number | null>(null);
 
@@ -152,7 +149,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
     : null;
 
   if (playing) {
-    return <ContentPlayer contentId={playing.content.content_id} title={playing.content.title} lessonTitle={playing.lessonTitle} onClose={() => setPlaying(null)} />;
+    return <ContentPlayer contentId={playing.content.content_id} strandId={playing.strandId} fileUrl={playing.content.file_url} title={playing.content.title} lessonTitle={playing.lessonTitle} onClose={() => setPlaying(null)} />;
   }
 
   return (
@@ -187,16 +184,13 @@ export function StimulusContent({ navigate, user, onLogout }) {
                 <div role="tabpanel" aria-label={selected ? `${selected.name} lessons` : "Lessons"} aria-busy={loadingCurriculum} className="min-w-0 space-y-6">
                   {loadingCurriculum ? <OutlineSkeleton /> : curriculum ? (
                     <>
-                      <p id={COMING_SOON_ID} className="flex items-start gap-2 text-lg leading-snug text-[#4A4F5C]" style={reading}>
-                        <Clock className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={1.75} aria-hidden="true" /> {CONTENT_OPEN_READY ? "Video lessons can be opened. Audio and reading lessons are coming soon." : "Opening lessons is coming soon."}
-                      </p>
                       {!hasContents ? (
                         <Notice title="Nothing here yet">This strand has no lessons yet. Check back soon.</Notice>
                       ) : visibleModules.map((module, moduleIndex) => (
                         <section key={module.module_id} aria-labelledby={`module-${module.module_id}`} className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
                           <h2 id={`module-${module.module_id}`} className={cardTitle} style={display}>Module {moduleIndex + 1}: {module.title}</h2>
                           <ol className="mt-4 divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
-                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} onOpen={(content) => setPlaying({ content, lessonTitle: lesson.title })} />)}
+                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} onOpen={(content) => setPlaying({ content, lessonTitle: lesson.title, strandId: curriculum.strand_id })} />)}
                           </ol>
                         </section>
                       ))}
@@ -284,11 +278,11 @@ function ItemRow({ content, onOpen }: { content: LearningContentNode; onOpen: ()
         {RECOMMENDED_CONTENT_IDS.has(content.content_id) && <p className="mt-1 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#835500]">Recommended for you</p>}
       </div>
       <div className="sm:w-36 shrink-0"><StatusLabel status={ITEM_STATUS[content.progress_status] ?? "not_started"} /></div>
-      {/* Only video has a player so far, and the open route does not exist in production yet (see CONTENT_OPEN_READY). */}
-      {CONTENT_OPEN_READY && content.content_type === "video" ? (
+      {/* Only video has a player so far; audio and reading stay disabled. */}
+      {content.content_type === "video" ? (
         <button type="button" onClick={onOpen} aria-label={`Open ${content.title}`} className={`h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#00538A] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>Open</button>
       ) : (
-        <button type="button" disabled aria-describedby={COMING_SOON_ID} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#D3D5DC] bg-transparent text-[0.9375rem] font-bold text-[#767B88] cursor-not-allowed">Open</button>
+        <button type="button" disabled aria-label={`Open ${content.title} (not available yet)`} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#D3D5DC] bg-transparent text-[0.9375rem] font-bold text-[#767B88] cursor-not-allowed">Open</button>
       )}
     </li>
   );

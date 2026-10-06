@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { AttemptShell } from "../diagnostic/PretestAttempts";
 import { SectionError } from "../shared/SectionError";
-import { openContent, updateProgress, type OpenContentResponse } from "../../../lib/api/contentPlayback";
+import { openContent, updateProgress } from "../../../lib/api/contentPlayback";
 
 // Focused player for one video lesson item, in the AttemptShell frame the tests use (header with the lesson title and
 // Exit). Type roles from DESIGN.md: serif title, Atkinson Hyperlegible for the note. No autoplay: the learner presses
@@ -16,8 +16,8 @@ const NOTE_ID = "player-note";
 
 type Phase = "opening" | "loading" | "ready" | "error";
 
-export function ContentPlayer({ contentId, title, lessonTitle, onClose }: { contentId: number; title: string; lessonTitle: string; onClose: () => void }) {
-  const [source, setSource] = useState<OpenContentResponse | null>(null);
+export function ContentPlayer({ contentId, strandId, fileUrl, title, lessonTitle, onClose }: { contentId: number; strandId: number; fileUrl: string; title: string; lessonTitle: string; onClose: () => void }) {
+  const [url, setUrl] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("opening");
   // A new element for every open, even if the fresh URL equals the old one, so the browser really reloads it.
   const [attemptKey, setAttemptKey] = useState(0);
@@ -30,16 +30,17 @@ export function ContentPlayer({ contentId, title, lessonTitle, onClose }: { cont
   const started = useRef(false);
   const alive = useRef(true);
 
-  const load = useCallback(() => {
+  // The first open plays the file_url already in the outline; every later load refetches the curriculum for a fresh one.
+  const load = useCallback((useKnownUrl = false) => {
     setPhase("opening");
-    openContent(contentId)
-      .then((next) => { if (alive.current) { setSource(next); setAttemptKey((n) => n + 1); setPhase("loading"); } })
+    openContent(contentId, strandId, useKnownUrl ? fileUrl : undefined)
+      .then((next) => { if (alive.current) { setUrl(next); setAttemptKey((n) => n + 1); setPhase("loading"); } })
       .catch(() => { if (alive.current) setPhase("error"); });
-  }, [contentId]);
+  }, [contentId, strandId, fileUrl]);
 
   useEffect(() => {
     alive.current = true;
-    load();
+    load(true);
     // Screen readers and keyboard users start at the title, not wherever the Open button was.
     headingRef.current?.focus();
     return () => { alive.current = false; };
@@ -67,7 +68,7 @@ export function ContentPlayer({ contentId, title, lessonTitle, onClose }: { cont
     void updateProgress(contentId, "in_progress");
   }
 
-  const showVideo = source && phase !== "opening" && phase !== "error";
+  const showVideo = url && phase !== "opening" && phase !== "error";
   const busy = phase === "opening" || phase === "loading";
 
   return (
@@ -79,7 +80,7 @@ export function ContentPlayer({ contentId, title, lessonTitle, onClose }: { cont
           <video
             key={attemptKey}
             ref={videoRef}
-            src={source.url}
+            src={url}
             controls
             preload="metadata"
             playsInline
