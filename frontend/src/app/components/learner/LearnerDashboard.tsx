@@ -4,7 +4,7 @@ import { AppLayout } from "../shared/AppLayout";
 import { SectionError } from "../shared/SectionError";
 import { STRAND_CODES, getLriTests, getParticipantIntake, getStrandTests, indexByStrandCode } from "../../../lib/api/diagnostic";
 import { isPretestComplete, pretestParts, toPretestProgress } from "../diagnostic/pretestLogic";
-import { getMyStrands } from "../../../lib/api/learningContents";
+import { getMyStrands, strandPercent } from "../../../lib/api/learningContents";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { LearningStrandProgress } from "../../../lib/api/types";
 
@@ -75,7 +75,7 @@ async function loadDashboard(): Promise<DashboardData> {
 
 function pipelineFor(d: DashboardData) {
   const pretestDone = isPretestComplete(d);
-  const contentDone = !!d.strands?.length && d.strands.every((s) => s.progress_percent === 100);
+  const contentDone = !!d.strands?.length && d.strands.every((s) => strandPercent(s) === 100);
   const raw = [
     { label: "Pre-test",         icon: ClipboardList, page: "diagnostic-test",  done: pretestDone,   action: "Continue to Pre-test" },
     { label: "Learning Content", icon: BookOpen,      page: "stimulus-content", done: contentDone,   action: "Go to Learning Content" },
@@ -264,7 +264,7 @@ export function LearnerDashboard({ navigate, user, onLogout }) {
                 ) : (
                   <ul className="divide-y divide-[#E2E0DA]">
                     {(data.strands ?? []).map((s) => {
-                      const pct = s.progress_percent ?? 0;
+                      const pct = strandPercent(s);
                       return (
                         <li key={s.strand_id} className="py-5 first:pt-0 last:pb-0">
                           <div className={`${overline} text-[#4D35BD]`}>{s.code}</div>

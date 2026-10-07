@@ -180,7 +180,6 @@ export interface LearningStrandProgress {
   name: string;
   completed_lessons: number;
   total_lessons: number;
-  progress_percent: number | null;
 }
 
 export interface LearningContentNode {

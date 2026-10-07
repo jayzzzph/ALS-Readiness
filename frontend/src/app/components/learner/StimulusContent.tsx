@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertCircle, BookOpen, Check, Circle, CircleCheck, Clock, Headphones, Lock, Video, type LucideIcon } from "lucide-react";
-import { getMyCohorts, getMyCurriculum, getMyStrands } from "../../../lib/api/learningContents";
+import { getMyCohorts, getMyCurriculum, getMyStrands, strandPercent } from "../../../lib/api/learningContents";
 import type { ContentProgress } from "../../../lib/api/contentPlayback";
 import { getLriTests, getParticipantIntake, getStrandTests } from "../../../lib/api/diagnostic";
 import type { CurriculumLesson, LearningContentNode, LearningStrandProgress, MyCohort, MyCurriculumResponse } from "../../../lib/api/types";
@@ -246,7 +246,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
 }
 
 function StrandTab({ strand, selected, disabled, onSelect }: { strand: LearningStrandProgress; selected: boolean; disabled: boolean; onSelect: () => void }) {
-  const percent = strand.total_lessons > 0 ? Math.round((strand.completed_lessons / strand.total_lessons) * 100) : 0;
+  const percent = strandPercent(strand);
   return (
     <button
       type="button" role="tab" aria-selected={selected} onClick={onSelect} disabled={disabled && !selected}

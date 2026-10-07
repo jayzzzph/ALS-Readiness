@@ -5,7 +5,7 @@ import { SectionError } from "../shared/SectionError";
 import {
   STRAND_CODES, STRAND_SHORT_LABEL, getLriTests, getStrandAttemptResult, getStrandTests, indexByStrandCode,
 } from "../../../lib/api/diagnostic";
-import { getMyStrands } from "../../../lib/api/learningContents";
+import { getMyStrands, strandPercent } from "../../../lib/api/learningContents";
 import type { LearningStrandProgress, StrandAttemptResult, StrandTestListItem } from "../../../lib/api/types";
 
 // Type roles from DESIGN.md: serif headings, Atkinson Hyperlegible for the sentences and numbers a learner reads.
@@ -204,7 +204,7 @@ export function MyProgress({ navigate, user, onLogout }) {
                           {s.total_lessons > 0 ? `${s.completed_lessons} of ${s.total_lessons} lessons` : "No lessons yet"}
                         </span>
                       </div>
-                      {s.total_lessons > 0 && <div className="mt-3"><Bar percent={s.progress_percent ?? 0} /></div>}
+                      {s.total_lessons > 0 && <div className="mt-3"><Bar percent={strandPercent(s)} /></div>}
                     </li>
                   ))}
                 </ul>
