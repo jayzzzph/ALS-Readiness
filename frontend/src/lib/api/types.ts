@@ -189,6 +189,8 @@ export interface LearningContentNode {
   content_type: "video" | "audio" | "reading";
   stimulus_level: "low" | "medium" | "high" | null;
   progress_status: "not_opened" | "in_progress" | "completed";
+  /** Presigned storage URL, valid for about 2 hours. Refetch the curriculum for a fresh one. */
+  file_url: string;
 }
 
 export interface CurriculumLesson {
