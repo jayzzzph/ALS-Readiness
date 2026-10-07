@@ -1,7 +1,8 @@
-from typing import Annotated
-
-from app.schemas.curriculum import CurriculumResponse
-from fastapi import APIRouter, Depends, Path, Query
+from app.schemas.curriculum import (
+    CurriculumResponse,
+    CurriculumWithProgressResponse,
+)
+from fastapi import APIRouter, Depends
 
 from ..deps import (
     CurrentLearnerDep,
@@ -9,12 +10,13 @@ from ..deps import (
     get_current_facilitator,
 )
 
-router = APIRouter(
-    tags=["Curriculum"]
+router = APIRouter(tags=["Curriculum"])
+
+
+@router.get(
+    "/curriculum/{strand_id}",
+    dependencies=[Depends(get_current_facilitator)],
 )
-
-
-@router.get("/curriculum/{strand_id}", dependencies=[Depends(get_current_facilitator)])
 async def get_curriculum(
     strand_id: int,
     cohort_id: int | None = None,
@@ -28,5 +30,5 @@ async def get_my_curriculum(
     strand_id: int,
     current_user: CurrentLearnerDep,
     service: CurriculumServiceDep,
-) -> CurriculumResponse:
+) -> CurriculumWithProgressResponse:
     return await service.get_tree_with_progress(strand_id, current_user.id)

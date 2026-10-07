@@ -18,9 +18,11 @@ from app.repositories.cohort_content import CohortContentRepository
 from app.repositories.cohort_facilitator import CohortFacilitatorRepository
 from app.repositories.cohort_learner import CohortLearnerRepository
 from app.repositories.content import ContentRepository
+from app.repositories.content_evaluation import ContentEvaluationRepository
 from app.repositories.curriculum import CurriculumRepository
 from app.repositories.facilitator import FacilitatorRepository
 from app.repositories.learner import LearnerRepository
+from app.repositories.learner_content_progress import LearnerContentProgressRepository
 from app.repositories.learning_strand import LearningStrandRepository
 from app.repositories.lesson import LessonRepository
 from app.repositories.lri_test import LRITestRepository
@@ -45,6 +47,7 @@ from app.services.content import ContentService
 from app.services.curriculum import CurriculumService
 from app.services.facilitator import FacilitatorService
 from app.services.learner import LearnerService
+from app.services.learner_content_progress import LearnerContentProgressService
 from app.services.learning_strand import LearningStrandService
 from app.services.lesson import LessonService
 from app.services.lri_test import LRITestService
@@ -513,6 +516,13 @@ LessonServiceDep = Annotated[LessonService, Depends(get_lesson_service)]
 
 # ============ Contents ============
 
+def get_content_eval_repo(session: SessionDep) -> ContentEvaluationRepository:
+    return ContentEvaluationRepository(session)
+
+
+ContentEvalRepoDep = Annotated[ContentEvaluationRepository, Depends(get_content_eval_repo)]
+
+
 
 def get_content_repo(session: SessionDep) -> ContentRepository:
     return ContentRepository(session)
@@ -523,6 +533,7 @@ ContentRepoDep = Annotated[ContentRepository, Depends(get_content_repo)]
 
 def get_content_service(
     content_repo: ContentRepoDep,
+    content_eval_repo: ContentEvalRepoDep,
     lesson_service: LessonServiceDep,
     facilitator_service: FacilitatorServiceDep,
 ) -> ContentService:
@@ -530,10 +541,33 @@ def get_content_service(
         content_repo=content_repo,
         lesson_service=lesson_service,
         facilitator_service=facilitator_service,
+        content_eval_repo=content_eval_repo,
     )
 
 
 ContentServiceDep = Annotated[ContentService, Depends(get_content_service)]
+
+
+def get_content_progress_repo(session: SessionDep) -> LearnerContentProgressRepository:
+    return LearnerContentProgressRepository(session)
+
+
+ContentProgressRepoDep = Annotated[LearnerContentProgressRepository, Depends(get_content_progress_repo)]
+
+
+def get_content_progress_service(
+    progress_repo: ContentProgressRepoDep,
+    learner_service: LearnerServiceDep,
+    content_service: ContentServiceDep,
+) -> LearnerContentProgressService:
+    return LearnerContentProgressService(
+        progress_repo=progress_repo,
+        learner_service=learner_service,
+        content_service=content_service,
+    )
+
+
+ContentProgressServiceDep = Annotated[LearnerContentProgressService, Depends(get_content_progress_service)]
 
 
 # =========== Cohort Content =============
@@ -599,3 +633,5 @@ def get_strand_service(
 
 
 StrandServiceDep = Annotated[LearningStrandService, Depends(get_strand_service)]
+
+

@@ -199,11 +199,6 @@ CURRICULUM_DATA = {
     },
 }
 
-# Each strand has one lesson that carries all three stimulus-level versions
-# (low / medium / high) of the same video content. Contents are keyed by
-# (strand code, lesson title). Which lesson hosts the videos is a best guess;
-# change the lesson titles below if they belong elsewhere. Ratings are dummy
-# values that drop as stimulus level rises (low ~0.9, medium ~0.7, high ~0.45).
 CONTENT_DATA = {
     ("LS1-EN", "Reading Comprehension Basics"): [
         {
