@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertCircle, BookOpen, Check, Circle, CircleCheck, Clock, Headphones, Lock, Video, type LucideIcon } from "lucide-react";
 import { getMyCohorts, getMyCurriculum, getMyStrands } from "../../../lib/api/learningContents";
+import type { ContentProgress } from "../../../lib/api/contentPlayback";
 import { getLriTests, getParticipantIntake, getStrandTests } from "../../../lib/api/diagnostic";
 import type { CurriculumLesson, LearningContentNode, LearningStrandProgress, MyCohort, MyCurriculumResponse } from "../../../lib/api/types";
 import { getErrorMessage } from "../../../lib/api/errors";
@@ -27,7 +28,7 @@ const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
  */
 const RECOMMENDED_CONTENT_IDS: ReadonlySet<number> = new Set<number>();
 
-type Status = "not_started" | "in_progress" | "done";
+export type Status = "not_started" | "in_progress" | "done";
 
 const STATUS: Record<Status, { label: string; icon: LucideIcon; className: string }> = {
   not_started: { label: "Not started", icon: Circle, className: "text-[#4A4F5C]" },
@@ -41,14 +42,14 @@ const CONTENT_TYPE: Record<LearningContentNode["content_type"], { verb: string; 
   reading: { verb: "Read", icon: BookOpen },
 };
 
-const ITEM_STATUS: Record<LearningContentNode["progress_status"], Status> = {
-  not_opened: "not_started",
-  in_progress: "in_progress",
-  completed: "done",
-};
+/** Not started (both null), in progress (opened, not finished) or done (completed_at set). */
+export function itemStatus(content: Pick<LearningContentNode, "last_accessed_at" | "completed_at">): Status {
+  if (content.completed_at) return "done";
+  return content.last_accessed_at ? "in_progress" : "not_started";
+}
 
 function lessonStatus(lesson: CurriculumLesson): Status {
-  const statuses = lesson.contents.map((content) => ITEM_STATUS[content.progress_status]);
+  const statuses = lesson.contents.map(itemStatus);
   if (statuses.length > 0 && statuses.every((status) => status === "done")) return "done";
   if (statuses.some((status) => status !== "not_started")) return "in_progress";
   return "not_started";
@@ -134,6 +135,23 @@ export function StimulusContent({ navigate, user, onLogout }) {
     if (strands.length > 0 && selectedId === null) void openStrand(strands[0]);
   }, [strands]);
 
+  // The player reports each saved progress record: the outline updates at once, and the strand counts are refetched.
+  function applyProgress(progress: ContentProgress) {
+    setCurriculum((current) => current && {
+      ...current,
+      modules: current.modules.map((module) => ({
+        ...module,
+        lessons: module.lessons.map((lesson) => ({
+          ...lesson,
+          contents: lesson.contents.map((content) => content.content_id === progress.content_id
+            ? { ...content, last_accessed_at: progress.last_accessed_at, completed_at: progress.completed_at }
+            : content),
+        })),
+      })),
+    });
+    getMyStrands().then(setStrands).catch(() => { /* the counts catch up on the next load */ });
+  }
+
   const selected = strands.find((strand) => strand.strand_id === selectedId) ?? null;
   const noCohort = !loadingPage && cohorts.length === 0 && strands.length === 0;
   // The progress count only includes lessons that have items, so the outline hides empty lessons (and modules left with none).
@@ -149,7 +167,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
     : null;
 
   if (playing && curriculum) {
-    return <ContentPlayer initialContentId={playing.contentId} strandId={curriculum.strand_id} strandCode={curriculum.strand_code} strandName={curriculum.strand_name} modules={visibleModules} onClose={() => setPlaying(null)} />;
+    return <ContentPlayer initialContentId={playing.contentId} strandId={curriculum.strand_id} strandCode={curriculum.strand_code} strandName={curriculum.strand_name} modules={visibleModules} onProgress={applyProgress} onClose={() => setPlaying(null)} />;
   }
 
   return (
@@ -277,7 +295,7 @@ function ItemRow({ content, onOpen }: { content: LearningContentNode; onOpen: ()
         <p className="text-lg leading-snug text-[#1B1D26]" style={reading}>{content.title}</p>
         {RECOMMENDED_CONTENT_IDS.has(content.content_id) && <p className="mt-1 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#835500]">Recommended for you</p>}
       </div>
-      <div className="sm:w-36 shrink-0"><StatusLabel status={ITEM_STATUS[content.progress_status] ?? "not_started"} /></div>
+      <div className="sm:w-36 shrink-0"><StatusLabel status={itemStatus(content)} /></div>
       {/* Only video has a player so far; audio and reading stay disabled. */}
       {content.content_type === "video" ? (
         <button type="button" onClick={onOpen} aria-label={`Open ${content.title}`} className={`h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#00538A] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>Open</button>
