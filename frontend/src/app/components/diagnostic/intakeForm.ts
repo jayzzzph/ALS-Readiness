@@ -39,6 +39,18 @@ export const INTAKE_STRAND_OPTIONS: readonly { code: StrandCode; label: string }
   label: `${STRAND_SHORT_LABEL[code]} (${code})`,
 }));
 
+/** Civil status choices. The backend stores a plain string (max 50 chars, no fixed list), so these are sent as-is. */
+export const CIVIL_STATUS_OPTIONS: readonly string[] = ["Single", "Married", "Widowed", "Separated", "Live-in"];
+
+/**
+ * The civil status choices to show. A saved value from before the dropdown
+ * (free text) that isn't in the list is kept as an extra choice, so reviewing
+ * the intake still shows what the learner entered.
+ */
+export function civilStatusChoices(current: string): readonly string[] {
+  return current && !CIVIL_STATUS_OPTIONS.includes(current) ? [...CIVIL_STATUS_OPTIONS, current] : CIVIL_STATUS_OPTIONS;
+}
+
 /** Pre-fill the form from a saved intake. Saved strands that aren't in-scope codes are dropped. */
 export function intakeFormFromIntake(intake: ParticipantIntake): IntakeFormState {
   return {

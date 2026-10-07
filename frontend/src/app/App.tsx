@@ -17,6 +17,7 @@ import { LearnerSchedule } from "./components/learner/LearnerSchedule";
 import { FacilitatorDashboard } from "./components/facilitator/FacilitatorDashboard";
 import { FacilitatorCohort } from "./components/facilitator/FacilitatorCohort";
 import { FacilitatorContent } from "./components/facilitator/FacilitatorContent";
+import { FacilitatorLearningContents } from "./components/facilitator/FacilitatorLearningContents";
 import { FacilitatorAnalytics } from "./components/facilitator/FacilitatorAnalytics";
 import { FacilitatorReports } from "./components/facilitator/FacilitatorReports";
 // Admin
@@ -122,6 +123,7 @@ function AppRoutes() {
         {/* Facilitator */}
         <Route path="/facilitator-dashboard" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorDashboard} />} />
         <Route path="/facilitator-cohort" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorCohort} />} />
+        <Route path="/facilitator-learning-contents" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorLearningContents} />} />
         <Route path="/facilitator-content" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorContent} />} />
         <Route path="/facilitator-analytics" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorAnalytics} />} />
         <Route path="/facilitator-reports" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorReports} />} />
