@@ -1,7 +1,8 @@
 from botocore.exceptions import ClientError
 from fastapi import HTTPException
 
-from app.enums.content import ContentType, StimulusLevel
+from app.core.exceptions import ContentNotFoundError, InactiveContentError
+from app.enums.content import ContentStatus, ContentType, StimulusLevel
 from app.models.content import Content
 from app.models.content_evaluation import ContentEvaluation
 from app.repositories.content import ContentRepository
@@ -99,7 +100,15 @@ class ContentService:
         content = await self._content_repo.get_by_id(content_id)
 
         if content is None:
-            raise HTTPException(404, "Content evaluation not found.")
+            raise ContentNotFoundError()
+
+        return content
+
+    async def get_active_content_by_id(self, content_id: int) -> Content:
+        content = await self.get_content_by_id(content_id)
+
+        if content.status != ContentStatus.ACTIVE:
+            raise InactiveContentError()
 
         return content
 
@@ -118,3 +127,4 @@ class ContentService:
         )
 
         return await self._content_eval_repo.create(content_eval)
+        

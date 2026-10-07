@@ -8,6 +8,7 @@ from .routes import (
     cohorts,
     contents,
     curriculum,
+    learner_content_progress,
     learning_strands,
     lri_test,
     lri_test_attempt,
@@ -33,3 +34,4 @@ router.include_router(cohort_learners.router)
 router.include_router(contents.router)
 router.include_router(curriculum.router)
 router.include_router(learning_strands.router)
+router.include_router(learner_content_progress.router)

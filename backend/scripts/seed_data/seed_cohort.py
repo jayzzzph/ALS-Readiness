@@ -100,6 +100,7 @@ async def create_cohort_with_members(
                 assigned_by=admin_user_id,
             )
         )
+
         print(
             f"  Content assigned - content_id: {cohort_content.content_id}, "
             f"title: {content.title}, cohort_id: {cohort_content.cohort_id}"
