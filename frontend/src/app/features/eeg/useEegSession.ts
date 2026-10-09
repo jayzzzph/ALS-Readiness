@@ -26,7 +26,12 @@ export interface SignalBuffer {
 export interface Recovered { id: string; when: string; duration: number }
 export interface Result { completed: boolean; recordedSec: number }
 
-export function useEegSession({ learnerId, seconds }: { learnerId: string | null; seconds: number }) {
+/**
+ * `kind` only labels the recording's metadata. `seconds` is how many seconds of samples to keep: the recording stops by
+ * itself at that count. While `setCollecting(false)` is in effect (Part V, video paused) samples are not kept, so the
+ * count only grows while the learner is actually watching.
+ */
+export function useEegSession({ learnerId, seconds, kind = "baseline" }: { learnerId: string | null; seconds: number; kind?: "baseline" | "exposed" }) {
   const [step, setStepState] = useState<Step>(1);
   const [conn, setConn] = useState<{ state: ConnState; reason?: string; name: string }>({ state: "idle", name: "Muse 2" });
   const [battery, setBattery] = useState<number | null>(null);
@@ -54,6 +59,7 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
   const levelsRef = useRef<Level[]>([]);
   const droppedAtStart = useRef(0);
   const finishing = useRef(false);
+  const collecting = useRef(true);
   const targetSamples = Math.round(seconds * SAMPLE_RATE);
   const targetRef = useRef(targetSamples);
   targetRef.current = targetSamples;
@@ -76,7 +82,7 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
         }
         sig.pos = (sig.pos + 1) % N;
       }
-      if (rec.isRecording && !finishing.current) {
+      if (rec.isRecording && !finishing.current && collecting.current) {
         // Keep exactly the planned length: 256 samples per second.
         const room = targetRef.current - rec.sampleCount;
         if (room > 0) rec.addRows(room >= rows.length ? rows : rows.slice(0, room));
@@ -142,6 +148,7 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
   }, [resetSignal, setStep, stopRecording]);
 
   const pair = useCallback(async (useDemo = false) => {
+    if (useDemo && !import.meta.env.DEV) return;   // the demo signal exists only in development
     unwireRef.current();
     if (deviceRef.current) { try { await deviceRef.current.disconnect(); } catch { /* ignore */ } }
     resetSignal();
@@ -191,10 +198,10 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
       source: sourceRef.current,
       fitAtStart: levelsRef.current,
       plannedDurationSec: seconds,
-      app: "alsense/part-iv-baseline@1",
+      app: kind === "baseline" ? "alsense/part-iv-baseline@1" : "alsense/part-v-exposure@1",
     });
     setRecording(true);
-  }, [learnerId, seconds, setStep]);
+  }, [learnerId, seconds, kind, setStep]);
 
   const download = (blob: Blob, name: string) => {
     const url = URL.createObjectURL(blob);
@@ -224,6 +231,15 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
     await new Recorder().discard(recovered.id);
     setRecovered(null);
   }, [recovered]);
+
+  const setCollecting = useCallback((on: boolean) => { collecting.current = on; }, []);
+  /** The finished recording as a CSV plus when it started (ISO, with timezone), for uploading. */
+  const snapshot = useCallback(() => {
+    const rec = recorderRef.current;
+    return rec.session ? { csv: rec.toCsvBlob() as Blob, startedAt: rec.session.startedAt as string } : null;
+  }, []);
+  /** A saved recording no longer needs to be offered back from this computer. */
+  const markSaved = useCallback(() => { void recorderRef.current.setStatus("exported"); }, []);
 
   const skipFit = useCallback(() => setStep(4), [setStep]);
   const continueFromStep1 = useCallback(() => setStep(2), [setStep]);
@@ -279,5 +295,6 @@ export function useEegSession({ learnerId, seconds }: { learnerId: string | null
     result, exported, recovered, toast, signal,
     pair, startRecording, cancelRecording, exportCsv: () => exportCsv(), exportRecovered, discardRecovered,
     skipFit, continueFromStep1,
+    setCollecting, snapshot, markSaved, stopNow: () => stopRecording(true),
   };
 }

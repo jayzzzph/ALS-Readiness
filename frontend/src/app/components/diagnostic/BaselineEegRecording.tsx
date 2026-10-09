@@ -3,6 +3,8 @@ import { AlertCircle, BatteryMedium, Check, ChevronDown, CircleCheck, Info, Load
 import { AttemptShell } from "./PretestAttempts";
 import { primaryButton, secondaryButton } from "./StrandTestCard";
 import { useEegSession, WINDOW_SEC, type ConnState, type Level, type SignalBuffer } from "../../features/eeg/useEegSession";
+import { useEegSave, type SaveState } from "../../features/eeg/useEegSave";
+import { BASELINE_SECONDS, DEMO_UPLOAD_ALLOWED, describeDuration } from "../../features/eeg/constants";
 import { CHANNELS, SAMPLE_RATE } from "../../features/eeg/muse2-ble.js";
 import museStep1 from "../../../assets/illustrations/muse-step-1.webp";
 import museStep2 from "../../../assets/illustrations/muse-step-2.webp";
@@ -12,33 +14,28 @@ import museFit1 from "../../../assets/illustrations/muse-fit-1.webp";
 import museFit2 from "../../../assets/illustrations/muse-fit-2.webp";
 import museFit3 from "../../../assets/illustrations/muse-fit-3.webp";
 
-// Part IV of the pre-test flow: a resting baseline recorded with the Muse 2 headband, run by the facilitator.
+// Part IV of Readiness Profiling: a resting baseline recorded with the Muse 2 headband, run by the facilitator.
+// When the recording ends it is saved to the server (upload, then record), with a retry if that fails.
 // Three modes, each one fits a 1366x768 screen without scrolling:
 //  - setup: a rail of the four steps (put on, pair, check the fit, record) beside the head map;
-//  - recording: a focused countdown, like the test question screen;
-//  - done: a plain success card, like AttemptSuccess.
+//  - recording: a calm progress ring, like the test question screen;
+//  - done: a plain success card, like AttemptSuccess, that also shows the save.
 // The recording logic lives in useEegSession; this file is only the screen. Type roles and colors follow DESIGN.md.
 
-/**
- * Length of the baseline recording, in seconds. The 15 came from `RECORD_DURATION_MS = 15_000` in the simulated screen this
- * replaces, where it was commented "hardcoded baseline recording length - 15s (testing)". It is a placeholder, not a value
- * from the study protocol. Confirm the real length and change it here only.
- */
-export const BASELINE_SECONDS = 15;
 
-const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
-const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
-const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A]";
-const easeOut = "ease-[cubic-bezier(0.23,1,0.32,1)]";
-const cardTitle = "text-2xl leading-[1.25]";
+export const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
+export const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
+export const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A]";
+export const easeOut = "ease-[cubic-bezier(0.23,1,0.32,1)]";
+export const cardTitle = "text-2xl leading-[1.25]";
 /** Fades and lifts a panel in when it mounts. Off under reduced motion. */
-const enter = `motion-safe:starting:opacity-0 motion-safe:starting:translate-y-1 transition-[opacity,translate] duration-200 motion-reduce:transition-none ${easeOut}`;
+export const enter = `motion-safe:starting:opacity-0 motion-safe:starting:translate-y-1 transition-[opacity,translate] duration-200 motion-reduce:transition-none ${easeOut}`;
 
 /** One color per sensor, each at least 4.5:1 on white (6.4, 5.8, 8.0, 6.4) so the trace labels read. */
 const CHANNEL_COLORS = ["#0E6B5C", "#A8480A", "#7A2E8E", "#2B5EA7"];
 const WHERE = ["Behind left ear", "Left forehead", "Right forehead", "Behind right ear"];
 /** What to do about a poor sensor, by position in CHANNELS (TP9, AF7, AF8, TP10). */
-const FIX = [
+export const FIX = [
   "Tuck the left ear piece behind the ear.",
   "Move hair off the left forehead sensor.",
   "Move hair off the right forehead sensor.",
@@ -60,18 +57,26 @@ const CONN_COLOR: Record<ConnState, string> = {
 const STEP_NAMES = ["Put on the headband", "Pair the Muse 2", "Check the fit", "Record"];
 
 // Motion only where the user allows it: the waiting halo on a sensor still finding contact.
-const css = `
+export const css = `
 @media (prefers-reduced-motion: no-preference) {
   @keyframes eeg-halo { from { transform: scale(1); opacity: .9; } to { transform: scale(1.8); opacity: 0; } }
   .eeg-halo { animation: eeg-halo 1.6s cubic-bezier(0.23, 1, 0.32, 1) infinite; transform-box: fill-box; transform-origin: center; }
 }
 `;
 
-const fmt = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+export const fmt = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
 
 export function BaselineEegRecording({ onClose, learnerId }: { onClose: () => void; learnerId: string | null }) {
-  const eeg = useEegSession({ learnerId, seconds: BASELINE_SECONDS });
+  const eeg = useEegSession({ learnerId, seconds: BASELINE_SECONDS, kind: "baseline" });
   const { conn, recording, result } = eeg;
+  const save = useEegSave("baseline", eeg.markSaved);
+  // A completed recording is saved by itself. One that stopped early is not: the facilitator records again.
+  const demoNotSaved = eeg.source === "demo" && !DEMO_UPLOAD_ALLOWED;
+  useEffect(() => {
+    if (!result?.completed || demoNotSaved) return;
+    const snap = eeg.snapshot();
+    if (snap) save.begin(snap.csv, snap.startedAt);
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
   const lost = conn.state === "disconnected" && conn.reason === "lost";
 
   // Development only: the demo signal never reports a poor sensor, so this lets a developer force each state.
@@ -112,7 +117,7 @@ export function BaselineEegRecording({ onClose, learnerId }: { onClose: () => vo
   );
 
   return (
-    <AttemptShell title="Part IV: Baseline EEG recording" onClose={handleExit} exitLabel="Exit" compact maxWidth={mode === "setup" ? "max-w-[90rem]" : "max-w-3xl"}>
+    <AttemptShell title="Readiness Profiling · Part IV: Baseline EEG recording" onClose={handleExit} exitLabel="Exit" compact maxWidth={mode === "setup" ? "max-w-[90rem]" : "max-w-3xl"}>
       <style>{css}</style>
       <h1 className="sr-only">Baseline EEG recording</h1>
 
@@ -129,7 +134,7 @@ export function BaselineEegRecording({ onClose, learnerId }: { onClose: () => vo
         </div>
       )}
       {mode === "recording" && <RecordingView eeg={eeg} levels={levels} banners={banners} />}
-      {mode === "done" && result && <DoneView eeg={eeg} result={result} banners={banners} onBack={onClose} />}
+      {mode === "done" && result && <DoneView eeg={eeg} result={result} banners={banners} save={save} demoNotSaved={demoNotSaved} onBack={onClose} />}
 
       {/* Quiet announcements for screen readers. */}
       <p className="sr-only" role="status" aria-live="polite">
@@ -156,18 +161,18 @@ export function BaselineEegRecording({ onClose, learnerId }: { onClose: () => vo
   );
 }
 
-type Eeg = ReturnType<typeof useEegSession>;
+export type Eeg = ReturnType<typeof useEegSession>;
 
 /** Dev-only: which sensor states the demo screen forces, so each one can be seen. Never reached in a production build. */
-type DemoForce = "live" | "tp9" | "af7" | "good";
-function applyDemoForce(levels: Level[], force: DemoForce): Level[] {
+export type DemoForce = "live" | "tp9" | "af7" | "good";
+export function applyDemoForce(levels: Level[], force: DemoForce): Level[] {
   if (force === "tp9") return levels.map((l, i) => (i === 0 ? "poor" : l));
   if (force === "af7") return levels.map((l, i) => (i === 1 ? "poor" : l));
   if (force === "good") return levels.map(() => "good" as Level);
   return levels;
 }
 
-function Banner({ tone, icon, action, role, children }: { tone: "error" | "info"; icon: ReactNode; action?: ReactNode; role: "alert" | "status"; children: ReactNode }) {
+export function Banner({ tone, icon, action, role, children }: { tone: "error" | "info"; icon: ReactNode; action?: ReactNode; role: "alert" | "status"; children: ReactNode }) {
   const palette = tone === "error" ? "border-[#B42318] bg-[#FDECEA] text-[#7A1A12]" : "border-[#E2E0DA] bg-[#F2F1ED] text-[#1B1D26]";
   return (
     <div role={role} className={`flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border p-4 ${palette}`}>
@@ -183,11 +188,12 @@ function Banner({ tone, icon, action, role, children }: { tone: "error" | "info"
 type StepStatus = "done" | "current" | "upcoming";
 
 /** The four steps like the pre-test hub timeline: a check when done, the current one expanded, the rest collapsed. */
-function Rail({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: number }) {
+export function Rail({ eeg, levels, ready, finalStep }: { eeg: Eeg; levels: Level[]; ready: number; finalStep?: { name: string; body: ReactNode } }) {
   const { step } = eeg;
+  const names = finalStep ? [...STEP_NAMES.slice(0, 3), finalStep.name] : STEP_NAMES;
   return (
     <ol aria-label="Setup steps" className="min-w-0">
-      {STEP_NAMES.map((name, i) => {
+      {names.map((name, i) => {
         const n = i + 1;
         const status: StepStatus = n < step ? "done" : n === step ? "current" : "upcoming";
         const last = n === 4;
@@ -203,7 +209,7 @@ function Rail({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: number
             {status === "current" ? (
               <section aria-label={name} className={`rounded-2xl border border-[#E2E0DA] bg-white p-5 ${enter}`}>
                 <h2 className={`${cardTitle} text-[#1B1D26]`} style={display}>{name}</h2>
-                <StepBody eeg={eeg} levels={levels} ready={ready} />
+                <StepBody eeg={eeg} levels={levels} ready={ready} finalBody={finalStep?.body} />
               </section>
             ) : (
               <div className="min-h-12 flex flex-col justify-center">
@@ -218,7 +224,7 @@ function Rail({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: number
   );
 }
 
-function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: number }) {
+function StepBody({ eeg, levels, ready, finalBody }: { eeg: Eeg; levels: Level[]; ready: number; finalBody?: ReactNode }) {
   const { step } = eeg;
   const p = "mt-3 text-base leading-[1.55] text-[#1B1D26]";
   if (step === 1) {
@@ -262,7 +268,7 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
         <StepGuide frames={FIT_FRAMES} label="Fixing the fit" locked={fitGuide(levels)} width="16.25rem"
           side={<span className="text-[0.9375rem] font-bold tabular-nums text-[#1B1D26]" aria-live="polite">{ready} of 4 sensors ready</span>} />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {allGood && <button onClick={eeg.skipFit} className={primaryButton}>Continue to recording</button>}
+          {allGood && <button onClick={eeg.skipFit} className={primaryButton}>{finalBody !== undefined ? "Continue to the video" : "Continue to recording"}</button>}
           {onlyFair && <button onClick={eeg.skipFit} className={secondaryButton}>Continue with a weaker signal</button>}
           {!allGood && !onlyFair && (
             <button onClick={eeg.skipFit} className={`h-11 rounded-lg px-2 text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] ${focus}`}>Continue with a weak signal</button>
@@ -271,9 +277,10 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
       </>
     );
   }
+  if (finalBody) return <>{finalBody}</>;
   return (
     <>
-      <p className={p}>Check that the learner is seated and still, then start. The recording lasts {BASELINE_SECONDS} seconds and stops by itself.</p>
+      <p className={p}>Check that the learner is seated and still, then start. The recording lasts {describeDuration(BASELINE_SECONDS)} and stops by itself.</p>
       {ready < 4 && (
         <ul className="mt-3 grid gap-2">
           {levels.map((l, i) => (l === "poor" ? (
@@ -286,7 +293,7 @@ function StepBody({ eeg, levels, ready }: { eeg: Eeg; levels: Level[]; ready: nu
         </ul>
       )}
       <button onClick={eeg.startRecording} disabled={eeg.conn.state !== "connected"} className={`mt-4 ${primaryButton}`}>
-        {ready === 4 ? `Start ${BASELINE_SECONDS}-second recording` : `Record ${BASELINE_SECONDS} seconds anyway`}
+        {ready === 4 ? `Start ${describeDuration(BASELINE_SECONDS)} recording` : `Record ${describeDuration(BASELINE_SECONDS)} anyway`}
       </button>
     </>
   );
@@ -429,10 +436,10 @@ function StepGuide({ frames, label, locked = null, side, width = "16.5rem", aspe
 /* ───────────────────────── Setup: the head map (the sensor card) ───────────────────────── */
 
 /** Navy is reserved for the sensor: connection, battery, and the head map with each sensor's word beside it. */
-function SensorCard({ eeg, levels }: { eeg: Eeg; levels: Level[] }) {
+export function SensorCard({ eeg, levels }: { eeg: Eeg; levels: Level[] }) {
   const { conn } = eeg;
   return (
-    <section aria-labelledby="eeg-sensor-title" className="rounded-2xl bg-[#1C1D33] p-6 text-white">
+    <section aria-labelledby="eeg-sensor-title" className="min-w-0 rounded-2xl bg-[#1C1D33] p-4 text-white sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="eeg-sensor-title" className={cardTitle} style={display}>Sensor contact</h2>
         <div className="flex flex-wrap items-center gap-3">
@@ -447,13 +454,14 @@ function SensorCard({ eeg, levels }: { eeg: Eeg; levels: Level[] }) {
           </span>
         </div>
       </div>
-      <div className="mt-2 flex justify-center overflow-x-auto"><HeadMap levels={levels} /></div>
+      <div className="mt-2 flex justify-center"><HeadMap levels={levels} /></div>
     </section>
   );
 }
 
 // Head seen from above, front at the top. Drawn at 1.1x (572 wide), so every label is about 17px. The sensors sit on the
 // head; each one's name, place and word sit outside it, joined by a thin leader line, so nothing crosses a label.
+// The drawing scales with its card (up to 572 wide), so it never clips or scrolls; labels stay 15px or more from a 496px card up.
 const MAP_SENSORS: { cx: number; cy: number; side: "left" | "right" }[] = [
   { cx: 178, cy: 200, side: "left" },   // TP9
   { cx: 218, cy: 98, side: "left" },    // AF7
@@ -465,7 +473,7 @@ const SVG_FONT = "'DM Sans', system-ui, sans-serif";
 function HeadMap({ levels }: { levels: Level[] }) {
   const outline = { fill: "#191A2E", stroke: "#D9DBEA", strokeOpacity: 0.6, strokeWidth: 2 };
   return (
-    <svg viewBox="0 0 520 300" width={572} height={330} className="shrink-0" role="img"
+    <svg viewBox="0 0 520 300" width="100%" style={{ maxWidth: 572 }} className="block h-auto" role="img"
       aria-label={`Head seen from above, front at the top. ${CHANNELS.map((c: string, i: number) => `${c} ${LEVEL_WORD[levels[i]]}`).join(", ")}.`}>
       <text x="260" y="17" textAnchor="middle" fontSize="16" fontWeight="700" fill="#D9DBEA" fontFamily={SVG_FONT}>Front</text>
       <path d="M248 46 L260 27 L272 46 Z" {...outline} />
@@ -503,7 +511,7 @@ function HeadMap({ levels }: { levels: Level[] }) {
 /* ───────────────────────── Live signal ───────────────────────── */
 
 /** Live trace of the last 5 seconds, 1 Hz high-pass for display only (the CSV holds the raw signal). */
-function SignalCard({ signal, connected }: { signal: { current: SignalBuffer }; connected: boolean }) {
+export function SignalCard({ signal, connected }: { signal: { current: SignalBuffer }; connected: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scale, setScale] = useState(100);
   const scaleRef = useRef(scale);
@@ -589,11 +597,19 @@ function SignalCard({ signal, connected }: { signal: { current: SignalBuffer }; 
 
 /* ───────────────────────── Recording: a focused view ───────────────────────── */
 
-function CountdownRing({ progress, secondsLeft, size = 200, stroke = 12 }: { progress: number; secondsLeft: number; size?: number; stroke?: number }) {
+/** A short, calm label for the time left: whole minutes while there are many, then a plain word. No ticking seconds. */
+export function calmTimeLeft(secondsLeft: number): { big: string; small: string } {
+  if (secondsLeft > 60) return { big: String(Math.ceil(secondsLeft / 60)), small: "minutes to go" };
+  if (secondsLeft > 20) return { big: "1", small: "minute to go" };
+  return { big: "Almost", small: "there" };
+}
+
+export function CountdownRing({ progress, secondsLeft, size = 200, stroke = 12 }: { progress: number; secondsLeft: number; size?: number; stroke?: number }) {
+  const label = calmTimeLeft(secondsLeft);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} role="progressbar" aria-label={`${secondsLeft} seconds left`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
+    <div className="relative shrink-0" style={{ width: size, height: size }} role="progressbar" aria-label={`${label.big} ${label.small}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E1E2E7" strokeWidth={stroke} />
         {/* The blue arc is the time left, so it drains as the recording runs. */}
@@ -602,14 +618,14 @@ function CountdownRing({ progress, secondsLeft, size = 200, stroke = 12 }: { pro
           className={`transition-[stroke-dashoffset] duration-[250ms] motion-reduce:transition-none ${easeOut}`} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-[3.5rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{fmt(secondsLeft)}</span>
-        <span className="mt-2 text-[0.9375rem] font-bold text-[#4A4F5C]">left</span>
+        <span className="text-[3.5rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{label.big}</span>
+        <span className="mt-2 text-[0.9375rem] font-bold text-[#4A4F5C]">{label.small}</span>
       </div>
     </div>
   );
 }
 
-function SensorChip({ name, level }: { name: string; level: Level }) {
+export function SensorChip({ name, level }: { name: string; level: Level }) {
   const Icon = LEVEL_ICON[level];
   const look = level === "poor" ? "border-[#B42318] bg-[#FDECEA] text-[#7A1A12]"
     : level === "good" ? "border-transparent bg-[#CFE4FF] text-[#00538A]"
@@ -669,32 +685,53 @@ function RecordingView({ eeg, levels, banners }: { eeg: Eeg; levels: Level[]; ba
 
 /* ───────────────────────── Done ───────────────────────── */
 
-function DoneView({ eeg, result, banners, onBack }: { eeg: Eeg; result: { completed: boolean; recordedSec: number }; banners: ReactNode; onBack: () => void }) {
+function DoneView({ eeg, result, banners, save, demoNotSaved, onBack }: { eeg: Eeg; result: { completed: boolean; recordedSec: number }; banners: ReactNode; save: { state: SaveState; retry: () => void }; demoNotSaved: boolean; onBack: () => void }) {
   const ok = result.completed;
+  const st = save.state;
+  const saved = ok && st.status === "saved";
+  if (ok && demoNotSaved) {
+    return (
+      <section className={`rounded-2xl border border-[#E2E0DA] bg-white px-6 py-12 text-center sm:px-8 ${enter}`}>
+        <h2 className="text-[2rem] leading-[1.2] text-[#1B1D26]" style={display}>Demo recording finished</h2>
+        <p className="mx-auto mt-3 max-w-[46ch] text-lg leading-[1.6] text-[#4A4F5C]" style={reading} role="status">This used the demo signal, so it was not saved to the server.</p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <button onClick={onBack} className={primaryButton}>Back to Readiness Profiling</button>
+          <button onClick={eeg.exportCsv} className={secondaryButton}>Export CSV</button>
+        </div>
+      </section>
+    );
+  }
   return (
     <div className="grid gap-4">
       <div className="empty:hidden">{banners}</div>
       <section className={`rounded-2xl border border-[#E2E0DA] bg-white px-6 py-12 text-center sm:px-8 ${enter}`}>
-        <span className={`mx-auto grid h-16 w-16 place-items-center rounded-full ${ok ? "bg-[#CFE4FF] text-[#00538A]" : "bg-[#FDECEA] text-[#B42318]"}`}>
-          {ok ? <CircleCheck className="w-8 h-8" aria-hidden="true" /> : <TriangleAlert className="w-8 h-8" aria-hidden="true" />}
+        <span className={`mx-auto grid h-16 w-16 place-items-center rounded-full ${ok && st.status !== "failed" ? "bg-[#CFE4FF] text-[#00538A]" : "bg-[#FDECEA] text-[#B42318]"}`}>
+          {ok && (st.status === "saving" || st.status === "idle") ? <LoaderCircle className="w-8 h-8 motion-safe:animate-spin" aria-hidden="true" />
+            : ok && st.status !== "failed" ? <CircleCheck className="w-8 h-8" aria-hidden="true" />
+            : <TriangleAlert className="w-8 h-8" aria-hidden="true" />}
         </span>
-        <h2 className="mt-6 text-[2rem] leading-[1.2] text-[#1B1D26]" style={display}>{ok ? "Baseline recorded" : "Recording stopped early"}</h2>
-        <div className="mx-auto mt-3 max-w-[46ch] space-y-1 text-lg leading-[1.6] text-[#4A4F5C]" style={reading}>
-          <p>{ok ? `${Math.round(result.recordedSec)} seconds recorded.` : `Stopped at ${fmt(result.recordedSec)} of ${fmt(BASELINE_SECONDS)} because the headband disconnected. What was recorded is kept.`}</p>
-          {ok && !eeg.exported && <p>Export the CSV before you go. ALSense can’t upload recordings yet.</p>}
-          {ok && eeg.exported && <p>The CSV is saved.</p>}
+        <h2 className="mt-6 text-[2rem] leading-[1.2] text-[#1B1D26]" style={display}>
+          {!ok ? "Recording stopped early" : saved ? "Baseline saved" : st.status === "failed" ? "Baseline recorded, not saved yet" : "Saving the baseline"}
+        </h2>
+        <div className="mx-auto mt-3 max-w-[46ch] space-y-1 text-lg leading-[1.6] text-[#4A4F5C]" style={reading} role="status">
+          {!ok && <p>Stopped at {fmt(result.recordedSec)} of {fmt(BASELINE_SECONDS)} because the headband disconnected. Nothing was saved to the server. You can record again.</p>}
+          {ok && (st.status === "saving" || st.status === "idle") && <p>Please keep this page open while the recording is saved.</p>}
+          {saved && <p>Thank you. The baseline recording is saved.</p>}
+          {ok && st.status === "failed" && <p>{st.message} The recording is kept on this page, so you can try again.</p>}
         </div>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          {ok ? (
+          {saved && <button onClick={onBack} className={primaryButton}>Back to Readiness Profiling</button>}
+          {ok && st.status === "failed" && (
             <>
-              <button onClick={onBack} className={primaryButton}>Back to pre-test</button>
+              <button onClick={save.retry} className={primaryButton}>Try again</button>
               <button onClick={eeg.exportCsv} className={secondaryButton}>Export CSV</button>
             </>
-          ) : (
+          )}
+          {!ok && (
             <>
               <button onClick={eeg.startRecording} disabled={eeg.conn.state !== "connected"} className={primaryButton}>Record again</button>
               <button onClick={eeg.exportCsv} className={secondaryButton}>Export CSV</button>
-              <button onClick={onBack} className={`h-12 rounded-xl px-4 text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] ${focus}`}>Back to pre-test</button>
+              <button onClick={onBack} className={`h-12 rounded-xl px-4 text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] ${focus}`}>Back to Readiness Profiling</button>
             </>
           )}
         </div>
