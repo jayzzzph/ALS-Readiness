@@ -1,16 +1,17 @@
 from app.core.exceptions import CohortNotFoundError, InvalidCohortStatusError
 from app.enums.cohort import CohortStatus
 from app.models.cohort import Cohort, CohortFacilitator, CohortLearner
-from app.models.user_profile import UserProfile
 from app.repositories.cohort import CohortRepository
 from app.schemas.cohort import (
     CohortCreate,
     CohortFacilitatorMemberResponse,
     CohortLearnerMemberResponse,
+    CohortMemberProfile,
     CohortWithMembersResponse,
 )
 from app.services.cohort_facilitator import CohortFacilitatorService
 from app.services.cohort_learner import CohortLearnerService
+from app.services.facilitator_scope import FacilitatorScopeService
 from app.models.user import User
 from app.enums.user import UserRole
 
@@ -23,10 +24,12 @@ class CohortService:
         cohort_repo: CohortRepository,
         cohort_learner_service: CohortLearnerService,
         cohort_facilitator_service: CohortFacilitatorService,
+        facilitator_scope_service: FacilitatorScopeService,
     ) -> None:
         self._cohort_repo = cohort_repo
         self._cohort_learner_service = cohort_learner_service
         self._cohort_facilitator_service = cohort_facilitator_service
+        self._facilitator_scope_service = facilitator_scope_service
 
     async def create(
         self,
@@ -49,11 +52,12 @@ class CohortService:
 
         return created_cohort
 
-    async def get_list(self, status: CohortStatus | None = None) -> list[Cohort]:
-        if status is not None:
-            return await self._cohort_repo.get_by_status(status)
-
-        return await self._cohort_repo.get_all()
+    async def get_list(
+        self,
+        status: CohortStatus | None = None,
+        school_year: str | None = None,
+    ) -> list[Cohort]:
+        return await self._cohort_repo.get_list(status=status, school_year=school_year)
 
     async def update_status(self, cohort_id: int, status: CohortStatus) -> Cohort:
         cohort = await self._cohort_repo.get_by_id(cohort_id)
@@ -119,7 +123,12 @@ class CohortService:
     
             return cohort_facilitator
 
-    async def get_cohort_with_members(self, cohort_id: int) -> CohortWithMembersResponse:
+    async def get_cohort_with_members(self, user: User, cohort_id: int) -> CohortWithMembersResponse:
+        # This roster carries full profiles, so its route is admin-only. The
+        # scope check stays as a second line of defence, and runs before the
+        # cohort is looked up so a denied caller cannot tell whether it exists.
+        await self._facilitator_scope_service.assert_cohort_access(user, cohort_id)
+
         cohort = await self.get_by_id(cohort_id)
 
         cohort_facilitator_members = await (
@@ -142,9 +151,11 @@ class CohortService:
                 status=cohort_facilitator.status,
                 assigned_by=cohort_facilitator.assigned_by,
                 assigned_at=cohort_facilitator.assigned_at,
-                profile=UserProfile.model_validate(profile)
+                profile=CohortMemberProfile.model_validate(profile),
+                id_no=id_no,
+                ended_at=cohort_facilitator.ended_at,
             )
-            for cohort_facilitator, profile in cohort_facilitator_members
+            for cohort_facilitator, profile, id_no in cohort_facilitator_members
         ]
 
         cohort_learner_members_response = [
@@ -155,9 +166,12 @@ class CohortService:
                 status=cohort_learner.status,
                 assigned_by=cohort_learner.assigned_by,
                 assigned_at=cohort_learner.assigned_at,
-                profile=UserProfile.model_validate(profile)
+                profile=CohortMemberProfile.model_validate(profile),
+                id_no=id_no,
+                # A membership's end is stored as completed_at.
+                ended_at=cohort_learner.completed_at,
             )
-            for cohort_learner, profile in cohort_learner_members
+            for cohort_learner, profile, id_no in cohort_learner_members
         ]
 
         return CohortWithMembersResponse(
@@ -172,7 +186,9 @@ class CohortService:
             return [cohort] if cohort else []
         
         elif user.role == UserRole.FACILITATOR:
-            return await self._cohort_repo.get_cohort_by_facilitator_id(user.id)
-        
+            # Same rule as the facilitator endpoints: archived cohorts are hidden.
+            return await self._facilitator_scope_service.get_visible_cohorts(user)
+
         else:
-            pass
+            # An admin is not a member of any cohort.
+            return []

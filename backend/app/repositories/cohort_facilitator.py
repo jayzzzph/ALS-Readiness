@@ -27,9 +27,10 @@ class CohortFacilitatorRepository(BaseRepository[CohortFacilitator]):
     async def get_all_by_cohort_id_with_profile(
         self, 
         cohort_id: int
-    ) -> list[tuple[CohortFacilitator, UserProfile]]:
+    ) -> list[tuple[CohortFacilitator, UserProfile, str | None]]:
+        """Rows are (assignment, profile, id_no), all from the one query."""
         statement = (
-            select(CohortFacilitator, UserProfile)
+            select(CohortFacilitator, UserProfile, User.id_no)
             .join(Facilitator, Facilitator.id == CohortFacilitator.facilitator_id)
             .join(User, User.id == Facilitator.user_id)
             .join(UserProfile, UserProfile.user_id == User.id)

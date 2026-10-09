@@ -2,9 +2,11 @@ from app.schemas.curriculum import (
     CurriculumResponse,
     CurriculumWithProgressResponse,
 )
+from app.schemas.facilitator_curriculum import FacilitatorCurriculumResponse
 from fastapi import APIRouter, Depends
 
 from ..deps import (
+    CurrentFacilitatorDep,
     CurrentLearnerDep,
     CurriculumServiceDep,
     get_current_facilitator,
@@ -19,10 +21,12 @@ router = APIRouter(tags=["Curriculum"])
 )
 async def get_curriculum(
     strand_id: int,
+    current_user: CurrentFacilitatorDep,
     cohort_id: int | None = None,
+    include_archived: bool = False,
     service: CurriculumServiceDep = ...,
-) -> CurriculumResponse:
-    return await service.get_tree(strand_id, cohort_id)
+) -> FacilitatorCurriculumResponse:
+    return await service.get_tree(current_user, strand_id, cohort_id, include_archived)
 
 
 @router.get("/me/curriculum/{strand_id}")

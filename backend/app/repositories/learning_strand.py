@@ -15,6 +15,11 @@ class LearningStrandRepository(BaseRepository[LearningStrand]):
         return result.scalar_one_or_none()
 
     async def get_all_active(self) -> list[LearningStrand]:
-        stmt = select(LearningStrand).where(LearningStrand.status == StructureStatus.ACTIVE)
+        """Active strands in display order (seed order: LS1-EN, LS1-FIL, LS3)."""
+        stmt = (
+            select(LearningStrand)
+            .where(LearningStrand.status == StructureStatus.ACTIVE)
+            .order_by(LearningStrand.id)
+        )
         result = await self._session.execute(stmt)
         return list(result.scalars())

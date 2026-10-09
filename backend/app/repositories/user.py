@@ -3,10 +3,13 @@ from typing import Any
 from sqlalchemy import func, select
 
 from app.enums.user import UserRole
+from app.models.facilitator import Facilitator
+from app.models.learner import Learner
 from app.models.user import User
 from app.models.user_profile import UserProfile
 
 from .base import BaseRepository
+from .search import person_search_condition
 
 
 class UserRepository(BaseRepository[User]):
@@ -25,7 +28,11 @@ class UserRepository(BaseRepository[User]):
         page_size: int,
         role: UserRole | None = None,
         is_active: bool | None = None,
-    ) -> tuple[list[tuple[User, UserProfile | None]], int]:
+        search: str | None = None,
+    ) -> tuple[list[tuple[User, UserProfile | None, int | None, int | None]], int]:
+        """A page of users. Rows are (user, profile, learner_id, facilitator_id);
+        each id is set only for a user of that role. `search` matches the name
+        or id number, by the same rule as the facilitator's learner list."""
         conditions = []
         if role is not None:
             conditions.append(User.role == role)
@@ -33,14 +40,30 @@ class UserRepository(BaseRepository[User]):
             conditions.append(User.is_active == is_active)
 
         count_statement = select(func.count()).select_from(User)
+        if search:
+            conditions.append(
+                person_search_condition(
+                    search,
+                    first_name=UserProfile.first_name,
+                    last_name=UserProfile.last_name,
+                    id_no=User.id_no,
+                )
+            )
+            # The names are on the profile, so the count needs it too. A user
+            # has at most one profile, so the join does not multiply rows.
+            count_statement = count_statement.outerjoin(
+                UserProfile, UserProfile.user_id == User.id
+            )
         if conditions:
             count_statement = count_statement.where(*conditions)
 
         total = (await self._session.execute(count_statement)).scalar_one()
 
         statement = (
-            select(User, UserProfile)
+            select(User, UserProfile, Learner.id, Facilitator.id)
             .outerjoin(UserProfile, UserProfile.user_id == User.id)
+            .outerjoin(Learner, Learner.user_id == User.id)
+            .outerjoin(Facilitator, Facilitator.user_id == User.id)
             .order_by(User.id)
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -49,7 +72,7 @@ class UserRepository(BaseRepository[User]):
             statement = statement.where(*conditions)
 
         result = await self._session.execute(statement)
-        rows = [(row[0], row[1]) for row in result.all()]
+        rows = [(row[0], row[1], row[2], row[3]) for row in result.all()]
 
         return rows, total
 

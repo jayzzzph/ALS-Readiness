@@ -11,6 +11,7 @@ from app.core.exceptions import (
 )
 from app.enums.user import UserRole
 from app.models.user import User
+from app.repositories.search import normalize_search
 from app.schemas.admin import (
     AdminAdminCreate,
     AdminFacilitatorCreate,
@@ -53,7 +54,7 @@ class AdminService:
         )
 
         # Create learner entity
-        _ = await self._learner_service.create(LearnerCreate(user_id=user.id))
+        learner = await self._learner_service.create(LearnerCreate(user_id=user.id))
 
         profile = await self._profile_service.create(
             user_id=user.id,
@@ -77,6 +78,7 @@ class AdminService:
             ),
             created_at=user.created_at,
             updated_at=user.updated_at,
+            learner_id=learner.id,
         )
 
     async def create_facilitator(self, facilitator_create: AdminFacilitatorCreate) -> AdminUserCreateResponse:
@@ -86,7 +88,7 @@ class AdminService:
         )
 
         # Create facilitator entity
-        _ = await self._facilitator_service.create(FacilitatorCreate(user_id=user.id))
+        facilitator = await self._facilitator_service.create(FacilitatorCreate(user_id=user.id))
 
         # Create profile entity
         profile = await self._profile_service.create(
@@ -110,6 +112,7 @@ class AdminService:
             ),
             created_at=user.created_at,
             updated_at=user.updated_at,
+            facilitator_id=facilitator.id,
         )
 
     async def create_admin(self, admin_create: AdminAdminCreate) -> AdminUserCreateResponse:
@@ -149,12 +152,15 @@ class AdminService:
         is_active: bool | None,
         page: int,
         page_size: int,
+        search: str | None = None,
     ) -> AdminUserListResponse:
         rows, total = await self._user_service.list_with_profiles(
             page=page,
             page_size=page_size,
             role=role,
             is_active=is_active,
+            # Runs of spaces are collapsed so a full name matches however it is typed.
+            search=normalize_search(search),
         )
 
         items = [
@@ -166,8 +172,10 @@ class AdminService:
                 first_name=profile.first_name if profile else None,
                 last_name=profile.last_name if profile else None,
                 created_at=user.created_at,
+                learner_id=learner_id,
+                facilitator_id=facilitator_id,
             )
-            for user, profile in rows
+            for user, profile, learner_id, facilitator_id in rows
         ]
 
         return AdminUserListResponse(

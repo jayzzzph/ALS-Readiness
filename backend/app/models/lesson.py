@@ -5,10 +5,10 @@ from sqlmodel import Field, Relationship
 
 from app.enums.curriculum import StructureStatus
 
-from .base import BaseEntity
+from .base import BaseEntity, TimestampMixin
 
 
-class Lesson(BaseEntity, table=True):
+class Lesson(BaseEntity, TimestampMixin, table=True):
     __tablename__ = "lessons"
 
     module_id: int = Field(foreign_key="modules.id")
@@ -27,6 +27,9 @@ class Lesson(BaseEntity, table=True):
     )
 
     deleted_at: datetime | None
+
+    # Null for rows created before authoring existed (e.g. seeded structure).
+    created_by: int | None = Field(default=None, foreign_key="users.id")
 
     module: "Module" = Relationship(back_populates="lessons")
     contents: list["Content"] = Relationship(back_populates="lesson")

@@ -10,10 +10,13 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .api.router import router as api_router
 from .core.config import settings
+from .core.error_middleware import UnhandledErrorMiddleware
 from .core.exceptions import (
     AlreadyExistsError,
+    ConflictError,
     DomainValidationError,
     NotFoundError,
+    ServiceUnavailableError,
     UnauthenticatedError,
     UnauthorizedError,
 )
@@ -21,12 +24,19 @@ from .schemas.error import ErrorResponse
 
 app = FastAPI()
 
+# The middleware added last is the outermost. This one is added first so that
+# it sits inside the CORS middleware: the 500 it sends for an unexpected error
+# then carries CORS headers like every other response.
+app.add_middleware(UnhandledErrorMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
+    # Lets a browser on another origin read the CSV export's filename.
+    expose_headers=["Content-Disposition"],
 )
 
 app.include_router(api_router)
@@ -56,7 +66,8 @@ def error_response(
     )
 
 
-# For handling unexcpected errors
+# For handling unexcpected errors. UnhandledErrorMiddleware answers them first,
+# inside the CORS middleware; this remains for anything raised outside it.
 @app.exception_handler(Exception)
 async def handle_unexpected_error(_: Request, exc: Exception):
     logger.exception("Unhandled error")
@@ -134,10 +145,28 @@ async def handle_already_exists(_: Request, exc: AlreadyExistsError):
     )
 
 
+@app.exception_handler(ConflictError)
+async def handle_conflict(_: Request, exc: ConflictError):
+    return error_response(
+        status_code=status.HTTP_409_CONFLICT,
+        error_code=exc.code,
+        message=exc.message,
+    )
+
+
 @app.exception_handler(DomainValidationError)
 async def handle_domain_validation(_: Request, exc: DomainValidationError):
     return error_response(
         status_code=status.HTTP_400_BAD_REQUEST,
+        error_code=exc.code,
+        message=exc.message,
+    )
+
+
+@app.exception_handler(ServiceUnavailableError)
+async def handle_service_unavailable(_: Request, exc: ServiceUnavailableError):
+    return error_response(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         error_code=exc.code,
         message=exc.message,
     )

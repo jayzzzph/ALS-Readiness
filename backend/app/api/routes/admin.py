@@ -31,12 +31,14 @@ async def list_users(
     admin_service: AdminServiceDep,
     role: UserRole | None = None,
     is_active: bool | None = None,
+    search: str | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ):
     return await admin_service.list_users(
         role=role,
         is_active=is_active,
+        search=search,
         page=page,
         page_size=page_size,
     )

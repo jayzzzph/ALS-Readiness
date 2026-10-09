@@ -19,6 +19,11 @@ export function getErrorCode(err: unknown): string | undefined {
   return getResponseData(err)?.code;
 }
 
+/** The HTTP status of the failed call (409, 404, ...); null when there was no response. */
+export function getErrorStatus(err: unknown): number | null {
+  return (err as { response?: { status?: number } })?.response?.status ?? null;
+}
+
 /**
  * A human-readable message for the failure - prefers the first pydantic
  * validation detail (422s) over the generic top-level `message`, since

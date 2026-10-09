@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from app.enums.content import (
     ContentStatus,
@@ -6,6 +8,10 @@ from app.enums.content import (
     ContentVisibility,
     StimulusLevel,
 )
+
+# The same rule ContentUpdate applies to a title: trimmed, then 1 to 255
+# characters. Trimming is set on the field so the other fields are left as sent.
+Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 
 
 class UploadUrlRequest(BaseModel):
@@ -20,9 +26,8 @@ class UploadUrlResponse(BaseModel):
 class ContentCreate(BaseModel):
     lesson_id: int
     file_key: str
-    title: str
+    title: Title
     description: str | None = None
-    status: ContentStatus = ContentStatus.ACTIVE
     visibility: ContentVisibility = ContentVisibility.PRIVATE
 
 
@@ -43,10 +48,15 @@ class ContentEvaluationCreate(BaseModel):
     cognitive_sustainability_rating: float
 
 
+class ContentEvaluationResultResponse(BaseModel):
+    stimulus_level: StimulusLevel
+    cognitive_sustainability_rating: float
+
+
 class ContentEvaluationResponse(BaseModel):
     id: int
     content_id: int
-    timulus_level: StimulusLevel
+    stimulus_level: StimulusLevel
     cognitive_sustainability_rating: float
 
     model_config = ConfigDict(from_attributes=True)

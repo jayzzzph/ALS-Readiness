@@ -74,7 +74,7 @@ uv run alembic upgrade head
 ## 5. Seed the Database
 
 ```bash
-uv run python -m scripts.seed_all
+uv run python -m scripts.seed
 ```
 
 > Admin credentials will be printed in the terminal — save them.
@@ -101,6 +101,24 @@ API: `http://localhost:8000`
 Docs: `http://localhost:8000/docs`
 
 ---
+
+## Running the tests
+
+The API tests live in `backend/tests/` and drive the real app in process (no server needed).
+
+```bash
+cd backend
+uv sync            # installs pytest, pytest-asyncio and httpx (the dev group)
+uv run pytest      # the whole suite
+uv run pytest tests/test_b1_auth.py                # one file
+uv run pytest -k test_api_auth_06                  # one case
+```
+
+- **Database.** The suite uses a separate database, `alsense_test`, on the same Postgres server as your `.env`. It creates the database if it is missing and migrates it to the Alembic head at the start of each run, so Postgres must be running. Your development database is never opened.
+- **Another server or name.** Set `TEST_DATABASE_URL`, for example `postgresql://user:password@localhost:5432/alsense_ci_test`. The name **must end in `_test`**: the suite empties every table after each test and refuses to start otherwise.
+- **File storage** is faked. No test reaches Backblaze or the network.
+- **Each test builds its own data** through the fixtures in `tests/conftest.py` and `tests/factories.py`, so tests can run alone and in any order.
+- **A test marked `xfail(strict=True)`** documents a known defect, named in its reason. When the defect is fixed the test starts failing ("XPASS"): remove the marker then.
 
 ## Troubleshooting
 

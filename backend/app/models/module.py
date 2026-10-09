@@ -5,11 +5,11 @@ from sqlmodel import Field, Relationship
 
 from app.enums.curriculum import StructureStatus
 
-from .base import BaseEntity
+from .base import BaseEntity, TimestampMixin
 from .learning_strand import LearningStrand
 
 
-class Module(BaseEntity, table=True):
+class Module(BaseEntity, TimestampMixin, table=True):
     __tablename__ = "modules"
 
     strand_id: int = Field(foreign_key="learning_strands.id")
@@ -28,6 +28,9 @@ class Module(BaseEntity, table=True):
     )
 
     deleted_at: datetime | None
+
+    # Null for rows created before authoring existed (e.g. seeded structure).
+    created_by: int | None = Field(default=None, foreign_key="users.id")
 
     strand: "LearningStrand" = Relationship(back_populates="modules")
     lessons: list["Lesson"] = Relationship(

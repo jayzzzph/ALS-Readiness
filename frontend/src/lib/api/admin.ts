@@ -13,9 +13,11 @@ export interface ListUsersParams {
   page_size: number;
   role?: Role;
   is_active?: boolean;
+  /** Matches the first name, last name, both together in either order, or the ID number. Case-insensitive. */
+  search?: string;
 }
 
-/** GET /api/admin/users - real page/page_size/role/is_active query params */
+/** GET /api/admin/users - real page/page_size/role/is_active/search query params */
 export async function listUsers(params: ListUsersParams): Promise<AdminUserListResponse> {
   const res = await apiClient.get<AdminUserListResponse>("/api/admin/users", { params });
   return res.data;

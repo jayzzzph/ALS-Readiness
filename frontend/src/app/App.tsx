@@ -17,15 +17,22 @@ import { FacilitatorDashboard } from "./components/facilitator/FacilitatorDashbo
 import { FacilitatorCohort } from "./components/facilitator/FacilitatorCohort";
 import { FacilitatorContent } from "./components/facilitator/FacilitatorContent";
 import { FacilitatorLearningContents } from "./components/facilitator/FacilitatorLearningContents";
-import { FacilitatorAnalytics } from "./components/facilitator/FacilitatorAnalytics";
+// FacilitatorAnalytics is parked: the file is kept but has no route (see its header comment).
 import { FacilitatorReports } from "./components/facilitator/FacilitatorReports";
+import { FacilitatorLearnerDetail } from "./components/facilitator/FacilitatorLearnerDetail";
+import { FacilitatorCurriculum } from "./components/facilitator/FacilitatorCurriculum";
+import { FacilitatorMyCohorts } from "./components/facilitator/FacilitatorMyCohorts";
+import { FacilitatorTests } from "./components/facilitator/FacilitatorTests";
+import { FacilitatorTestDetail } from "./components/facilitator/FacilitatorTestDetail";
 // Admin
 import { AdminDashboard } from "./components/admin/AdminDashboard";
 import { AdminUsers } from "./components/admin/AdminUsers";
+import { AdminCohorts } from "./components/admin/AdminCohorts";
 import { AdminAnalytics } from "./components/admin/AdminAnalytics";
 import { AdminReports } from "./components/admin/AdminReports";
 // Shared
 import { AccessDenied } from "./components/shared/AccessDenied";
+import { NotFound } from "./components/shared/NotFound";
 import { SessionExpired } from "./components/shared/SessionExpired";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { ProfilePage } from "./components/shared/ProfilePage";
@@ -77,6 +84,12 @@ function AccessDeniedRoute() {
   return <AccessDenied role={role} navigate={navigate} />;
 }
 
+function NotFoundRoute() {
+  const role = useAuthStore((s) => s.role);
+  const navigate = useLegacyNavigate();
+  return <NotFound role={role} navigate={navigate} />;
+}
+
 function AppRoutes() {
   const navigate = useLegacyNavigate();
   const sessionCheckComplete = useAuthStore((s) => s.sessionCheckComplete);
@@ -119,15 +132,21 @@ function AppRoutes() {
 
         {/* Facilitator */}
         <Route path="/facilitator-dashboard" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorDashboard} />} />
-        <Route path="/facilitator-cohort" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorCohort} />} />
+        <Route path="/facilitator-curriculum" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorCurriculum} />} />
         <Route path="/facilitator-learning-contents" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorLearningContents} />} />
         <Route path="/facilitator-content" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorContent} />} />
-        <Route path="/facilitator-analytics" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorAnalytics} />} />
+        {/* The Learners list lives in FacilitatorCohort.tsx: the file name is kept from the mockup it was revised from. */}
+        <Route path="/facilitator-learners" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorCohort} />} />
+        <Route path="/facilitator-learners/:learnerId" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorLearnerDetail} />} />
         <Route path="/facilitator-reports" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorReports} />} />
+        <Route path="/facilitator-tests" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorTests} />} />
+        <Route path="/facilitator-tests/:testId" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorTestDetail} />} />
+        <Route path="/facilitator-cohorts" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorMyCohorts} />} />
 
         {/* Admin / Coordinator */}
         <Route path="/admin-dashboard" element={<ProtectedPage allowed={["admin"]} Component={AdminDashboard} />} />
         <Route path="/admin-users" element={<ProtectedPage allowed={["admin"]} Component={AdminUsers} />} />
+        <Route path="/admin-cohorts" element={<ProtectedPage allowed={["admin"]} Component={AdminCohorts} />} />
         <Route path="/admin-analytics" element={<ProtectedPage allowed={["admin"]} Component={AdminAnalytics} />} />
         <Route path="/admin-reports" element={<ProtectedPage allowed={["admin"]} Component={AdminReports} />} />
 
@@ -138,6 +157,9 @@ function AppRoutes() {
             a direct visit still resolves. */}
         <Route path="/session-expired" element={<SessionExpired />} />
         <Route path="/access-denied" element={<AccessDeniedRoute />} />
+
+        {/* Anything else: an address that is not a page, e.g. a mistyped link or a removed page. */}
+        <Route path="*" element={<NotFoundRoute />} />
       </Routes>
       </ForcedPasswordChangeGate>
     </div>

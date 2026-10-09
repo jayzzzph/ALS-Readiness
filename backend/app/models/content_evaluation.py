@@ -1,4 +1,5 @@
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship
 
 from app.enums.content import StimulusLevel
@@ -22,4 +23,9 @@ class ContentEvaluation(BaseEntity, table=True):
     cognitive_sustainability_rating: float = Field(ge=0, le=1)
 
     content: "Content" = Relationship(back_populates="evaluation")
+
+    # A content has at most one evaluation.
+    __table_args__ = (
+        UniqueConstraint("content_id", name="uq_content_evaluations_content_id"),
+    )
 

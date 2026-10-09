@@ -1,10 +1,11 @@
 from app.enums.cohort import CohortStatus
-from app.enums.user import UserRole
 from app.schemas.cohort import (
     CohortCreate,
     CohortListResponse,
     CohortResponse,
     CohortStatusUpdate,
+    CohortWithMembersResponse,
+    SchoolYear,
 )
 from app.schemas.cohort_facilitator import (
     CohortFacilitatorCreate,
@@ -17,7 +18,6 @@ from ..deps import (
     CohortServiceDep,
     CurrentUserDep,
     RequireAdminDep,
-    get_current_user,
     require_admin,
 )
 
@@ -50,9 +50,10 @@ async def create_cohort(
 )
 async def get_cohorts(
     status: CohortStatus | None = None,
+    school_year: SchoolYear | None = None,
     cohort_service: CohortServiceDep = ...,
 ):
-    cohorts = await cohort_service.get_list(status)
+    cohorts = await cohort_service.get_list(status, school_year)
     return CohortListResponse(
         cohorts=[CohortResponse.model_validate(cohort) for cohort in cohorts]
     )
@@ -110,17 +111,15 @@ async def assign_facilitator_to_cohort(
     return CohortFacilitatorResponse.model_validate(result)
 
 
-# ================ Shared ================ 
-
-shared_router = APIRouter(
-    prefix="/cohorts",
-    tags=["Cohorts"],
-    dependencies=[Depends(get_current_user)]
-)
-
-@shared_router.get("/{cohort_id}/members")
-async def get_cohort_with_members(cohort_id: int, cohort_service: CohortServiceDep):
-    return await cohort_service.get_cohort_with_members(cohort_id)
+# Admin-only: this roster carries full member profiles. Facilitators use
+# GET /facilitator/cohorts/{cohort_id}, which returns names and ID numbers only.
+@admin_router.get("/{cohort_id}/members", response_model=CohortWithMembersResponse)
+async def get_cohort_with_members(
+    cohort_id: int,
+    current_user: RequireAdminDep,
+    cohort_service: CohortServiceDep,
+):
+    return await cohort_service.get_cohort_with_members(current_user, cohort_id)
 
 
 me_router = APIRouter(
@@ -144,5 +143,4 @@ async def get_my_cohorts(current_user: CurrentUserDep, cohort_service: CohortSer
 router = APIRouter()
 
 router.include_router(admin_router)
-router.include_router(shared_router)
 router.include_router(me_router)

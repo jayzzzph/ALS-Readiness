@@ -7,6 +7,7 @@ import {
 import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
 import { ALSenseLogo } from "./ALSenseLogo";
+import { CohortControls } from "../facilitator/shared/CohortControls";
 
 // TEMPORARY: loads fonts from Google Fonts. Replace with @fontsource imports once `pnpm add` works.
 const fontCss = "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Serif+Display&display=swap');";
@@ -28,18 +29,23 @@ const learnerNav = [
   { page:"learner-schedule",    icon:CalendarDays,    label:"Schedule",           group:"track" },
 ];
 
+// Detail pages (facilitator-learners/:learnerId, facilitator-tests/:testId) pass
+// their list page's key as currentPage, so that entry stays highlighted.
 const facilitatorNav = [
-  { page:"facilitator-dashboard",         icon:LayoutDashboard, label:"Overview",          group:"main"   },
-  { page:"facilitator-cohort",            icon:Users,           label:"Cohort",            group:"main"   },
-  { page:"facilitator-learning-contents", icon:BookOpen,        label:"Learning Contents", group:"main"   },
-  { page:"facilitator-content",           icon:Cpu,             label:"Content",           group:"manage" },
-  { page:"facilitator-analytics",         icon:BarChart3,       label:"Analytics",         group:"manage" },
-  { page:"facilitator-reports",           icon:FileText,        label:"Reports",           group:"manage" },
+  { page:"facilitator-dashboard",  icon:LayoutDashboard, label:"Dashboard",       group:"main"   },
+  { page:"facilitator-curriculum", icon:BookOpen,        label:"Curriculum",      group:"manage" },
+  { page:"facilitator-learning-contents", icon:BookOpen, label:"Learning Contents", group:"manage" },
+  { page:"facilitator-content",    icon:Cpu,             label:"Content Library", group:"manage" },
+  { page:"facilitator-learners",   icon:Users,           label:"Learners",        group:"manage" },
+  { page:"facilitator-reports",    icon:FileText,        label:"Reports",         group:"manage" },
+  { page:"facilitator-tests",      icon:ClipboardList,   label:"Strand Tests",    group:"manage" },
+  { page:"facilitator-cohorts",    icon:CalendarDays,    label:"My Cohorts",      group:"manage" },
 ];
 
 const adminNav = [
   { page:"admin-dashboard",  icon:LayoutDashboard, label:"Overview",       group:"main"   },
   { page:"admin-users",      icon:Users,           label:"User Accounts",  group:"main"   },
+  { page:"admin-cohorts",    icon:CalendarDays,    label:"Cohorts",        group:"main"   },
   { page:"admin-analytics",  icon:BarChart3,       label:"Analytics",      group:"reports"},
   { page:"admin-reports",    icon:FileText,        label:"DepEd Reports",  group:"reports"},
 ];
@@ -82,7 +88,10 @@ function Initial({ name, size = "w-9 h-9 text-sm" }) {
   );
 }
 
-export function AppLayout({ children, navigate, user, onLogout, currentPage }) {
+// allowAllCohorts: facilitator pages only - whether the top bar's cohort dropdown offers "All cohorts".
+// hideCohortControls: facilitator pages only - no school year and cohort dropdowns, for a page that
+// takes its context from its URL and would otherwise show a selection it does not follow.
+export function AppLayout({ children, navigate, user, onLogout, currentPage, allowAllCohorts = false, hideCohortControls = false }) {
   // Below 1024px the sidebar starts as an icon rail; the menu button toggles it at any width.
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" || window.matchMedia("(min-width: 1024px)").matches);
   const [showNotif,   setShowNotif]   = useState(false);
@@ -179,6 +188,9 @@ export function AppLayout({ children, navigate, user, onLogout, currentPage }) {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* School year + cohort (facilitator only) */}
+            {role === "facilitator" && <CohortControls allowAll={allowAllCohorts} hidden={hideCohortControls} />}
+
             {/* Notifications: no backend feed exists yet, so this is an honest empty state. */}
             <div className="relative" ref={notifRef}>
               <button

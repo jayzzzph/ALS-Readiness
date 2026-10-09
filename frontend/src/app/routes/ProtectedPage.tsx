@@ -1,8 +1,19 @@
 import type { ComponentType } from "react";
-import { useAuthStore } from "../../lib/store/authStore";
+import { useAuthStore, type StoreUser } from "../../lib/store/authStore";
 import { useLegacyNavigate } from "../../lib/navigation";
 import { RequireAuth, RequireRole } from "./guards";
 import type { Role } from "../../lib/api/types";
+
+/**
+ * The props every routed page receives. `navigate` takes a page key, which may
+ * carry a URL parameter ("facilitator-learners/12" - see lib/navigation.ts); a
+ * page reads its own parameters with react-router's useParams().
+ */
+export interface PageProps {
+  navigate: (page: string) => void;
+  user: StoreUser | null;
+  onLogout: () => void;
+}
 
 /**
  * Wraps a page component with the auth/role guards and supplies it the same
@@ -14,7 +25,7 @@ export function ProtectedPage({
   Component,
 }: {
   allowed: Role[];
-  Component: ComponentType<{ navigate: (page: string) => void; user: unknown; onLogout: () => void }>;
+  Component: ComponentType<PageProps>;
 }) {
   const user = useAuthStore((s) => s.user);
   const navigate = useLegacyNavigate();

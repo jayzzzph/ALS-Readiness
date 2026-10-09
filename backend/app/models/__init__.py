@@ -1,3 +1,4 @@
+from .at_risk_flag import AtRiskFlag
 from .cohort import Cohort, CohortFacilitator, CohortLearner
 from .cohort_content import CohortContent
 from .content import Content
@@ -20,6 +21,7 @@ from .user import User
 from .user_profile import UserProfile
 
 __all__ = [
+    "AtRiskFlag",
     "Cohort",
     "CohortContent",
     "CohortFacilitator",

@@ -3,7 +3,6 @@ import { ALSenseLogo } from "./ALSenseLogo";
 import { homeForRole } from "../../../lib/navigation";
 
 export function AccessDenied({ role, navigate }) {
-  const isFaci = role === "facilitator" || role === "admin";
   // Same mapping as post-login. This used to send admins to facilitator-dashboard,
   // which they can't view, so the button landed on this same screen.
   const home   = homeForRole(role);
@@ -20,9 +19,7 @@ export function AccessDenied({ role, navigate }) {
         </div>
         <h2 className="text-gray-800 mb-2" style={{ fontSize:"1.3rem", fontWeight:700 }}>Access Restricted</h2>
         <p className="text-gray-500 text-sm leading-relaxed mb-6">
-          {isFaci
-            ? "Facilitators and administrators cannot access learner-only pages such as Diagnostic Tests, Readiness Profile, and Stimulus Content."
-            : "Learners cannot access facilitator-only pages."}
+          This page belongs to a part of ALSense that your account does not have access to.
         </p>
         <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 mb-6">
           <p className="text-orange-700 text-xs">

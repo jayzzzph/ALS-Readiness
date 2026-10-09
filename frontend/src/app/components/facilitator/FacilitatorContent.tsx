@@ -1,164 +1,247 @@
-import { useState } from "react";
-import { BookOpen, Headphones, Video, Upload, Cpu, Search, Filter, Trash2, Edit, CheckCircle, Users } from "lucide-react";
+import { useEffect, useState, type ComponentType } from "react";
+import { Archive, BookOpen, Headphones, Upload, User, Video } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
-import { TribeV2Upload } from "./TribeV2Upload";
+import type { PageProps } from "../../routes/ProtectedPage";
+import { getContents } from "../../../lib/api/facilitatorContent";
+import type { ContentLibraryItem, ContentType } from "../../../lib/api/types";
+import {
+  CONTENT_TYPES,
+  EVALUATION_UNAVAILABLE_HINT,
+  buildContentQuery,
+  contentFilterKey,
+  emptyLibraryKind,
+  emptyLibraryText,
+  evaluationPillText,
+  lessonContextText,
+  libraryFailureText,
+  librarySubtitle,
+  visibilityLabel,
+} from "../../../lib/contentText";
+import { useDebouncedValue } from "../../../lib/hooks/useDebouncedValue";
+import { useFetch } from "../../../lib/hooks/useFetch";
+import { contentTypeLabel } from "../../../lib/labels";
+import { ContentUploadDialog } from "./ContentUploadDialog";
+import { ContentViewDialog } from "./ContentViewDialog";
+import {
+  Button,
+  Card,
+  Chip,
+  ChipGroup,
+  DataTable,
+  EmptyState,
+  ErrorState,
+  HeaderButton,
+  PageHeader,
+  Pagination,
+  Pill,
+  SearchInput,
+  type DataTableColumn,
+} from "./shared";
 
-const library = [
-  { id:1, title:"Basic Operations & Word Problems", type:"auditory", subject:"Math",    strand:"LS3", uploaded:"Jun 10", learners:4, status:"published", duration:"18 min" },
-  { id:2, title:"Philippine History: Pre-Colonial",  type:"visual",   subject:"AP",     strand:"LS6", uploaded:"Jun 8",  learners:3, status:"published", duration:"20 min" },
-  { id:3, title:"English Grammar — Verb Tenses",    type:"reading",  subject:"English", strand:"LS1", uploaded:"Jun 5",  learners:5, status:"published", duration:"15 min" },
-  { id:4, title:"Photosynthesis Explained",         type:"visual",   subject:"Science", strand:"LS4", uploaded:"Jun 1",  learners:5, status:"published", duration:"22 min" },
-  { id:5, title:"Filipino Literature: Balagtasan",  type:"auditory", subject:"Filipino",strand:"LS1", uploaded:"May 28", learners:4, status:"published", duration:"25 min" },
-  { id:6, title:"Basic Statistics Overview",        type:"reading",  subject:"Math",    strand:"LS3", uploaded:"May 25", learners:2, status:"draft",     duration:"30 min" },
+const CURRICULUM_PAGE = "facilitator-curriculum";
+
+// The icon and colours the mockup's cards gave each kind of content.
+const TYPE_ICON: Record<ContentType, { Icon: ComponentType<{ className?: string }>; background: string; colour: string }> = {
+  video: { Icon: Video, background: "bg-purple-50", colour: "text-purple-500" },
+  audio: { Icon: Headphones, background: "bg-blue-50", colour: "text-blue-500" },
+  reading: { Icon: BookOpen, background: "bg-green-50", colour: "text-green-500" },
+};
+
+type TypeFilter = ContentType | "all";
+
+const TYPE_OPTIONS: readonly { value: TypeFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  ...CONTENT_TYPES.map((type) => ({ value: type, label: contentTypeLabel(type) })),
 ];
 
-const typeIcon  = { auditory:Headphones, visual:Video, reading:BookOpen };
-const typeStyle = { auditory:"text-blue-600 bg-blue-50 border-blue-200", visual:"text-purple-600 bg-purple-50 border-purple-200", reading:"text-green-600 bg-green-50 border-green-200" };
-const typeIconBg= { auditory:"bg-blue-50", visual:"bg-purple-50", reading:"bg-green-50" };
-const typeIconCl= { auditory:"text-blue-500", visual:"text-purple-500", reading:"text-green-500" };
-
-export function FacilitatorContent({ navigate, user, onLogout }) {
-  const [showTribe,   setShowTribe]   = useState(false);
-  const [search,      setSearch]      = useState("");
-  const [typeFilter,  setTypeFilter]  = useState("All");
-  const [items,       setItems]       = useState(library);
-  const [deleteId,    setDeleteId]    = useState(null);
-
-  if (showTribe) return <TribeV2Upload onClose={() => setShowTribe(false)} />;
-
-  const filtered = items.filter(c =>
-    (typeFilter === "All" || c.type === typeFilter.toLowerCase()) &&
-    c.title.toLowerCase().includes(search.toLowerCase())
+function TitleCell({ item }: { item: ContentLibraryItem }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-gray-800 text-sm font-medium">{item.title}</span>
+        {item.is_own && <Pill tone="success">Mine</Pill>}
+        <Pill tone="muted">{visibilityLabel(item.visibility)}</Pill>
+      </div>
+      {!item.is_own && item.uploader_name && <div className="text-gray-400 text-xs mt-0.5">Uploaded by {item.uploader_name}</div>}
+    </div>
   );
+}
 
-  const handleDelete = (id) => { setItems(p => p.filter(c => c.id !== id)); setDeleteId(null); };
+function TypeCell({ type }: { type: ContentType }) {
+  const { Icon, background, colour } = TYPE_ICON[type] ?? TYPE_ICON.reading;
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${background}`}>
+        <Icon className={`w-3.5 h-3.5 ${colour}`} />
+      </span>
+      <span className="text-gray-600">{contentTypeLabel(type)}</span>
+    </div>
+  );
+}
 
-  const stats = [
-    { label:"Total Items",   value:items.length,                                           },
-    { label:"Published",     value:items.filter(c=>c.status==="published").length          },
-    { label:"Drafts",        value:items.filter(c=>c.status==="draft").length              },
-    { label:"Total Learners",value:items.reduce((s,c)=>s+c.learners,0)                     },
+export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
+  const [searchText, setSearchText] = useState("");
+  const [type, setType] = useState<TypeFilter>("all");
+  const [mineOnly, setMineOnly] = useState(false);
+  const [archived, setArchived] = useState(false);
+  const search = useDebouncedValue(searchText, 300);
+
+  const filters = { search, type, mineOnly, archived };
+  const filterKey = contentFilterKey(filters);
+
+  // The page is remembered together with the filters it belongs to, so any
+  // change of control lands on page 1 without a second request.
+  const [paging, setPaging] = useState({ filterKey, page: 1 });
+  const page = paging.filterKey === filterKey ? paging.page : 1;
+
+  // Keyed on every input: a slow response for earlier inputs is dropped by the hook.
+  const list = useFetch(
+    () => getContents(buildContentQuery({ ...filters, page })),
+    [filterKey, page],
+    { fallbackError: "Unable to load the content library." },
+  );
+  const data = list.data;
+  const rows = data?.items ?? [];
+
+  const [uploading, setUploading] = useState(false);
+  const [viewing, setViewing] = useState<ContentLibraryItem | null>(null);
+
+  // Archiving or restoring the last row of the last page leaves that page empty: step back one.
+  const pageIsPastTheEnd = data !== null && data.items.length === 0 && data.total > 0 && page > 1;
+  useEffect(() => {
+    if (pageIsPastTheEnd) setPaging({ filterKey, page: page - 1 });
+  }, [pageIsPastTheEnd, filterKey, page]);
+
+  // A new item is active and the caller's own, so with the filters cleared it is on page 1.
+  const showNewUpload = () => {
+    setSearchText("");
+    setType("all");
+    setMineOnly(false);
+    setArchived(false);
+    setPaging({ filterKey, page: 1 });
+    list.reload();
+  };
+
+  const columns: DataTableColumn<ContentLibraryItem>[] = [
+    { key: "title", header: "Title", render: (item) => <TitleCell item={item} /> },
+    { key: "type", header: "Type", render: (item) => <TypeCell type={item.type} /> },
+    {
+      key: "lesson",
+      header: "Lesson",
+      render: (item) => (
+        <div>
+          <div className="text-gray-700">{item.lesson_title}</div>
+          <div className="text-gray-400 text-xs">{lessonContextText(item)}</div>
+        </div>
+      ),
+    },
+    {
+      key: "evaluation",
+      header: "Evaluation",
+      render: (item) => <Pill tone={item.evaluation === null ? "muted" : "success"}>{evaluationPillText(item.evaluation)}</Pill>,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (item) => (
+        // The row itself opens View; clicks on the buttons must not open it twice.
+        <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+          <Button variant="outline" size="sm" onClick={() => setViewing(item)}>View</Button>
+          <span title={EVALUATION_UNAVAILABLE_HINT}>
+            <Button variant="outline" size="sm" disabled>
+              Evaluate<span className="sr-only">: {EVALUATION_UNAVAILABLE_HINT}</span>
+            </Button>
+          </span>
+        </div>
+      ),
+    },
   ];
+
+  const emptyKind = emptyLibraryKind(filters);
+
+  let body;
+  if (list.error) {
+    const failure = libraryFailureText(list.errorStatus, list.error);
+    body = <ErrorState title={failure.title} message={failure.message} onRetry={failure.canRetry ? list.reload : undefined} />;
+  } else if (data && data.total === 0 && emptyKind === "library") {
+    body = (
+      <Card padding="none">
+        <EmptyState
+          icon={BookOpen}
+          title={emptyLibraryText(emptyKind)}
+          description="Upload a video, an audio file, or a reading, then assign it to a cohort from Curriculum."
+          action={<Button variant="accent" onClick={() => setUploading(true)}><Upload className="w-3.5 h-3.5" /> Upload Content</Button>}
+        />
+      </Card>
+    );
+  } else {
+    body = (
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(item) => item.id}
+        onRowClick={setViewing}
+        loading={!data}
+        loadingLabel="Loading content…"
+        emptyMessage={emptyLibraryText(emptyKind)}
+        footer={
+          data && (
+            <Pagination
+              page={data.page}
+              pageSize={data.page_size}
+              total={data.total}
+              onPageChange={(next) => setPaging({ filterKey, page: next })}
+              disabled={list.loading}
+              summary="range"
+            />
+          )
+        }
+      />
+    );
+  }
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-content">
+      {uploading && (
+        <ContentUploadDialog
+          onClose={() => setUploading(false)}
+          onUploaded={showNewUpload}
+          onOpenCurriculum={() => navigate(CURRICULUM_PAGE)}
+        />
+      )}
+      {viewing && (
+        <ContentViewDialog
+          item={viewing}
+          onClose={() => setViewing(null)}
+          onChanged={list.reload}
+          onOpenCurriculum={() => navigate(CURRICULUM_PAGE)}
+        />
+      )}
+
       <div className="p-5 space-y-5">
+        <PageHeader
+          eyebrow="Content Management"
+          title="Content Library"
+          subtitle={data ? librarySubtitle(data.counts) : undefined}
+          action={
+            <HeaderButton onClick={() => setUploading(true)}>
+              <Upload className="w-4 h-4" /> Upload Content
+            </HeaderButton>
+          }
+        />
 
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#0B1F3A] to-[#1a3a5c] rounded-2xl p-5 text-white flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2"><span className="text-xs bg-white/15 px-2 py-0.5 rounded font-mono">M05</span><span className="text-blue-300 text-xs">Content Management</span></div>
-            <h2 className="mb-1" style={{ fontSize:"1.25rem", fontWeight:700 }}>Content Library</h2>
-            <p className="text-blue-200/70 text-sm">All content is processed through TRIBE v2 before publishing to learners.</p>
-          </div>
-          <button onClick={() => setShowTribe(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 text-white rounded-xl text-sm font-medium transition-colors">
-            <Cpu className="w-4 h-4" /> Upload with TRIBE v2
-          </button>
-        </div>
+        <Card padding="sm" className="flex items-center gap-3 flex-wrap">
+          <SearchInput value={searchText} onChange={setSearchText} placeholder="Search by title" />
+          <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
+          <Chip selected={mineOnly} onClick={() => setMineOnly((value) => !value)}>
+            <User className="w-3 h-3" aria-hidden="true" /> Mine only
+          </Chip>
+          <Chip selected={archived} onClick={() => setArchived((value) => !value)}>
+            <Archive className="w-3 h-3" aria-hidden="true" /> Archived
+          </Chip>
+        </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
-          {stats.map(s => (
-            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4">
-              <div className="text-gray-800 text-2xl font-bold">{s.value}</div>
-              <div className="text-gray-500 text-xs mt-0.5">{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* TRIBE v2 info */}
-        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 bg-[#3535C5]/15 border border-[#3535C5]/30 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Cpu className="w-5 h-5 text-[#3535C5]" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[#3535C5] font-semibold text-sm">TRIBE v2 Analysis Pipeline</div>
-            <div className="text-indigo-600 text-xs mt-0.5">Brain response visualization generated per timestep. Content is auto-tagged with peak engagement windows before publishing.</div>
-          </div>
-          <button onClick={() => setShowTribe(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#3535C5] hover:bg-[#2929a8] text-white rounded-xl text-sm font-medium transition-colors flex-shrink-0">
-            <Upload className="w-3.5 h-3.5" /> Upload New
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search content..."
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 pl-9 pr-4 text-gray-700 focus:outline-none focus:border-orange-400 text-sm" />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-gray-400" />
-            {["All","Auditory","Visual","Reading"].map(f => (
-              <button key={f} onClick={() => setTypeFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${typeFilter === f ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>{f}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(item => {
-            const Icon    = typeIcon[item.type];
-            const iconBg  = typeIconBg[item.type];
-            const iconCl  = typeIconCl[item.type];
-            const tStyle  = typeStyle[item.type];
-            return (
-              <div key={item.id} className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-all duration-200">
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`w-11 h-11 ${iconBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                    <Icon className={`w-5 h-5 ${iconCl}`} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${tStyle}`}>{item.type}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${item.status === "published" ? "text-green-600 bg-green-50" : "text-gray-500 bg-gray-100"}`}>
-                      {item.status === "published" ? "✓ Live" : "Draft"}
-                    </span>
-                  </div>
-                </div>
-                <h4 className="text-gray-800 font-semibold text-sm mb-1 leading-snug">{item.title}</h4>
-                <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
-                  <span className="bg-gray-100 px-2 py-0.5 rounded">{item.subject}</span>
-                  <span>{item.strand}</span>
-                  <span>·</span>
-                  <span>{item.duration}</span>
-                </div>
-                <div className="flex items-center gap-2 mb-3 text-xs text-gray-500">
-                  <span className="flex items-center gap-1 text-indigo-600"><Cpu className="w-3 h-3" /> TRIBE v2</span>
-                  <span>·</span>
-                  <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {item.learners} learners</span>
-                  <span>·</span>
-                  <span>{item.uploaded}</span>
-                </div>
-                <div className="flex gap-2">
-                  <button className="flex-1 py-2 text-xs bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl transition-colors flex items-center justify-center gap-1"><Edit className="w-3 h-3" /> Edit</button>
-                  <button onClick={() => setDeleteId(item.id)}
-                    className="py-2 px-3 text-xs bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors"><Trash2 className="w-3 h-3" /></button>
-                  {item.status === "draft" && (
-                    <button className="flex-1 py-2 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-colors flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3" /> Publish</button>
-                  )}
-                </div>
-                {deleteId === item.id && (
-                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-                    <p className="text-red-700 text-xs mb-2">Remove this content? This cannot be undone.</p>
-                    <div className="flex gap-2">
-                      <button onClick={() => setDeleteId(null)} className="flex-1 py-1.5 text-xs bg-white border border-gray-200 rounded-lg text-gray-600">Cancel</button>
-                      <button onClick={() => handleDelete(item.id)} className="flex-1 py-1.5 text-xs bg-red-500 text-white rounded-lg">Remove</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="col-span-3 py-16 text-center text-gray-400">
-              <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p>No content matches your filters.</p>
-            </div>
-          )}
-        </div>
+        {body}
       </div>
     </AppLayout>
   );

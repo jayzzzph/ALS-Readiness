@@ -22,3 +22,20 @@ dependencies = [
     "sqlmodel>=0.0.39",
     "uvicorn>=0.52.1",
 ]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+# One event loop for the whole run, so the app's database connections outlive a single test.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+# No .pytest_cache directory in the repo.
+addopts = "-p no:cacheprovider"

@@ -1,3 +1,7 @@
+// PARKED (M05 frontend plan, F0): this flow has no route of its own; it is
+// only opened from FacilitatorContent. It uses mock data throughout - the
+// strand list, the analysis steps and the results are all simulated, and no
+// file is uploaded. Its file-drop step is reused for the real upload in F4.
 import { useState, useEffect, useRef } from "react";
 import {
   X, Upload, ChevronDown, Eye, BookOpen, Headphones,

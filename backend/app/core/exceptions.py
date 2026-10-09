@@ -45,6 +45,20 @@ class UnauthenticatedError(AppError):
     code = "UNAUTHENTICATED"
 
 
+class ServiceUnavailableError(AppError):
+    """Base for failures of an external service the request depends on."""
+
+    message = "Service temporarily unavailable."
+    code = "SERVICE_UNAVAILABLE"
+
+
+class ConflictError(AppError):
+    """Base for requests the resource's current state does not allow."""
+
+    message = "The request conflicts with the current state of the resource."
+    code = "CONFLICT"
+
+
 # ================ Auth Errors ================
 
 class InvalidCredentialsError(UnauthenticatedError):
@@ -146,6 +160,20 @@ class PretestRequiredError(DomainValidationError):
 
     message = "Complete the pretest for this strand before taking the posttest."
     code = "PRETEST_REQUIRED"
+
+
+class IntakeRequiredError(ConflictError):
+    """Raised when a pretest is submitted by a learner with no participant intake."""
+
+    message = "Complete your Participant Intake before taking a pretest."
+    code = "INTAKE_REQUIRED"
+
+
+class LRIRequiredError(ConflictError):
+    """Raised when a pretest is submitted before the Learner Readiness Inventory."""
+
+    message = "Complete the Learner Readiness Inventory before taking a pretest."
+    code = "LRI_REQUIRED"
 
 
 class InvalidTestAttemptError(DomainValidationError):
@@ -269,7 +297,39 @@ class CohortFacilitatorNotFoundError(NotFoundError):
     """Raised when a cohort facilitator does not exists."""
     message = "Cohort facilitator does not exists."
     code = "COHORT_FACILITATOR_NOT_FOUND"
-    
+
+
+class CohortAccessDeniedError(UnauthorizedError):
+    """Raised when the caller may not see a cohort or one of its learners.
+
+    The message is the same whether or not the cohort or learner exists, so a
+    denied caller learns nothing about what is there.
+    """
+
+    message = "You do not have access to this cohort or learner."
+    code = "COHORT_ACCESS_DENIED"
+
+
+class CohortNotActiveError(ConflictError):
+    """Raised when a change is made to a cohort the caller can see but which is not active."""
+
+    message = "This cohort is not active, so it cannot be changed."
+    code = "COHORT_NOT_ACTIVE"
+
+
+class LearnerAlreadyInActiveCohortError(AlreadyExistsError):
+    """Raised when assigning a learner who already has an active membership in a cohort."""
+
+    message = "Learner already has an active cohort. End that membership first."
+    code = "LEARNER_ALREADY_IN_ACTIVE_COHORT"
+
+
+class LearnerNotInCohortError(NotFoundError):
+    """Raised when a learner has no active cohort membership."""
+
+    message = "Learner is not assigned to a cohort."
+    code = "LEARNER_NOT_IN_COHORT"
+
     
 class SelfPasswordResetNotAllowedError(UnauthorizedError):
     """Raised when an admin targets their own account with the admin password reset."""
@@ -292,6 +352,23 @@ class PasswordNotAllowedError(DomainValidationError):
     code = "PASSWORD_NOT_ALLOWED"
 
 
+# ================ At-Risk Flag Error ================
+
+class AtRiskFlagClosedError(ConflictError):
+    """Raised when changing a flag whose episode has ended: a resolved flag, or
+    a dismissed one whose condition has since cleared."""
+
+    message = "This flag is closed because its condition has cleared, so it cannot be changed."
+    code = "AT_RISK_FLAG_CLOSED"
+
+
+class InvalidAtRiskFlagTransitionError(ConflictError):
+    """Raised when a flag is set to the status it already has and no note is
+    sent. With a note, the same status is allowed: it edits the note."""
+
+    message = "The flag already has this status."
+    code = "AT_RISK_FLAG_INVALID_TRANSITION"
+
 
 # ================ Content Error ================
 
@@ -301,6 +378,118 @@ class ContentNotFoundError(NotFoundError):
     message = "Content not found."
     code = "CONTENT_NOT_FOUND"
 
+
+class ContentFileNotFoundError(NotFoundError):
+    """Raised when no uploaded file exists in storage at the given key."""
+
+    message = "File not found at the given key."
+    code = "CONTENT_FILE_NOT_FOUND"
+
+
+class ContentFileKeyAlreadyUsedError(AlreadyExistsError):
+    """Raised when creating content from a file key another content already uses."""
+
+    message = "This uploaded file is already used by another content item."
+    code = "CONTENT_FILE_KEY_ALREADY_USED"
+
+
+class InvalidContentFileError(DomainValidationError):
+    """Raised when a content filename or file key has a missing or unsupported extension."""
+
+    message = "Unsupported content file."
+    code = "INVALID_CONTENT_FILE"
+
+
+class StorageUnavailableError(ServiceUnavailableError):
+    """Raised when the file storage service cannot be reached."""
+
+    message = "Storage service unavailable."
+    code = "STORAGE_UNAVAILABLE"
+
+
+class ContentEditDeniedError(UnauthorizedError):
+    """Raised when a caller who can see a content tries to edit one they did not upload."""
+
+    message = "Only the uploader can edit this content."
+    code = "CONTENT_EDIT_DENIED"
+
+
+class ContentEvaluationAlreadyExistsError(AlreadyExistsError):
+    """Raised when saving an evaluation for a content that already has one."""
+
+    message = "This content already has an evaluation."
+    code = "CONTENT_EVALUATION_ALREADY_EXISTS"
+
+
+# ================ Curriculum Error ================
+
+class LearningStrandNotFoundError(NotFoundError):
+    """Raised when a learning strand does not exist."""
+
+    message = "Strand not found."
+    code = "LEARNING_STRAND_NOT_FOUND"
+
+
+class CurriculumModuleNotFoundError(NotFoundError):
+    """Raised when a curriculum module does not exist. (Not named ModuleNotFoundError,
+    which would shadow the Python built-in.)"""
+
+    message = "Module not found."
+    code = "MODULE_NOT_FOUND"
+
+
+class LessonNotFoundError(NotFoundError):
+    """Raised when a lesson does not exist."""
+
+    message = "Lesson not found."
+    code = "LESSON_NOT_FOUND"
+
+
+class StrandNotActiveError(ConflictError):
+    """Raised when adding to a strand that is archived or deleted."""
+
+    message = "This strand is not active, so nothing can be added to it."
+    code = "STRAND_NOT_ACTIVE"
+
+
+class ModuleNotActiveError(ConflictError):
+    """Raised when adding to, or using content under, a module that is archived or deleted."""
+
+    message = "This module is not active."
+    code = "MODULE_NOT_ACTIVE"
+
+
+class LessonNotActiveError(ConflictError):
+    """Raised when adding or using content under a lesson that is archived or deleted."""
+
+    message = "This lesson is not active."
+    code = "LESSON_NOT_ACTIVE"
+
+
+class InvalidReorderError(DomainValidationError):
+    """Raised when a reorder list is not exactly the parent's active children, each once."""
+
+    message = "The order must list every active item exactly once."
+    code = "INVALID_ORDER"
+
+
+# ================ Cohort Content Error ================
+
+class ContentAlreadyAssignedError(AlreadyExistsError):
+    """Raised when assigning a content that is already assigned to the cohort."""
+
+    message = "This content is already assigned to the cohort."
+    code = "CONTENT_ALREADY_ASSIGNED"
+
+
+class ContentNotAssignedError(NotFoundError):
+    """Raised when unassigning a content that is not assigned to the cohort."""
+
+    message = "This content is not assigned to the cohort."
+    code = "CONTENT_NOT_ASSIGNED"
+
+
+# ================ Content Progress Error ================
 
 class InactiveContentError(DomainValidationError):
     """Raised when accessing a content that is not active."""

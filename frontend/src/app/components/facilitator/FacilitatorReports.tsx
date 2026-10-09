@@ -1,143 +1,260 @@
 import { useState } from "react";
-import { Download, FileText, Brain, BarChart3, Activity, BookOpen, TrendingUp, Clock, CheckCircle, X } from "lucide-react";
+import { AlertCircle, Download, TrendingUp, Users } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
+import type { PageProps } from "../../routes/ProtectedPage";
+import { getErrorStatus } from "../../../lib/api/errors";
+import { downloadCohortSummaryCsv, getCohortSummary } from "../../../lib/api/facilitator";
+import type { CohortSummaryResponse, MembershipStatusFilter, ReportLearner, ReportStrandTotals } from "../../../lib/api/types";
+import { formatLastActive } from "../../../lib/dates";
+import { saveBlob } from "../../../lib/download";
+import { useFetch } from "../../../lib/hooks/useFetch";
+import { cohortStatusLabel, formatMps, formatPercent, memberStatusLabel, orDash, personName } from "../../../lib/labels";
+import { learnerDetailPage } from "../../../lib/navigation";
+import {
+  MEMBERSHIP_OPTIONS,
+  atRiskBreakdownText,
+  atRiskReasonsText,
+  averageCell,
+  csvFailureText,
+  gainText,
+  generatedText,
+  masteredText,
+  masteryCountText,
+  reportFailureText,
+  reportSubtitle,
+  strandGroups,
+  strandOfLearner,
+  thresholdsText,
+} from "../../../lib/reportsText";
+import { useCohortSelection } from "../../../lib/store/cohortStore";
+import { toast } from "../../../lib/toast";
+import {
+  Card,
+  ChipGroup,
+  DataTable,
+  ErrorState,
+  HeaderButton,
+  LoadingState,
+  NoCohortsState,
+  PageHeader,
+  Pill,
+  ProgressBar,
+  StatTile,
+  type DataTableColumn,
+} from "./shared";
 
-const reports = [
-  { id:1, title:"Cohort Readiness Report",        desc:"Full readiness index summary with factor breakdown for all 6 learners.",              icon:Brain,     format:["PDF","CSV"],  category:"Readiness",  generated:"Jun 20, 2026" },
-  { id:2, title:"Diagnostic Test Results",         desc:"Subject-wise scores, pass/fail analysis, and improvement trends.",                   icon:FileText,  format:["PDF","XLSX"], category:"Tests",      generated:"Jun 19, 2026" },
-  { id:3, title:"Stimulus Type Distribution",      desc:"Learning modality breakdown per learner with TRIBE v2 engagement data.",            icon:BarChart3, format:["PDF"],        category:"Content",    generated:"Jun 18, 2026" },
-  { id:4, title:"Affective State Summary",         desc:"EEG-tagged emotion data (Engaged/Neutral/Anxious) across all sessions.",           icon:Activity,  format:["CSV"],        category:"Readiness",  generated:"Jun 17, 2026" },
-  { id:5, title:"Content Engagement Report",       desc:"Which content types and subjects learners engage with most, by stimulus type.",     icon:BookOpen,  format:["PDF","CSV"],  category:"Content",    generated:"Jun 16, 2026" },
-  { id:6, title:"Weekly Progress Overview",        desc:"Weekly readiness and average score trends for the entire cohort.",                  icon:TrendingUp,format:["PDF","XLSX"], category:"Progress",   generated:"Jun 15, 2026" },
-  { id:7, title:"At-Risk Learner Report",          desc:"Learners below 60% readiness — includes recommended interventions.",               icon:Activity,  format:["PDF"],        category:"Readiness",  generated:"Jun 14, 2026" },
-  { id:8, title:"TRIBE v2 Brain Response Summary", desc:"Peak engagement windows and brain activation scores across all uploaded content.", icon:BarChart3, format:["PDF","CSV"],  category:"Content",    generated:"Jun 13, 2026" },
-];
-
-const categories = ["All","Readiness","Tests","Content","Progress"];
-
-function ExportToast({ report, format, onClose }) {
+function AverageWithCount({ average, count }: { average: number | null; count: number }) {
+  const cell = averageCell(average, count);
   return (
-    <div className="fixed bottom-6 right-6 bg-[#0B1F3A] text-white rounded-2xl shadow-2xl px-5 py-4 flex items-center gap-3 z-50">
-      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin flex-shrink-0" />
-      <div>
-        <div className="font-semibold text-sm">Exporting {format}…</div>
-        <div className="text-blue-300 text-xs">{report}</div>
-      </div>
-      <button onClick={onClose} className="text-blue-300 hover:text-white ml-2"><X className="w-4 h-4" /></button>
+    <div>
+      <div className="text-gray-800 font-medium">{cell.main}</div>
+      <div className="text-gray-400 text-xs">{cell.detail}</div>
     </div>
   );
 }
 
-export function FacilitatorReports({ navigate, user, onLogout }) {
-  const [category,   setCategory]   = useState("All");
-  const [exporting,  setExporting]  = useState(null);
-  const [exported,   setExported]   = useState([]);
+const STRAND_COLUMNS: DataTableColumn<ReportStrandTotals>[] = [
+  { key: "strand", header: "Strand", render: (strand) => <span className="text-gray-800 font-medium">{strand.strand_code}</span> },
+  {
+    key: "progress",
+    header: "Average progress",
+    render: (strand) => <ProgressBar value={strand.average_progress} widthClass="w-24" label={`${strand.strand_code} average progress`} />,
+  },
+  { key: "pretest", header: "Pretest average", render: (strand) => <AverageWithCount average={strand.pretest.average_mps} count={strand.pretest.count} /> },
+  { key: "posttest", header: "Posttest average", render: (strand) => <AverageWithCount average={strand.posttest.average_mps} count={strand.posttest.count} /> },
+  {
+    key: "gain",
+    header: "Average gain",
+    render: (strand) => (
+      <div>
+        <div className="text-gray-800 font-medium">{gainText(strand.gain.average)}</div>
+        <div className="text-gray-400 text-xs">{averageCell(null, strand.gain.count).detail}</div>
+      </div>
+    ),
+  },
+  { key: "mastered", header: "Mastered", render: (strand) => masteryCountText(strand.mastery_count) },
+];
 
-  const filtered = reports.filter(r => category === "All" || r.category === category);
+/** The learners table's columns: fixed ones either side of one column group per strand in the response. */
+function learnerColumns(data: CohortSummaryResponse, onOpenLearner: (learnerId: number) => void): DataTableColumn<ReportLearner>[] {
+  const strandColumns = strandGroups(data.totals.strands, data.learners).flatMap((code): DataTableColumn<ReportLearner>[] => [
+    {
+      key: `${code}-progress`,
+      group: code,
+      header: "Progress",
+      className: "whitespace-nowrap",
+      // A learner with no entry for this strand shows a dash, as do the cells beside it.
+      render: (learner) => formatPercent(strandOfLearner(learner, code)?.progress_percent),
+    },
+    { key: `${code}-pretest`, group: code, header: "Pretest", render: (learner) => formatMps(strandOfLearner(learner, code)?.pretest_mps) },
+    { key: `${code}-posttest`, group: code, header: "Posttest", render: (learner) => formatMps(strandOfLearner(learner, code)?.posttest_mps) },
+    { key: `${code}-gain`, group: code, header: "Gain", className: "whitespace-nowrap", render: (learner) => gainText(strandOfLearner(learner, code)?.gain) },
+    { key: `${code}-mastered`, group: code, header: "Mastered", render: (learner) => masteredText(strandOfLearner(learner, code)?.mastered) },
+  ]);
 
-  const handleExport = (reportTitle, format) => {
-    const key = `${reportTitle}-${format}`;
-    setExporting({ title:reportTitle, format });
-    setTimeout(() => {
-      setExporting(null);
-      setExported(p => [...p, key]);
-    }, 2500);
+  return [
+    {
+      key: "learner",
+      header: "Learner",
+      pinned: true,
+      className: "whitespace-nowrap",
+      render: (learner) => (
+        <div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenLearner(learner.learner_id)}
+              className="text-gray-800 text-sm font-medium hover:text-orange-600 hover:underline text-left"
+            >
+              {personName(learner, "Unnamed learner")}
+            </button>
+            {learner.membership_status === "ended" && <Pill tone="muted">{memberStatusLabel(learner.membership_status)}</Pill>}
+          </div>
+          <div className="text-gray-400 text-xs font-mono">{orDash(learner.id_no)}</div>
+        </div>
+      ),
+    },
+    {
+      key: "overall",
+      header: "Overall progress",
+      render: (learner) => <ProgressBar value={learner.overall_progress} widthClass="w-20" label="Overall progress" />,
+    },
+    ...strandColumns,
+    { key: "lri", header: "LRI score", className: "whitespace-nowrap", render: (learner) => orDash(learner.lri_score) },
+    { key: "last-active", header: "Last active", className: "text-gray-500 text-xs whitespace-nowrap", render: (learner) => formatLastActive(learner.last_active_at) },
+    { key: "at-risk", header: "At-risk", className: "whitespace-nowrap", render: (learner) => atRiskReasonsText(learner.at_risk_reasons) },
+  ];
+}
+
+export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
+  // The report is about one cohort, so "All cohorts" is not offered here.
+  const selection = useCohortSelection({ allowAll: false });
+  const cohortId = selection.cohortId;
+
+  const [membership, setMembership] = useState<MembershipStatusFilter>(MEMBERSHIP_OPTIONS[0].value);
+
+  // Keyed on the cohort and the filter: a slow response for earlier ones is dropped by the hook.
+  const report = useFetch(
+    () => getCohortSummary(cohortId as number, membership),
+    [cohortId, membership],
+    { enabled: cohortId !== null, fallbackError: "Unable to load the report." },
+  );
+  const data = report.data;
+
+  const [downloading, setDownloading] = useState(false);
+
+  // The same cohort and filter as the report on screen, so the file matches it.
+  const downloadCsv = async () => {
+    if (cohortId === null) return;
+    setDownloading(true);
+    try {
+      const file = await downloadCohortSummaryCsv(cohortId, membership);
+      saveBlob(file.blob, file.filename);
+      toast.success(`Downloaded ${file.filename}.`);
+    } catch (requestError) {
+      toast.error(csvFailureText(getErrorStatus(requestError)));
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  const catColors = { Readiness:"text-blue-600 bg-blue-50", Tests:"text-purple-600 bg-purple-50", Content:"text-green-600 bg-green-50", Progress:"text-orange-600 bg-orange-50" };
+  const cohortsLoading = !selection.ready || selection.loading;
+  // Before the report answers, the header falls back to the cohort picked in the top bar.
+  const headerCohort = data?.cohort ?? selection.cohort;
+
+  let body;
+  if (selection.error) {
+    body = <ErrorState title="Your cohorts could not be loaded" message={selection.error} onRetry={selection.reload} />;
+  } else if (cohortsLoading) {
+    body = <LoadingState label="Loading your cohorts…" />;
+  } else if (selection.hasNoCohorts || cohortId === null) {
+    body = <Card padding="none"><NoCohortsState /></Card>;
+  } else {
+    const failure = report.error ? reportFailureText(report.errorStatus, report.error) : null;
+    body = (
+      <>
+        <Card padding="sm" className="flex items-center gap-3 flex-wrap">
+          <ChipGroup label="Membership" options={MEMBERSHIP_OPTIONS} value={membership} onChange={setMembership} />
+        </Card>
+
+        {failure ? (
+          <ErrorState title={failure.title} message={failure.message} onRetry={failure.canRetry ? report.reload : undefined} />
+        ) : !data ? (
+          <LoadingState label="Loading the report…" />
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <StatTile label="Learners" icon={Users} tone="blue" value={data.totals.learner_count} />
+              <StatTile
+                label="Average progress"
+                icon={TrendingUp}
+                tone="green"
+                value={formatPercent(data.totals.average_progress)}
+                hint="across all strands"
+              />
+              <StatTile
+                label="At-risk learners"
+                icon={AlertCircle}
+                tone="red"
+                value={data.totals.at_risk.learner_count}
+                hint={atRiskBreakdownText(data.totals.at_risk.by_reason) ?? undefined}
+              />
+            </div>
+
+            <section className="space-y-3">
+              <h3 className="text-gray-800 font-semibold text-sm">By learning strand</h3>
+              <DataTable
+                columns={STRAND_COLUMNS}
+                rows={data.totals.strands}
+                rowKey={(strand) => strand.strand_code}
+                emptyMessage="No active learning strands."
+              />
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-gray-800 font-semibold text-sm">Learners</h3>
+              <DataTable
+                columns={learnerColumns(data, (learnerId) => navigate(learnerDetailPage(learnerId, data.cohort.id)))}
+                rows={data.learners}
+                rowKey={(learner) => learner.learner_id}
+                emptyMessage="No learners in this cohort for this membership filter."
+              />
+            </section>
+
+            <p className="text-gray-400 text-xs">
+              {generatedText(data.generated_at)}. {thresholdsText(data.thresholds)}
+            </p>
+            <p className="text-gray-400 text-xs">
+              This report contains learners' personal information. Share it only with authorized ALS personnel.
+            </p>
+          </>
+        )}
+      </>
+    );
+  }
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-reports">
-      {exporting && <ExportToast report={exporting.title} format={exporting.format} onClose={() => setExporting(null)} />}
-
-      <div className="p-5 space-y-5">
-
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#0B1F3A] to-[#1a3a5c] rounded-2xl p-5 text-white flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2"><span className="text-xs bg-white/15 px-2 py-0.5 rounded font-mono">M05</span><span className="text-blue-300 text-xs">Reports Center</span></div>
-            <h2 className="mb-1" style={{ fontSize:"1.25rem", fontWeight:700 }}>Exportable Reports</h2>
-            <p className="text-blue-200/70 text-sm">All reports comply with the Data Privacy Act of 2012 (RA 10173). Data can be anonymized for research.</p>
-          </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-400 text-white rounded-xl text-sm font-medium transition-colors">
-            <Download className="w-4 h-4" /> Export All (PDF)
-          </button>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { label:"Total Reports",     value:reports.length,                                   icon:FileText,  cls:"text-blue-600 bg-blue-50"    },
-            { label:"Readiness Reports", value:reports.filter(r=>r.category==="Readiness").length,icon:Activity,  cls:"text-teal-600 bg-teal-50"    },
-            { label:"Content Reports",   value:reports.filter(r=>r.category==="Content").length,  icon:BookOpen,  cls:"text-green-600 bg-green-50"  },
-            { label:"Reports Exported",  value:Math.floor(exported.length),                       icon:CheckCircle,cls:"text-orange-600 bg-orange-50"},
-          ].map(s => {
-            const Icon = s.icon;
-            return (
-              <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${s.cls}`}><Icon className="w-4 h-4" /></div>
-                <div className="text-gray-800 text-xl font-bold">{s.value}</div>
-                <div className="text-gray-500 text-xs">{s.label}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Category Filter */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-1.5 flex gap-1">
-          {categories.map(c => (
-            <button key={c} onClick={() => setCategory(c)}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${category === c ? "bg-orange-500 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
-              {c}
-            </button>
-          ))}
-        </div>
-
-        {/* Reports Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {filtered.map(report => {
-            const Icon = report.icon;
-            return (
-              <div key={report.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all duration-200">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${catColors[report.category]}`}>{report.category}</span>
-                    <span className="text-xs text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" />{report.generated}</span>
-                  </div>
-                </div>
-                <h4 className="text-gray-800 font-semibold mb-1 text-sm">{report.title}</h4>
-                <p className="text-gray-500 text-xs leading-relaxed mb-4">{report.desc}</p>
-                <div className="flex gap-2">
-                  {report.format.map(fmt => {
-                    const key     = `${report.title}-${fmt}`;
-                    const isDone  = exported.includes(key);
-                    return (
-                      <button key={fmt} onClick={() => handleExport(report.title, fmt)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${isDone ? "bg-green-50 border border-green-200 text-green-600" : "bg-[#0B1F3A] hover:bg-[#152e56] text-white"}`}>
-                        {isDone ? <CheckCircle className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
-                        {isDone ? `${fmt} ✓` : `Export ${fmt}`}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Disclaimer */}
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
-          <h4 className="text-blue-800 font-semibold text-sm mb-1">About These Reports</h4>
-          <p className="text-blue-700 text-xs leading-relaxed">
-            Reports are generated from real-time learner data and are intended for official use by authorized facilitators and administrators.
-            All exported files comply with <strong>RA 10173 (Data Privacy Act of 2012)</strong>. Personally identifiable information (PII)
-            can be anonymized on request. Do not share reports externally without proper authorization.
-          </p>
-        </div>
-
+      {/* min-w-0 keeps the wide learners table scrolling inside its own card, not the page. */}
+      <div className="p-5 space-y-5 min-w-0">
+        <PageHeader
+          eyebrow="Reports"
+          title="Reports"
+          subtitle={
+            headerCohort ? (
+              <span className="flex items-center gap-2 flex-wrap">
+                <span>{reportSubtitle(headerCohort.name, headerCohort.school_year)}</span>
+                {headerCohort.status !== "active" && <Pill tone="muted">{cohortStatusLabel(headerCohort.status)}</Pill>}
+              </span>
+            ) : undefined
+          }
+          action={
+            <HeaderButton onClick={() => void downloadCsv()} disabled={cohortId === null || downloading}>
+              <Download className="w-4 h-4" /> {downloading ? "Preparing CSV…" : "Download CSV"}
+            </HeaderButton>
+          }
+        />
+        {body}
       </div>
     </AppLayout>
   );

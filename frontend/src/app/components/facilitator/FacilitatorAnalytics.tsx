@@ -1,3 +1,6 @@
+// PARKED (M05 frontend plan, F0): this page is not routed and has no sidebar
+// entry. It is kept for possible future use. Everything it shows is mock data -
+// the arrays below - and none of it comes from the API.
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis } from "recharts";
 import { TrendingUp, AlertCircle, CheckCircle, Activity, Users, ChevronRight } from "lucide-react";
@@ -202,7 +205,7 @@ export function FacilitatorAnalytics({ navigate, user, onLogout }) {
             {[...learners].sort((a,b) => b.readiness - a.readiness).map(l => (
               <div key={l.id}
                 className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-orange-200 transition-all cursor-pointer"
-                onClick={() => navigate("facilitator-cohort")}>
+                onClick={() => navigate("facilitator-learners")}>
                 <div className="flex items-center gap-4">
                   <div className="w-9 h-9 bg-gradient-to-br from-orange-400 to-amber-400 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0">{l.name[0]}</div>
                   <div className="w-36">
