@@ -54,7 +54,6 @@ class LearningStrandService:
                 name=item.strand.name,
                 completed_lessons=item.completed_lessons,
                 total_lessons=item.total_lessons,
-                progress_percent=item.percent,
             )
             for item in progress
             if item.total_lessons

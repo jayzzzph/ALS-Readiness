@@ -74,7 +74,7 @@ uv run alembic upgrade head
 ## 5. Seed the Database
 
 ```bash
-uv run python -m scripts.seed_all
+uv run python -m scripts.seed
 ```
 
 > Admin credentials will be printed in the terminal — save them.

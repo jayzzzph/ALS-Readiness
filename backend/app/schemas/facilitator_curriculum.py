@@ -35,6 +35,9 @@ class FacilitatorContentNode(BaseModel):
     has_evaluation: bool
     # Whether the caller uploaded it. False for content shared by someone else.
     is_own: bool
+    # A presigned link to the file, as main's curriculum tree returns it. Null
+    # when file storage is not configured or cannot be reached.
+    file_url: str | None = None
 
 
 class FacilitatorLessonNode(BaseModel):

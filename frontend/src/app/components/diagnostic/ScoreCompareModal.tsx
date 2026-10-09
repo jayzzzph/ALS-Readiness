@@ -1,20 +1,27 @@
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, LoaderCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
+import { AlertCircle, ArrowDown, ArrowUp, LoaderCircle, Minus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { getStrandAttemptResult } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { StrandAttemptResult } from "../../../lib/api/types";
 import { compareMps, mpsText } from "../../../lib/scoreCompare";
 
-// Shared "Show Score" reveal, used by both the pretest hub and the posttest
-// hub's StrandTestCard. Only ever mounted once both halves are already known
-// complete - a separate, deliberate, learner-initiated action, not the
-// submission-time flow (which stays score-free per that locked decision).
+// "Show Score" reveal, used by the post-test hub only (the pre-test page never shows
+// scores). Only ever mounted once both halves are already known complete - a
+// separate, deliberate, learner-initiated action, not the submission-time flow
+// (which stays score-free per that locked decision).
+//
+// Type roles from DESIGN.md: serif title, Atkinson Hyperlegible for the sentences
+// and numbers a learner reads. Deep blue for a gain, amber for a dip (words always
+// say which), never green or orange.
 
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "ready"; pre: StrandAttemptResult; post: StrandAttemptResult };
+
+const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
+const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
 
 export function ScoreCompareModal({
   strandLabel,
@@ -41,39 +48,64 @@ export function ScoreCompareModal({
   // Null when either MPS is missing (a test with no items): then there is nothing to compare.
   const comparison = state.status === "ready" ? compareMps(state.pre.mps, state.post.mps) : null;
   const improved = comparison !== null && comparison.improved;
-  const postTile = comparison === null ? "bg-gray-50" : improved ? "bg-green-50" : "bg-orange-50";
-  const postText = comparison === null ? "text-gray-800" : improved ? "text-green-700" : "text-orange-700";
+  const change = comparison !== null ? comparison.difference : 0;
+  const changeWords = change === 0 ? "No change" : `${improved ? "Up" : "Down"} ${change} ${change === 1 ? "point" : "points"}`;
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{strandLabel} score</DialogTitle>
-          <DialogDescription>Pre-test vs. post-test Mean Percentage Score.</DialogDescription>
+      <DialogContent className="sm:max-w-lg rounded-2xl border-[#E2E0DA] bg-white p-8 gap-6 shadow-[0_8px_24px_rgba(27,29,38,0.08)]">
+        <DialogHeader className="gap-2">
+          <DialogTitle className="text-2xl leading-[1.25] font-normal text-[#1B1D26]" style={display}>Your {strandLabel} score</DialogTitle>
         </DialogHeader>
 
-        {state.status === "loading" && <div className="py-10 flex justify-center"><LoaderCircle className="w-6 h-6 text-[#3535C5] animate-spin" /></div>}
-        {state.status === "error" && <p role="alert" className="text-sm text-red-700 bg-red-50 p-3 rounded-xl">{state.message}</p>}
+        {state.status === "loading" && (
+          <div role="status" className="py-8 flex items-center justify-center gap-3 text-lg text-[#4A4F5C]" style={reading}>
+            <LoaderCircle className="w-6 h-6 text-[#00538A] motion-safe:animate-spin" aria-hidden="true" /> Loading your scores...
+          </div>
+        )}
+        {state.status === "error" && (
+          <div role="alert" className="flex items-start gap-3 rounded-xl border border-[#B42318] bg-[#FDECEA] p-4 text-[#7A1A12]">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-lg leading-snug" style={reading}>{state.message}</p>
+          </div>
+        )}
         {state.status === "ready" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-4 bg-gray-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1">Pre-test</p>
-                <p className="text-2xl font-bold text-gray-800">{mpsText(state.pre.mps)}</p>
-                <p className="text-xs text-gray-400 mt-1">{state.pre.total_score}/{state.pre.item_count} correct</p>
+          <div className="space-y-4" style={reading}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl bg-[#F2F1ED] p-5 text-center">
+                <p className="text-lg font-bold text-[#4A4F5C]">Before the lessons</p>
+                <p className="mt-1 text-[2.5rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{mpsText(state.pre.mps)}</p>
+                <p className="mt-2 text-base text-[#4A4F5C]">{state.pre.total_score} of {state.pre.item_count} correct</p>
               </div>
-              <div className={`text-center p-4 rounded-xl ${postTile}`}>
-                <p className="text-xs text-gray-500 mb-1">Post-test</p>
-                <p className={`text-2xl font-bold ${postText}`}>{mpsText(state.post.mps)}</p>
-                <p className="text-xs text-gray-400 mt-1">{state.post.total_score}/{state.post.item_count} correct</p>
+              <div className={`rounded-xl p-5 text-center ${comparison === null ? "bg-[#F2F1ED]" : improved ? "bg-[#CFE4FF]" : "bg-[#FFDEB5]"}`}>
+                <p className="text-lg font-bold text-[#1B1D26]">After the lessons</p>
+                <p className="mt-1 text-[2.5rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{mpsText(state.post.mps)}</p>
+                <p className="mt-2 text-base text-[#1B1D26]">{state.post.total_score} of {state.post.item_count} correct</p>
               </div>
             </div>
             {comparison !== null && (
-              <div className={`flex items-center justify-center gap-1.5 text-sm font-medium ${improved ? "text-green-700" : "text-orange-700"}`}>
-                {improved ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-                {comparison.difference} point {improved ? "improvement" : "decrease"}
-              </div>
+              <p className={`flex items-center justify-center gap-2 text-lg font-bold ${improved ? "text-[#00538A]" : "text-[#835500]"}`}>
+                {change === 0 ? <Minus className="w-5 h-5" aria-hidden="true" /> : improved ? <ArrowUp className="w-5 h-5" aria-hidden="true" /> : <ArrowDown className="w-5 h-5" aria-hidden="true" />}
+                {changeWords}
+              </p>
             )}
+
+            {/* Same 0 to 100% scale for both bars; only the after bar grows in, once, and only if motion is allowed. */}
+            <div className="space-y-3">
+              {([["Before", state.pre.mps, "bg-[#8A8F9C]"], ["After", state.post.mps, "bg-[#00538A]"]] as const).map(([label, value, fill]) => (
+                <div key={label} className="flex items-center gap-3">
+                  <span className="w-14 shrink-0 text-lg font-bold text-[#1B1D26]">{label}</span>
+                  <div className="h-3 flex-1 rounded-full bg-[#E1E2E7]" role="img" aria-label={`${label}: ${mpsText(value)}`}>
+                    <div
+                      className={`h-full rounded-full ${fill} ${label === "After" ? `motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-[cubic-bezier(0.23,1,0.32,1)] motion-safe:starting:w-0` : ""}`}
+                      style={{ width: `${Math.min(100, Math.max(0, value ?? 0))}%` }}
+                    />
+                  </div>
+                  <span className="w-14 shrink-0 text-right text-lg tabular-nums text-[#4A4F5C]">{mpsText(value)}</span>
+                </div>
+              ))}
+            </div>
+            {comparison !== null && <p className="text-center text-lg text-[#1B1D26]">{improved && change > 0 ? "Nice progress!" : "Keep going. Every lesson helps."}</p>}
           </div>
         )}
       </DialogContent>

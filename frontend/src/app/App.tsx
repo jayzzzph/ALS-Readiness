@@ -17,6 +17,7 @@ import { LearnerSchedule } from "./components/learner/LearnerSchedule";
 import { FacilitatorDashboard } from "./components/facilitator/FacilitatorDashboard";
 import { FacilitatorCohort } from "./components/facilitator/FacilitatorCohort";
 import { FacilitatorContent } from "./components/facilitator/FacilitatorContent";
+import { FacilitatorLearningContents } from "./components/facilitator/FacilitatorLearningContents";
 // FacilitatorAnalytics is parked: the file is kept but has no route (see its header comment).
 import { FacilitatorReports } from "./components/facilitator/FacilitatorReports";
 import { FacilitatorLearnerDetail } from "./components/facilitator/FacilitatorLearnerDetail";
@@ -135,6 +136,7 @@ function AppRoutes() {
         {/* Facilitator */}
         <Route path="/facilitator-dashboard" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorDashboard} />} />
         <Route path="/facilitator-curriculum" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorCurriculum} />} />
+        <Route path="/facilitator-learning-contents" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorLearningContents} />} />
         <Route path="/facilitator-content" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorContent} />} />
         {/* The Learners list lives in FacilitatorCohort.tsx: the file name is kept from the mockup it was revised from. */}
         <Route path="/facilitator-learners" element={<ProtectedPage allowed={["facilitator"]} Component={FacilitatorCohort} />} />

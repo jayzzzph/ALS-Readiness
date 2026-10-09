@@ -1,19 +1,24 @@
-from app.schemas.curriculum import CurriculumResponse
+from app.schemas.curriculum import (
+    CurriculumResponse,
+    CurriculumWithProgressResponse,
+)
 from app.schemas.facilitator_curriculum import FacilitatorCurriculumResponse
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from ..deps import (
     CurrentFacilitatorDep,
     CurrentLearnerDep,
     CurriculumServiceDep,
+    get_current_facilitator,
 )
 
-router = APIRouter(
-    tags=["Curriculum"]
+router = APIRouter(tags=["Curriculum"])
+
+
+@router.get(
+    "/curriculum/{strand_id}",
+    dependencies=[Depends(get_current_facilitator)],
 )
-
-
-@router.get("/curriculum/{strand_id}")
 async def get_curriculum(
     strand_id: int,
     current_user: CurrentFacilitatorDep,
@@ -29,5 +34,5 @@ async def get_my_curriculum(
     strand_id: int,
     current_user: CurrentLearnerDep,
     service: CurriculumServiceDep,
-) -> CurriculumResponse:
+) -> CurriculumWithProgressResponse:
     return await service.get_tree_with_progress(strand_id, current_user.id)

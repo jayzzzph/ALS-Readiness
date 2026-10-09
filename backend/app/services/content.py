@@ -5,6 +5,8 @@ from app.core.exceptions import (
     ContentEvaluationAlreadyExistsError,
     ContentFileKeyAlreadyUsedError,
     ContentFileNotFoundError,
+    ContentNotFoundError,
+    InactiveContentError,
     InvalidContentFileError,
     StorageUnavailableError,
 )
@@ -134,6 +136,22 @@ class ContentService:
         # Placeholder pending the TRIBE decision: the file is not read or
         # evaluated, and every call returns the same fixed result.
         return StimulusLevel.LOW, 0.5
+
+    async def get_content_by_id(self, content_id: int) -> Content:
+        content = await self._content_repo.get_by_id(content_id)
+
+        if content is None:
+            raise ContentNotFoundError()
+
+        return content
+
+    async def get_active_content_by_id(self, content_id: int) -> Content:
+        content = await self.get_content_by_id(content_id)
+
+        if content.status != ContentStatus.ACTIVE:
+            raise InactiveContentError()
+
+        return content
 
     async def create_content_evaluation(
         self,

@@ -245,6 +245,7 @@ def storage(monkeypatch: pytest.MonkeyPatch) -> FakeStorage:
     """The fake storage, installed for every test whether it asks for it or not."""
     import app.services.content as content_service
     import app.services.content_library as library_service
+    import app.services.curriculum as curriculum_service
     import app.services.strand_test as strand_test_service
     import app.storage as real_storage
 
@@ -256,6 +257,7 @@ def storage(monkeypatch: pytest.MonkeyPatch) -> FakeStorage:
     monkeypatch.setattr(content_service, "file_exists", fake.file_exists)
     monkeypatch.setattr(content_service, "get_upload_url", fake.get_upload_url)
     monkeypatch.setattr(library_service, "get_read_url", fake.get_read_url)
+    monkeypatch.setattr(curriculum_service, "get_read_url", fake.get_read_url)
     monkeypatch.setattr(strand_test_service, "get_read_url", fake.get_read_url)
     return fake
 
@@ -268,6 +270,7 @@ def own_storage_code(monkeypatch: pytest.MonkeyPatch, storage: FakeStorage) -> N
     would fail the test rather than touch the network."""
     import app.services.content as content_service
     import app.services.content_library as library_service
+    import app.services.curriculum as curriculum_service
     import app.services.strand_test as strand_test_service
     import app.storage as real_storage
 
@@ -276,6 +279,7 @@ def own_storage_code(monkeypatch: pytest.MonkeyPatch, storage: FakeStorage) -> N
     monkeypatch.setattr(content_service, "file_exists", REAL_STORAGE_FUNCTIONS["file_exists"])
     monkeypatch.setattr(content_service, "get_upload_url", REAL_STORAGE_FUNCTIONS["get_upload_url"])
     monkeypatch.setattr(library_service, "get_read_url", REAL_STORAGE_FUNCTIONS["get_read_url"])
+    monkeypatch.setattr(curriculum_service, "get_read_url", REAL_STORAGE_FUNCTIONS["get_read_url"])
     monkeypatch.setattr(strand_test_service, "get_read_url", REAL_STORAGE_FUNCTIONS["get_read_url"])
 
 

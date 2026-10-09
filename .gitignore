@@ -51,3 +51,11 @@ coverage/
 
 audit-report/
 context/
+# Tool output
+.playwright-mcp/
+.impeccable/review/
+
+# Agent skills (installed globally, not per project)
+.agents/
+.claude/skills/
+skills-lock.json

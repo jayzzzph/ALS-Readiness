@@ -26,7 +26,6 @@ from app.db.session import AsyncSessionLocal
 from app.enums.at_risk import AtRiskFlagStatus, AtRiskReason
 from app.enums.cohort import CohortMemberStatus, CohortStatus
 from app.enums.content import (
-    ContentProgressStatus,
     ContentStatus,
     ContentType,
     ContentVisibility,
@@ -440,22 +439,24 @@ class Factory:
         learner: UserRecord,
         content: NodeRecord,
         *,
-        status: ContentProgressStatus | str = ContentProgressStatus.COMPLETED,
-        progress: float | None = None,
+        status: str = "completed",
         last_accessed_at: datetime | None = None,
         completed_at: datetime | None = None,
     ) -> int:
-        """A learner's progress row for one content item (M04 writes these; here they are seeded)."""
-        status = ContentProgressStatus(status)
-        default_progress = {ContentProgressStatus.COMPLETED: 100.0, ContentProgressStatus.IN_PROGRESS: 50.0}.get(status, 0.0)
-        accessed = last_accessed_at or (None if status == ContentProgressStatus.NOT_OPENED else utc_now())
+        """A learner's progress row for one content item, seeded directly.
+
+        The table holds two times and no status column: a row is completed when
+        completed_at is set. `status` says which row to build: "completed"
+        (opened and finished), "in_progress" (opened, not finished), or
+        "not_opened" (a row with neither time)."""
+        if status not in ("completed", "in_progress", "not_opened"):
+            raise ValueError(f"Unknown progress status: {status}")
+        accessed = last_accessed_at or (None if status == "not_opened" else utc_now())
         row = LearnerContentProgress(
             learner_id=learner.learner_id,
             content_id=content.id,
-            status=status,
-            progress_status=default_progress if progress is None else progress,
             last_accessed_at=naive_utc(accessed),
-            completed_at=naive_utc(completed_at or (accessed if status == ContentProgressStatus.COMPLETED else None)),
+            completed_at=naive_utc(completed_at or (accessed if status == "completed" else None)),
         )
         await self._save(row)
         return row.id

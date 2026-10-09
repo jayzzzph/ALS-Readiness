@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.enums.content import ContentProgressStatus, ContentStatus
+from app.enums.content import ContentStatus
 from app.enums.curriculum import StructureStatus
 from app.models.cohort_content import CohortContent
 from app.models.content import Content
@@ -104,6 +104,7 @@ class CurriculumRepository:
         content_ids: Collection[int],
     ) -> dict[int, set[int]]:
         """Which of the contents each learner has completed, in one query.
+        A content is completed when its progress row has a completed_at.
         Learners who completed none are absent."""
         if not learner_ids or not content_ids:
             return {}
@@ -111,7 +112,7 @@ class CurriculumRepository:
         stmt = select(LearnerContentProgress.learner_id, LearnerContentProgress.content_id).where(
             LearnerContentProgress.learner_id.in_(learner_ids),
             LearnerContentProgress.content_id.in_(content_ids),
-            LearnerContentProgress.status == ContentProgressStatus.COMPLETED,
+            LearnerContentProgress.completed_at.is_not(None),
         )
         result = await self._session.execute(stmt)
 

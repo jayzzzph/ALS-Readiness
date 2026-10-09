@@ -216,15 +216,16 @@ async def test_api_lrn_08_progress_matches_learner_view(client, progress_world, 
     own = (await client.get("/api/me/strands", headers=await login(w.learner))).json()
     row = (await listing(client, await login(w.fa), cohort_id=w.cohort.id))["items"][0]
 
-    seen_by_facilitator = {entry["strand_code"]: (entry["completed_lessons"], entry["total_lessons"], entry["percent"]) for entry in row["progress"]}
-    seen_by_learner = {strand["code"]: (strand["completed_lessons"], strand["total_lessons"], strand["progress_percent"]) for strand in own}
+    # The learner's view gives the two lesson counts and no percentage.
+    seen_by_facilitator = {entry["strand_code"]: (entry["completed_lessons"], entry["total_lessons"]) for entry in row["progress"]}
+    seen_by_learner = {strand["code"]: (strand["completed_lessons"], strand["total_lessons"]) for strand in own}
     assert seen_by_learner, "the learner's own view lists no strand"
-    assert seen_by_learner["LS1-EN"] == (1, 2, 50.0)
+    assert seen_by_learner["LS1-EN"] == (1, 2)
     for code, figures in seen_by_learner.items():
         assert seen_by_facilitator[code] == figures, code
     # A strand the learner's view leaves out is 0 of 0 for the facilitator.
     for code in set(seen_by_facilitator) - set(seen_by_learner):
-        assert seen_by_facilitator[code] == (0, 0, 0.0), code
+        assert seen_by_facilitator[code] == (0, 0), code
 
 
 # ── Detail ───────────────────────────────────────────────────────────────────

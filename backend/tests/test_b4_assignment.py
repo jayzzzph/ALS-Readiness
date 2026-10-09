@@ -104,7 +104,8 @@ async def test_api_asg_03_unassign(client, make, world, login):
     # Assigning it again brings the learner's progress back with it.
     assert (await assign(client, headers, world.s1, world.c_fa_priv.id)).status_code == 201
     tree = (await client.get(f"/api/me/curriculum/{world.strand.id}", headers=await login(learner))).json()
-    assert [content["progress_status"] for content in tree["modules"][0]["lessons"][0]["contents"]] == ["completed"]
+    # The learner tree reports progress as two times; a set completed_at means completed.
+    assert [content["completed_at"] is not None for content in tree["modules"][0]["lessons"][0]["contents"]] == [True]
 
 
 async def test_api_asg_04_unassign_not_assigned(client, world, login):

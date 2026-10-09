@@ -373,7 +373,7 @@ class InvalidAtRiskFlagTransitionError(ConflictError):
 # ================ Content Error ================
 
 class ContentNotFoundError(NotFoundError):
-    """Raised when a content does not exist."""
+    """Raised when accessing a content that does not exists."""
 
     message = "Content not found."
     code = "CONTENT_NOT_FOUND"
@@ -487,3 +487,26 @@ class ContentNotAssignedError(NotFoundError):
 
     message = "This content is not assigned to the cohort."
     code = "CONTENT_NOT_ASSIGNED"
+
+
+# ================ Content Progress Error ================
+
+class InactiveContentError(DomainValidationError):
+    """Raised when accessing a content that is not active."""
+
+    message = "Content is inactive."
+    code = "INACTIVE_CONTENT_ERROR"
+
+
+class ContentProgressAlreadyExistsError(AlreadyExistsError):
+    """Raised when creating a content progress for a learner that already exists."""
+
+    message = "Learner already has record for this content."
+    code = "CONTENT_PROGRESS_ALREADY_EXISTS"
+
+
+class ContentProgressNotFoundError(NotFoundError):
+    """Raised when trying to access a learner content progress that does not exists."""
+
+    message = "Learner doesn't have a record with this content."
+    code = "CONTENT_PROGRESS_NOT_FOUND"
