@@ -18,7 +18,7 @@ const body = { fontFamily: "'DM Sans', system-ui, sans-serif" } as const;
 const learnerNav = [
   // Pipeline
   { page:"learner-dashboard",   icon:LayoutDashboard, label:"Home",               group:"pipeline" },
-  { page:"diagnostic-test",     icon:ClipboardList,   label:"Pre-test",           group:"pipeline", badge:"M02" },
+  { page:"diagnostic-test",     icon:ClipboardList,   label:"Readiness Profiling", group:"pipeline", badge:"M02" },
   { page:"stimulus-content",    icon:BookOpen,        label:"Learning Content",   group:"pipeline", badge:"M04" },
   { page:"post-test",           icon:Target,          label:"Post-test",          group:"pipeline", badge:"M02" },
   // Track
