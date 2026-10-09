@@ -33,7 +33,6 @@ const learnerNav = [
 // their list page's key as currentPage, so that entry stays highlighted.
 const facilitatorNav = [
   { page:"facilitator-dashboard",  icon:LayoutDashboard, label:"Dashboard",       group:"main"   },
-  { page:"facilitator-curriculum", icon:BookOpen,        label:"Curriculum",      group:"manage" },
   { page:"facilitator-learning-contents", icon:BookOpen, label:"Learning Contents", group:"manage" },
   { page:"facilitator-content",    icon:Cpu,             label:"Content Library", group:"manage" },
   { page:"facilitator-learners",   icon:Users,           label:"Learners",        group:"manage" },

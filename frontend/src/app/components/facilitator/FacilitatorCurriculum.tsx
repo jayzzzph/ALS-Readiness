@@ -1,3 +1,4 @@
+// PARKED: replaced by Learning Contents (FacilitatorLearningContents.tsx); this page has no route or sidebar entry.
 import { useRef, useState, type FormEvent } from "react";
 import { Archive, BookOpen, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";

@@ -38,7 +38,7 @@ import {
   type DataTableColumn,
 } from "./shared";
 
-const CURRICULUM_PAGE = "facilitator-curriculum";
+const CURRICULUM_PAGE = "facilitator-learning-contents";
 
 // The icon and colours the mockup's cards gave each kind of content.
 const TYPE_ICON: Record<ContentType, { Icon: ComponentType<{ className?: string }>; background: string; colour: string }> = {
@@ -169,7 +169,7 @@ export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
         <EmptyState
           icon={BookOpen}
           title={emptyLibraryText(emptyKind)}
-          description="Upload a video, an audio file, or a reading, then assign it to a cohort from Curriculum."
+          description="Upload a video, an audio file, or a reading, then assign it to a cohort from Learning Contents."
           action={<Button variant="accent" onClick={() => setUploading(true)}><Upload className="w-3.5 h-3.5" /> Upload Content</Button>}
         />
       </Card>
