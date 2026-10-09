@@ -14,10 +14,16 @@ import type { LriTestListItem, StrandTestListItem } from "../../../lib/api/types
 import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
 import { LriAttempt, StrandAttempt, type NextStep } from "./PretestAttempts";
 import { StrandTestCard, primaryButton, secondaryButton } from "./StrandTestCard";
+import { BASELINE_SECONDS, describeDuration } from "../../features/eeg/constants";
 import { BaselineEegRecording } from "./BaselineEegRecording";
+import { StimulusExposure } from "./StimulusExposure";
+import { getEegStatus } from "../../../lib/api/eegSessions";
+import { SectionError } from "../shared/SectionError";
 
-// Pre-test hub: Part I participant intake, Part II Learner Readiness Inventory,
-// Part III one diagnostic exam per strand. All of it comes from the real API; if
+// Readiness Profiling hub (the learner's pre-test): Part I participant intake, Part II Learner Readiness Inventory,
+// Part III one diagnostic exam per strand, Part IV baseline EEG, Part V stimulus content exposure (EEG).
+// Parts IV and V are done when the server has a saved "baseline" / "exposed" EEG session; that is loaded on its own, so a
+// failure shows a retry and the two parts as not done instead of breaking the page. All of it comes from the real API; if
 // something fails to load, the hub says so (with a retry) rather than showing
 // stand-in content.
 //
@@ -34,7 +40,8 @@ type View =
   | { name: "hub" }
   | { name: "strand-attempt"; test: StrandTestListItem }
   | { name: "lri-attempt"; test: LriTestListItem }
-  | { name: "baseline-eeg" };
+  | { name: "baseline-eeg" }
+  | { name: "stimulus-exposure" };
 
 // Type roles from DESIGN.md: serif headings, DM Sans chrome, Atkinson Hyperlegible for sentences learners read.
 const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
@@ -60,6 +67,8 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [view, setView] = useState<View>({ name: "hub" });
+  const [eegStatus, setEegStatus] = useState<{ baselineDone: boolean; exposedDone: boolean }>({ baselineDone: false, exposedDone: false });
+  const [eegError, setEegError] = useState(false);
   // Only the first hub load after mounting may reopen an attempt (i.e. after a reload).
   const reopenPending = useRef(true);
 
@@ -96,13 +105,18 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
       setError(getErrorMessage(err, "The pre-test could not be loaded. Please try again."));
     } finally { setLoading(false); }
   };
-  useEffect(() => { loadHub(); }, []);
+  const loadEegStatus = async () => {
+    setEegError(false);
+    try { setEegStatus(await getEegStatus()); }
+    catch { setEegStatus({ baselineDone: false, exposedDone: false }); setEegError(true); }
+  };
+  useEffect(() => { loadHub(); loadEegStatus(); }, []);
 
   const openAttempt = (next: Exclude<View, { name: "hub" }>) => {
     rememberOpenAttempt("pretest", { kind: next.name === "lri-attempt" ? "lri" : "strand", testId: next.test.test_id });
     setView(next);
   };
-  const backToHub = () => { rememberOpenAttempt("pretest", null); setView({ name: "hub" }); loadHub(); };
+  const backToHub = () => { rememberOpenAttempt("pretest", null); setView({ name: "hub" }); loadHub(); loadEegStatus(); };
 
   // What the success screen offers next, from the lists the hub already loaded: the first strand exam not done yet,
   // other than the one just submitted (`justDone`; null after the LRI). Opening it marks `justDone` done here, so a
@@ -125,6 +139,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(view.test.test_id)} />;
   if (view.name === "lri-attempt") return <LriAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(null)} />;
   if (view.name === "baseline-eeg") return <BaselineEegRecording learnerId={user?.raw?.id != null ? String(user.raw.id) : null} onClose={backToHub} />;
+  if (view.name === "stimulus-exposure") return <StimulusExposure learnerId={user?.raw?.id != null ? String(user.raw.id) : null} onClose={backToHub} />;
 
   // Strands are identified by strand_code, never by name; unknown codes are skipped.
   const byCode = indexByStrandCode(strandTests);
@@ -140,7 +155,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
 
   // Where the learner is: the first part not yet done. Everything after it waits.
   const strandsDone = strands.length > 0 && completedStrands.length === strands.length;
-  const partDone = [intakeComplete, lriComplete, strandsDone, false];
+  const partDone = [intakeComplete, lriComplete, strandsDone, eegStatus.baselineDone, eegStatus.exposedDone];
   const currentPart = partDone.findIndex((d) => !d);
   const statusOf = (index: number): PartStatus => (partDone[index] ? "done" : index === currentPart ? "current" : "locked");
   const doneCount = partDone.filter(Boolean).length;
@@ -170,9 +185,9 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
 
   return <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="diagnostic-test">
     <div className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
-      <h2 className="text-[3rem] leading-[1.1] text-[#1B1D26]" style={display}>Pre-test</h2>
+      <h2 className="text-[3rem] leading-[1.1] text-[#1B1D26]" style={display}>Readiness Profiling</h2>
       <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
-        Do these four parts in order. Each one opens when the one before it is done.
+        Do these five parts in order. Each one opens when the one before it is done.
       </p>
 
       <div className="mt-8">
@@ -188,7 +203,9 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
           /* Same two-column grid as the dashboard: the timeline takes the main column, the aside sits at the right from xl
              and drops under the timeline below that. */
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-            <ol aria-label="Pre-test parts" className="min-w-0">
+            <div className="min-w-0">
+            {eegError && <div className="mb-4 rounded-xl border border-[#E2E0DA] bg-white p-4"><SectionError message="We could not check your EEG recordings, so Parts IV and V show as not done for now." onRetry={loadEegStatus} /></div>}
+            <ol aria-label="Readiness Profiling parts">
               <TimelineItem index={1} status={statusOf(0)}>
                 <PartBody number="Part I" title="Participant intake" description="Background questionnaire required before all assessment activities." status={statusOf(0)} note="Finish the earlier parts first" action={intakeComplete ? "Review intake" : "Complete intake"} onClick={() => navigate("participant-intake")} />
               </TimelineItem>
@@ -208,10 +225,15 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
                 </PartBody>
               </TimelineItem>
 
-              <TimelineItem index={4} status={statusOf(3)} last>
-                <PartBody number="Part IV" title="Baseline EEG Recording" description="A short baseline recording using the Muse 2 headband, taken right after the diagnostic exams." status={statusOf(3)} note="Finish Parts I to III first" disabled={!allComplete} action="Start Recording" onClick={() => setView({ name: "baseline-eeg" })} />
+              <TimelineItem index={4} status={statusOf(3)}>
+                <PartBody number="Part IV" title="Baseline EEG Recording" description={`A resting baseline recording using the Muse 2 headband, about ${describeDuration(BASELINE_SECONDS)} long, taken right after the diagnostic exams.`} status={statusOf(3)} note="Finish Parts I to III first" disabled={!allComplete} action="Start Recording" onClick={() => setView({ name: "baseline-eeg" })} />
+              </TimelineItem>
+
+              <TimelineItem index={5} status={statusOf(4)} last>
+                <PartBody number="Part V" title="Stimulus Content Exposure" description="Watch a video while the Muse 2 headband records. Your facilitator sets it up with you." status={statusOf(4)} note="Finish Part IV first" disabled={!eegStatus.baselineDone} action="Start Video" onClick={() => setView({ name: "stimulus-exposure" })} />
               </TimelineItem>
             </ol>
+            </div>
 
             <div className="grid gap-6 content-start lg:grid-cols-2 xl:grid-cols-1">
               <section aria-labelledby="hub-progress-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
@@ -226,9 +248,9 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
 
               {/* Navy is reserved for Muse 2. */}
               <section aria-labelledby="hub-muse-title" className="rounded-2xl bg-[#1C1D33] p-6 text-white">
-                <h3 id="hub-muse-title" className="text-2xl leading-[1.25]" style={display}>Muse 2 baseline</h3>
+                <h3 id="hub-muse-title" className="text-2xl leading-[1.25]" style={display}>Muse 2 recordings</h3>
                 <p className="mt-3 text-lg leading-relaxed text-[#D9DBEA]" style={reading}>
-                  Part IV is a short recording with your Muse 2 headband. Your facilitator sets it up and records it with you at the learning center, right after the exams.
+                  Parts IV and V use your Muse 2 headband: first a resting recording, then a recording while you watch a video. Your facilitator sets it up with you at the learning center, right after the exams.
                 </p>
               </section>
             </div>
