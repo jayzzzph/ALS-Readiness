@@ -82,17 +82,6 @@ class StrandTestService:
         Else return Test information only.
         """
 
-        """
-        {
-            test_information...
-            items: [
-                {
-
-                }
-            ]
-        }
-        """
-
         if include_items:
             consolidated_data = await self._test_repository.get_by_id_with_items(
                 test_id

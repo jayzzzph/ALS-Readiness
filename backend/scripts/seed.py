@@ -13,10 +13,8 @@ from .seed_data.seed_curriculum import seed_curriculum
 from .seed_data.seed_participants import seed_participants
 from .seed_facilitator import create_facilitator
 from .seed_learner import create_learner
-from .seed_lri_attempt import create_lri_attempt
 from .seed_lri_test import create_lri_test
 from .seed_strand_test import create_strand_tests
-from .seed_strand_test_attempt import create_strand_attempt
 
 
 async def populate_db(session: AsyncSession) -> None:
@@ -34,18 +32,13 @@ async def populate_db(session: AsyncSession) -> None:
 
     # ======== Actors ========
     print("\n======== Actors ========")
-    user, learner = await create_learner(session)
+    _, learner = await create_learner(session)
     _, facilitator = await create_facilitator(session)
     admin = await create_admin(session)
 
     # ======== Cohort ========
     print("\n======== Cohort ========")
     await create_cohort_with_members(session, learner.id, facilitator.id, admin.id)
-
-    # ======== Attempts ========
-    print("\n======== Attempts ========")
-    _ = await create_strand_attempt(user.id, strand_tests[0].id, session)
-    _ = await create_lri_attempt(user.id, lri_test.id, session)
 
     # ======== Participants ========
     print("\n======== Participants ========")
