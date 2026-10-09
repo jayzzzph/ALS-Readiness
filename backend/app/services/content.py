@@ -61,10 +61,22 @@ class ContentService:
 
     def create_upload_url(self, filename: str) -> tuple[str, str]:
         self._validate_extension(filename)
-
         key = build_key("learning-contents", filename)
-        upload_url = get_upload_url(key)
 
+        ext = filename.split(".")[-1].lower()
+        match self._derive_content_type(filename):
+            case ContentType.VIDEO:
+                print(f"video/{ext}")
+                upload_url = get_upload_url(key, f"video/{ext}")
+            case ContentType.AUDIO:
+                print(f"audio/{ext}")
+                upload_url = get_upload_url(key, f"audio/{ext}")
+            case ContentType.READING:
+                print(f"text/{ext}")
+                upload_url = get_upload_url(key, f"text/{ext}")
+            case _: 
+                raise HTTPException(422, "Invalid content type.")
+            
         return key, upload_url
 
     async def create_content(

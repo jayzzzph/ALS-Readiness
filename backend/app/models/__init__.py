@@ -2,6 +2,7 @@ from .cohort import Cohort, CohortFacilitator, CohortLearner
 from .cohort_content import CohortContent
 from .content import Content
 from .content_evaluation import ContentEvaluation
+from .eeg_session import EEGSession
 from .facilitator import Facilitator
 from .learner import Learner
 from .learner_content_progress import LearnerContentProgress
@@ -25,6 +26,7 @@ __all__ = [
     "CohortLearner",
     "Content",
     "ContentEvaluation",
+    "EEGSession",
     "Facilitator",
     "LRITest",
     "LRITestAttempt",

@@ -8,6 +8,7 @@ from .routes import (
     cohorts,
     contents,
     curriculum,
+    eeg_sessions,
     learner_content_progress,
     learning_strands,
     lri_test,
@@ -35,3 +36,4 @@ router.include_router(contents.router)
 router.include_router(curriculum.router)
 router.include_router(learning_strands.router)
 router.include_router(learner_content_progress.router)
+router.include_router(eeg_sessions.router)

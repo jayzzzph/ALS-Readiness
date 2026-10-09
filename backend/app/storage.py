@@ -39,11 +39,19 @@ def file_exists(key: str) -> bool:
         raise
 
 
-def get_upload_url(key: str, expires_in: int = 600) -> str:
+def get_upload_url(
+    key: str,
+    content_type: str = "text/csv",
+    expires_in: int = 7200,
+) -> str:
     """Generate a presigned URL for uploading a file."""
     return s3_client.generate_presigned_url(
         "put_object",
-        Params={"Bucket": settings.b2_bucket_name, "Key": key},
+        Params={
+            "Bucket": settings.b2_bucket_name,
+            "Key": key,
+            "ContentType": content_type,
+        },
         ExpiresIn=expires_in,
     )
 
