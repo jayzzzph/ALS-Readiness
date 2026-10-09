@@ -69,6 +69,8 @@ def _configure_environment() -> str:
     os.environ["B2_APPLICATION_KEY"] = "test-application-key"
     os.environ["B2_ENDPOINT_URL"] = "http://storage.invalid"
     os.environ["B2_BUCKET_NAME"] = "test-bucket"
+    # Required by the settings; no test reads the file behind it.
+    os.environ["EEG_STIMULUS_FILE_KEY"] = "eeg-stimulus/test_stimulus_content.mp4"
     return name
 
 
@@ -220,7 +222,7 @@ class FakeStorage:
         self._use("file_exists", key)
         return key in self.keys
 
-    def get_upload_url(self, key: str, expires_in: int = 600) -> str:
+    def get_upload_url(self, key: str, content_type: str = "text/csv", expires_in: int = 7200) -> str:
         self._use("get_upload_url", key)
         return f"http://storage.invalid/upload/{key}"
 

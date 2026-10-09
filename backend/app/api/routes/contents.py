@@ -20,7 +20,7 @@ router = APIRouter(
 )
 
 
-@router.post("/upload-url", response_model=UploadUrlResponse)
+@router.post("/upload-url", response_model=UploadUrlResponse | None)
 async def create_upload_url(data: UploadUrlRequest, service: ContentServiceDep):
     file_key, upload_url = service.create_upload_url(data.filename)
 

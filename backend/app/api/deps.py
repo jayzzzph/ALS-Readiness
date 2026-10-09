@@ -22,6 +22,7 @@ from app.repositories.cohort_learner import CohortLearnerRepository
 from app.repositories.content import ContentRepository
 from app.repositories.content_evaluation import ContentEvaluationRepository
 from app.repositories.curriculum import CurriculumRepository
+from app.repositories.eeg_session import EEGSessionRepository
 from app.repositories.facilitator import FacilitatorRepository
 from app.repositories.learner import LearnerRepository
 from app.repositories.learner_content_progress import LearnerContentProgressRepository
@@ -51,6 +52,7 @@ from app.services.cohort_learner import CohortLearnerService
 from app.services.content import ContentService
 from app.services.content_library import ContentLibraryService
 from app.services.curriculum import CurriculumService
+from app.services.eeg_session import EEGSessionService
 from app.services.facilitator import FacilitatorService
 from app.services.facilitator_cohort import FacilitatorCohortService
 from app.services.facilitator_learner import FacilitatorLearnerService
@@ -901,3 +903,22 @@ def get_facilitator_report_service(
 FacilitatorReportServiceDep = Annotated[
     FacilitatorReportService, Depends(get_facilitator_report_service)
 ]
+
+
+# ============ EEG Session ============
+
+def get_eeg_session_repo(session: SessionDep) -> EEGSessionRepository:
+    return EEGSessionRepository(session)
+
+
+EEGSessionRepoDep = Annotated[EEGSessionRepository, Depends(get_eeg_session_repo)]
+
+
+def get_eeg_session_service(
+    session_repo: EEGSessionRepoDep,
+    learner_repo: LearnerRepositoryDep,
+) -> EEGSessionService:
+    return EEGSessionService(session_repo, learner_repo)
+
+
+EEGSessionServiceDep = Annotated[EEGSessionService, Depends(get_eeg_session_service)]

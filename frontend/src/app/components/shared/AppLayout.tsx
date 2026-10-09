@@ -20,8 +20,6 @@ const learnerNav = [
   // Pipeline
   { page:"learner-dashboard",   icon:LayoutDashboard, label:"Home",               group:"pipeline" },
   { page:"diagnostic-test",     icon:ClipboardList,   label:"Pre-test",           group:"pipeline", badge:"M02" },
-  // EEG Profiling — folded into the Pre-test flow, no longer a separate nav step
-  // { page:"eeg-profiling",       icon:Brain,           label:"EEG Profiling",      group:"pipeline", badge:"M03" },
   { page:"stimulus-content",    icon:BookOpen,        label:"Learning Content",   group:"pipeline", badge:"M04" },
   { page:"post-test",           icon:Target,          label:"Post-test",          group:"pipeline", badge:"M02" },
   // Track
@@ -53,8 +51,8 @@ const adminNav = [
 ];
 
 /* Pages reached from inside a nav section: highlight that section and title the page. */
-const parentPage = { "participant-intake":"diagnostic-test", "readiness-profiling":"diagnostic-test", "eeg-profiling":"diagnostic-test" };
-const extraLabels = { "profile":"My Profile", "participant-intake":"Participant Intake", "readiness-profiling":"Readiness Profile", "eeg-profiling":"EEG Profiling", "achievements":"Achievements" };
+const parentPage = { "participant-intake":"diagnostic-test", "readiness-profiling":"diagnostic-test" };
+const extraLabels = { "profile":"My Profile", "participant-intake":"Participant Intake", "readiness-profiling":"Readiness Profile", "achievements":"Achievements" };
 
 const roleLabels = { admin:"Coordinator / Admin", facilitator:"Facilitator", learner:"ALS Learner" };
 

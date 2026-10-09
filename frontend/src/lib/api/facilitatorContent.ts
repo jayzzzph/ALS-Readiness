@@ -86,8 +86,25 @@ export interface UploadFileOptions {
   signal?: AbortSignal;
 }
 
+const VIDEO_EXTENSIONS = ["mp4", "mov", "webm"];
+const AUDIO_EXTENSIONS = ["mp3", "wav", "m4a"];
+
+/**
+ * The Content-Type the API signed the upload URL for. Storage rejects a PUT whose Content-Type differs, so this must
+ * mirror ContentService.create_upload_url in the backend: "<kind>/<extension>", not the browser's own `file.type`
+ * (the two differ for most formats, e.g. "audio/mp3" here against the browser's "audio/mpeg").
+ */
+export function signedUploadContentType(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  if (VIDEO_EXTENSIONS.includes(ext)) return `video/${ext}`;
+  if (AUDIO_EXTENSIONS.includes(ext)) return `audio/${ext}`;
+  return `text/${ext}`;
+}
+
 /**
  * PUTs a file to a presigned URL from requestUploadUrl, reporting progress.
+ *
+ * `file.name` must be the filename the URL was requested for: the Content-Type sent is derived from it.
  *
  * Uses a bare axios call on purpose, not apiClient: the URL points at file
  * storage, not our API, so it must not carry the bearer token, the refresh
@@ -97,7 +114,7 @@ export interface UploadFileOptions {
 export async function uploadFileToUrl(uploadUrl: string, file: File, options: UploadFileOptions = {}): Promise<void> {
   const { onProgress, signal } = options;
   await axios.put(uploadUrl, file, {
-    headers: { "Content-Type": file.type || "application/octet-stream" },
+    headers: { "Content-Type": signedUploadContentType(file.name) },
     signal,
     onUploadProgress: (event) => {
       if (!onProgress) return;

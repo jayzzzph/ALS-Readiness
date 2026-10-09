@@ -510,3 +510,21 @@ class ContentProgressNotFoundError(NotFoundError):
 
     message = "Learner doesn't have a record with this content."
     code = "CONTENT_PROGRESS_NOT_FOUND"
+
+
+# ================ EEG Sessions Error ================
+
+class EEGSessionTypeAlreadyExists(AlreadyExistsError):
+    """Raised when trying to store a eeg session with a type that already exists for that learner."""
+
+    message = "EEG session type arleady exists."
+    code = "EEG_SESSION_TYPE_ALREADY_EXISTS"
+
+
+# ================ Storage Service Error ================
+
+class StorageServiceFileNotFoundError(NotFoundError):
+    """Raised when a file does not exists in the storage service."""
+
+    message = "File not found."
+    code = "STORAGE_SERVICE_FILE_NOT_FOUND"
