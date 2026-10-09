@@ -6,7 +6,6 @@ import { ChangePasswordPage } from "./components/auth/ChangePasswordPage";
 // Learner
 import { LearnerDashboard } from "./components/learner/LearnerDashboard";
 import { DiagnosticTest } from "./components/diagnostic/DiagnosticTest";
-// import { EEGProfiling } from "./components/learner/EEGProfiling"; // route disabled, folded into Pre-test
 import { ParticipantIntake } from "./components/diagnostic/ParticipantIntake";
 import { StimulusContent } from "./components/learner/StimulusContent";
 import { PostTest } from "./components/learner/PostTest";
@@ -110,8 +109,6 @@ function AppRoutes() {
         {/* Learner pipeline */}
         <Route path="/learner-dashboard" element={<ProtectedPage allowed={["learner"]} Component={LearnerDashboard} />} />
         <Route path="/diagnostic-test" element={<ProtectedPage allowed={["learner"]} Component={DiagnosticTest} />} />
-        {/* EEG Profiling — folded into the Pre-test flow */}
-        {/* <Route path="/eeg-profiling" element={<ProtectedPage allowed={["learner"]} Component={EEGProfiling} />} /> */}
         <Route path="/participant-intake" element={<ProtectedPage allowed={["learner"]} Component={ParticipantIntake} />} />
         <Route path="/stimulus-content" element={<ProtectedPage allowed={["learner"]} Component={StimulusContent} />} />
         <Route path="/post-test" element={<ProtectedPage allowed={["learner"]} Component={PostTest} />} />

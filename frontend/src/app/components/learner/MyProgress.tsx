@@ -1,196 +1,250 @@
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis } from "recharts";
-import { TrendingUp, Clock, BookOpen, ClipboardList, CheckCircle, ArrowUp, ArrowDown, Target } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Activity, ArrowDown, ArrowUp, CircleCheck, History, Minus } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
+import { SectionError } from "../shared/SectionError";
+import {
+  STRAND_CODES, STRAND_SHORT_LABEL, getLriTests, getStrandAttemptResult, getStrandTests, indexByStrandCode,
+} from "../../../lib/api/diagnostic";
+import { getMyStrands } from "../../../lib/api/learningContents";
+import type { LearningStrandProgress, StrandAttemptResult, StrandTestListItem } from "../../../lib/api/types";
 
-const readinessTrend = [
-  { week:"Wk 1", readiness:52, avgScore:58 },
-  { week:"Wk 2", readiness:58, avgScore:63 },
-  { week:"Wk 3", readiness:63, avgScore:67 },
-  { week:"Wk 4", readiness:69, avgScore:72 },
-  { week:"Wk 5", readiness:74, avgScore:75 },
-];
+// Type roles from DESIGN.md: serif headings, Atkinson Hyperlegible for the sentences and numbers a learner reads.
+// Everything here comes from the learner's own records. Where nothing exists yet, a calm note says what will appear.
+// Scores never use red: a gain is deep blue, a dip is amber, and the words always say which.
+const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
+const reading = { fontFamily: "'Atkinson Hyperlegible', 'DM Sans', system-ui, sans-serif" } as const;
 
-const subjectProgress = [
-  { subject:"English",  current:78, prev:70, target:85, status:"improving" },
-  { subject:"Math",     current:62, prev:68, target:80, status:"declining" },
-  { subject:"Science",  current:85, prev:80, target:85, status:"achieved"  },
-  { subject:"Filipino", current:71, prev:65, target:80, status:"improving" },
-  { subject:"AP",       current:69, prev:62, target:80, status:"improving" },
-];
+const card = "bg-white border border-[#E2E0DA] rounded-2xl p-8";
+const cardTitle = "text-2xl leading-[1.25] text-[#1B1D26]";
+const overline = "text-[0.9375rem] font-bold uppercase tracking-[0.06em] leading-snug";
+const easeOut = "ease-[cubic-bezier(0.23,1,0.32,1)]";
 
-const radarData = [
-  { subject:"English",  A:78 }, { subject:"Math",    A:62 },
-  { subject:"Science",  A:85 }, { subject:"Filipino", A:71 }, { subject:"AP", A:69 },
-];
+interface StrandScores {
+  code: string;
+  label: string;
+  /** False when no post-test exists for this strand. */
+  hasPost: boolean;
+  pre: StrandAttemptResult | null;
+  post: StrandAttemptResult | null;
+}
 
-const weeklyActivity = [
-  { day:"Mon", minutes:28, content:2 }, { day:"Tue", minutes:45, content:3 },
-  { day:"Wed", minutes:20, content:1 }, { day:"Thu", minutes:60, content:4 },
-  { day:"Fri", minutes:35, content:2 }, { day:"Sat", minutes:50, content:3 }, { day:"Sun", minutes:15, content:1 },
-];
+type Load<T> = { status: "loading" } | { status: "error" } | { status: "ready"; value: T };
 
-const milestones = [
-  { label:"Completed first diagnostic test",    date:"Jun 3",  done:true  },
-  { label:"Reached 70% readiness index",        date:"Jun 10", done:true  },
-  { label:"Passed Science module",              date:"Jun 15", done:true  },
-  { label:"Complete all 5 diagnostic tests",   date:"Goal",   done:false },
-  { label:"Reach 80% readiness index",         date:"Goal",   done:false },
-  { label:"Complete 10 learning sessions",     date:"Goal",   done:false },
-];
+const attemptIfDone = (test: StrandTestListItem | undefined) =>
+  test && test.attempt_status === "completed" ? getStrandAttemptResult(test.test_id) : Promise.resolve(null);
 
-function SubjectRow({ s }) {
-  const pct   = Math.round(((s.current - s.prev) / s.prev) * 100);
-  const isUp  = s.current >= s.prev;
-  const pctToTarget = Math.round((s.current / s.target) * 100);
+async function loadScores(): Promise<StrandScores[]> {
+  const [pre, post] = await Promise.all([getStrandTests("pretest"), getStrandTests("posttest")]);
+  const preBy = indexByStrandCode(pre.tests);
+  const postBy = indexByStrandCode(post.tests);
+  return Promise.all(
+    STRAND_CODES.filter((c) => preBy[c] || postBy[c]).map(async (code) => ({
+      code: code.startsWith("LS1") ? "LS1" : code,
+      label: STRAND_SHORT_LABEL[code],
+      hasPost: !!postBy[code],
+      pre: await attemptIfDone(preBy[code]),
+      post: await attemptIfDone(postBy[code]),
+    })),
+  );
+}
+
+/** Whether the readiness inventory is done. Its score is never shown to the learner, so it is not even fetched. */
+async function loadLriDone(): Promise<boolean> {
+  const { tests } = await getLriTests();
+  return tests[0]?.attempt_status === "completed";
+}
+
+/** null when the learner is not in an active cohort yet (the backend answers 404). */
+async function loadStrands(): Promise<LearningStrandProgress[] | null> {
+  try {
+    return await getMyStrands();
+  } catch (err) {
+    if ((err as { response?: { status?: number } })?.response?.status === 404) return null;
+    throw err;
+  }
+}
+
+function useLoad<T>(load: () => Promise<T>, attempt: number): Load<T> {
+  const [state, setState] = useState<Load<T>>({ status: "loading" });
+  useEffect(() => {
+    let cancelled = false;
+    load()
+      .then((value) => { if (!cancelled) setState({ status: "ready", value }); })
+      .catch(() => { if (!cancelled) setState({ status: "error" }); });
+    return () => { cancelled = true; };
+  }, [attempt]);
+  return state;
+}
+
+/* ── Pieces ── */
+
+function Skeleton({ className }: { className: string }) {
+  return <div className={`rounded-lg bg-[#F2F1ED] motion-safe:animate-pulse ${className}`} aria-hidden="true" />;
+}
+
+function Note({ icon: Icon, title, children }: { icon: typeof Activity; title: string; children: string }) {
   return (
-    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-      <div className="w-20 text-gray-700 text-sm font-medium">{s.subject}</div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-gray-500 text-xs">{s.current}% / {s.target}% target</span>
-          <span className="text-xs text-gray-400">{pctToTarget}% of goal</span>
-        </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-500 ${s.status === "achieved" ? "bg-green-500" : s.status === "declining" ? "bg-orange-400" : "bg-[#3535C5]"}`}
-            style={{ width:`${pctToTarget}%` }} />
-        </div>
-      </div>
-      <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${isUp ? "text-green-600 bg-green-50" : "text-red-500 bg-red-50"}`}>
-        {isUp ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-        {Math.abs(pct)}%
-      </div>
-      <div className={`text-xs font-medium px-2 py-1 rounded-full ${s.status === "achieved" ? "text-green-600 bg-green-100" : s.status === "declining" ? "text-orange-600 bg-orange-100" : "text-blue-600 bg-blue-100"}`}>
-        {s.status === "achieved" ? "✓ Achieved" : s.status === "declining" ? "⚠ Declining" : "↑ Improving"}
-      </div>
+    <div className="py-4 text-center">
+      <Icon className="mx-auto mb-3 w-7 h-7 text-[#4A4F5C]" strokeWidth={1.5} aria-hidden="true" />
+      <p className="text-lg font-bold text-[#1B1D26]" style={reading}>{title}</p>
+      <p className="mt-1 text-lg leading-relaxed text-[#4A4F5C]" style={reading}>{children}</p>
     </div>
   );
 }
 
+const points = (n: number) => `${n} ${n === 1 ? "point" : "points"}`;
+
+function StrandScoreRow({ strand }: { strand: StrandScores }) {
+  const { pre, post } = strand;
+  // The pre-test score stays hidden until this strand's post-test is also done, so seeing it never colors the post-test.
+  const showPre = !!pre && !!post;
+  const change = pre && post ? Math.round((post.mps - pre.mps) * 100) / 100 : null;
+  const improved = change !== null && change >= 0;
+  const changeWords = change === null ? "" : change === 0 ? "No change" : `${improved ? "Up" : "Down"} ${points(Math.abs(change))}`;
+  return (
+    <li className="py-6 first:pt-0 last:pb-0">
+      <div className={`${overline} text-[#4D35BD]`}>{strand.code}</div>
+      <h4 className="mt-1 text-lg font-bold text-[#1B1D26]" style={reading}>{strand.label}</h4>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2" style={reading}>
+        <div className="rounded-xl bg-[#F2F1ED] p-5 text-center">
+          <p className="text-lg font-bold text-[#4A4F5C]">Before the lessons</p>
+          {pre && showPre ? (
+            <>
+              <p className="mt-1 text-[2.5rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{pre.mps}%</p>
+              <p className="mt-2 text-base text-[#4A4F5C]">{pre.total_score} of {pre.item_count} correct</p>
+            </>
+          ) : pre ? (
+            <p className="mt-3 flex items-center justify-center gap-2 text-lg text-[#1B1D26]"><CircleCheck className="w-5 h-5 text-[#00538A]" aria-hidden="true" /> Pre-test done</p>
+          ) : (
+            <p className="mt-3 text-lg text-[#4A4F5C]">Not taken yet</p>
+          )}
+        </div>
+        <div className={`rounded-xl p-5 text-center ${post ? (improved ? "bg-[#CFE4FF]" : "bg-[#FFDEB5]") : "bg-[#F2F1ED]"}`}>
+          <p className={`text-lg font-bold ${post ? "text-[#1B1D26]" : "text-[#4A4F5C]"}`}>After the lessons</p>
+          {post ? (
+            <>
+              <p className="mt-1 text-[2.5rem] leading-none tabular-nums text-[#1B1D26]" style={display}>{post.mps}%</p>
+              <p className="mt-2 text-base text-[#1B1D26]">{post.total_score} of {post.item_count} correct</p>
+            </>
+          ) : (
+            <p className="mt-3 text-lg text-[#4A4F5C]">{strand.hasPost ? "Appears after your post-test" : "No post-test for this strand yet"}</p>
+          )}
+        </div>
+      </div>
+      {change !== null && (
+        <p className={`mt-4 flex items-center justify-center gap-2 text-lg font-bold ${improved ? "text-[#00538A]" : "text-[#835500]"}`} style={reading}>
+          {change === 0 ? <Minus className="w-5 h-5" aria-hidden="true" /> : improved ? <ArrowUp className="w-5 h-5" aria-hidden="true" /> : <ArrowDown className="w-5 h-5" aria-hidden="true" />}
+          {changeWords}
+        </p>
+      )}
+    </li>
+  );
+}
+
+function Bar({ percent }: { percent: number }) {
+  return (
+    <div className="h-2 rounded-full bg-[#E1E2E7] overflow-hidden" aria-hidden="true">
+      <div
+        className={`h-full rounded-full bg-[#00538A] origin-left motion-safe:transition-[scale] motion-safe:duration-300 ${easeOut} motion-safe:starting:[scale:0_1]`}
+        style={{ scale: `${Math.max(0, Math.min(100, percent)) / 100} 1` }}
+      />
+    </div>
+  );
+}
+
+/* ── Page ── */
+
 export function MyProgress({ navigate, user, onLogout }) {
+  const [attempt, setAttempt] = useState(0);
+  const retry = () => setAttempt((n) => n + 1);
+  const scores = useLoad(loadScores, attempt);
+  const lri = useLoad(loadLriDone, attempt);
+  const strands = useLoad(loadStrands, attempt);
+
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="my-progress">
-      <div className="p-5 space-y-5">
+      <div className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
+        <h2 className="text-[3rem] leading-[1.1] text-[#1B1D26]" style={display}>My Progress</h2>
+        <p className="mt-3 mb-10 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>Your scores and lessons so far.</p>
 
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#0B1F3A] to-[#1a3a5c] rounded-2xl p-5 text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs bg-white/15 px-2 py-0.5 rounded font-mono">M04</span>
-            <span className="text-blue-300 text-xs">My Progress — Learning Analytics</span>
-          </div>
-          <h2 className="mb-1" style={{ fontSize:"1.25rem", fontWeight:700 }}>Your Learning Progress</h2>
-          <p className="text-blue-200/70 text-sm">Track your readiness growth, subject scores, and learning consistency over time.</p>
-        </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          {/* Main column */}
+          <div className="space-y-6 min-w-0">
+            <section aria-labelledby="scores-title" className={card}>
+              <h3 id="scores-title" className={`${cardTitle} mb-6`} style={display}>Your test scores</h3>
+              {scores.status === "loading" ? (
+                <div className="space-y-4"><Skeleton className="h-28" /><Skeleton className="h-28" /></div>
+              ) : scores.status === "error" ? (
+                <SectionError message="Your test scores could not be loaded. Please try again." onRetry={retry} />
+              ) : scores.value.length === 0 ? (
+                <Note icon={History} title="No scores yet">Your scores for each strand appear here after you take the tests.</Note>
+              ) : (
+                <ul className="divide-y divide-[#E2E0DA]">{scores.value.map((s) => <StrandScoreRow key={s.label} strand={s} />)}</ul>
+              )}
+            </section>
 
-        {/* Summary stats */}
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { label:"Readiness Index",      value:"74%",    change:"+16%",   icon:TrendingUp,    iconCls:"text-blue-600 bg-blue-50"   },
-            { label:"Avg. Diagnostic Score", value:"73%",   change:"+5%",    icon:ClipboardList, iconCls:"text-purple-600 bg-purple-50" },
-            { label:"Study Time This Week",  value:"253 min",change:"+40 min",icon:Clock,         iconCls:"text-green-600 bg-green-50"  },
-            { label:"Content Completed",     value:"3/6",   change:"50%",    icon:BookOpen,      iconCls:"text-orange-600 bg-orange-50" },
-          ].map(s => {
-            const Icon = s.icon;
-            return (
-              <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${s.iconCls}`}><Icon className="w-4 h-4" /></div>
-                <div className="text-gray-800 text-xl font-bold">{s.value}</div>
-                <div className="text-gray-500 text-xs">{s.label}</div>
-                <div className="text-green-500 text-xs mt-1 flex items-center gap-1"><ArrowUp className="w-3 h-3" />{s.change}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="grid grid-cols-2 gap-5">
-          {/* Readiness + Score Trend */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-gray-800 font-semibold text-sm">Readiness & Score Trend</h3>
-              <span className="text-xs text-blue-500 bg-blue-50 px-2 py-0.5 rounded">5 Weeks</span>
-            </div>
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={readinessTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="week" tick={{ fontSize:11, fill:"#9CA3AF" }} />
-                <YAxis domain={[40,90]} tick={{ fontSize:11, fill:"#9CA3AF" }} />
-                <Tooltip contentStyle={{ fontSize:11, borderRadius:8 }} />
-                <Line type="monotone" dataKey="readiness" stroke="#3535C5" strokeWidth={2} dot={{ r:3, fill:"#3535C5" }} name="Readiness" />
-                <Line type="monotone" dataKey="avgScore"  stroke="#10B981" strokeWidth={2} dot={{ r:3, fill:"#10B981" }} name="Avg Score" strokeDasharray="4 2" />
-              </LineChart>
-            </ResponsiveContainer>
-            <div className="flex items-center gap-4 mt-2">
-              <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-[#3535C5] rounded" /><span className="text-xs text-gray-500">Readiness</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-green-500 rounded" /><span className="text-xs text-gray-500">Avg Score</span></div>
-            </div>
+            <section aria-labelledby="lessons-title" className={card}>
+              <h3 id="lessons-title" className={`${cardTitle} mb-6`} style={display}>Lessons done</h3>
+              {strands.status === "loading" ? (
+                <div className="space-y-5"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
+              ) : strands.status === "error" ? (
+                <SectionError message="Your lessons could not be loaded. Please try again." onRetry={retry} />
+              ) : !strands.value || strands.value.length === 0 ? (
+                <Note icon={History} title="No lessons yet">
+                  {strands.value === null ? "Your lessons appear here after your facilitator adds you to a cohort." : "Your lessons will appear here once your facilitator adds them to your cohort."}
+                </Note>
+              ) : (
+                <ul className="divide-y divide-[#E2E0DA]">
+                  {strands.value.map((s) => (
+                    <li key={s.strand_id} className="py-5 first:pt-0 last:pb-0">
+                      <div className={`${overline} text-[#4D35BD]`}>{s.code}</div>
+                      <div className="mt-1 flex items-baseline justify-between gap-4">
+                        <span className="text-lg font-bold text-[#1B1D26]" style={reading}>{s.name}</span>
+                        <span className="shrink-0 text-base tabular-nums text-[#4A4F5C]">
+                          {s.total_lessons > 0 ? `${s.completed_lessons} of ${s.total_lessons} lessons` : "No lessons yet"}
+                        </span>
+                      </div>
+                      {s.total_lessons > 0 && <div className="mt-3"><Bar percent={s.progress_percent ?? 0} /></div>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </div>
 
-          {/* Radar — subject balance */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h3 className="text-gray-800 font-semibold text-sm mb-4">Subject Balance</h3>
-            <ResponsiveContainer width="100%" height={180}>
-              <RadarChart data={radarData} margin={{ top:0, right:10, left:10, bottom:0 }}>
-                <PolarGrid stroke="#E5E7EB" />
-                <PolarAngleAxis dataKey="subject" tick={{ fontSize:10, fill:"#6B7280" }} />
-                <Radar dataKey="A" stroke="#3535C5" fill="#3535C5" fillOpacity={0.2} strokeWidth={2} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Per-subject breakdown */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-800 font-semibold text-sm">Subject Progress Breakdown</h3>
-            <div className="flex items-center gap-3 text-xs text-gray-500">
-              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#3535C5]" /> Improving</span>
-              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500" /> Achieved</span>
-              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-400" /> Declining</span>
-            </div>
-          </div>
-          <div className="space-y-2.5">
-            {subjectProgress.map(s => <SubjectRow key={s.subject} s={s} />)}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-5">
-          {/* Weekly study pattern */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h3 className="text-gray-800 font-semibold text-sm mb-4">Study Pattern This Week</h3>
-            <ResponsiveContainer width="100%" height={140}>
-              <BarChart data={weeklyActivity} margin={{ top:0, right:0, left:-25, bottom:0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="day" tick={{ fontSize:10, fill:"#9CA3AF" }} />
-                <YAxis tick={{ fontSize:10, fill:"#9CA3AF" }} />
-                <Tooltip formatter={v => [`${v} min`, "Study time"]} contentStyle={{ fontSize:11, borderRadius:8 }} />
-                <Bar dataKey="minutes" radius={[4,4,0,0]} fill="#3535C5" />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
-              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> 253 min total</span>
-              <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> 16 items viewed</span>
-            </div>
-          </div>
-
-          {/* Milestones */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h3 className="text-gray-800 font-semibold text-sm mb-4">Milestones</h3>
-            <div className="space-y-3">
-              {milestones.map((m, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${m.done ? "bg-green-100" : "bg-gray-100 border-2 border-gray-200 border-dashed"}`}>
-                    {m.done && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
-                  </div>
-                  <div className="flex-1">
-                    <div className={`text-xs font-medium ${m.done ? "text-gray-700" : "text-gray-400"}`}>{m.label}</div>
-                    <div className={`text-xs mt-0.5 ${m.done ? "text-green-500" : "text-gray-400"}`}>{m.done ? `Completed ${m.date}` : "Not yet reached"}</div>
-                  </div>
-                  {!m.done && <Target className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 mt-0.5" />}
+          {/* Aside */}
+          <div className="grid gap-6 content-start lg:grid-cols-3 xl:grid-cols-1 min-w-0">
+            <section aria-labelledby="lri-title" className={card}>
+              <h3 id="lri-title" className={`${cardTitle} mb-4`} style={display}>Readiness inventory</h3>
+              {lri.status === "loading" ? (
+                <Skeleton className="h-24" />
+              ) : lri.status === "error" ? (
+                <SectionError message="Your inventory result could not be loaded. Please try again." onRetry={retry} />
+              ) : lri.value ? (
+                <div style={reading}>
+                  <p className="flex items-center gap-3 text-lg font-bold text-[#1B1D26]"><CircleCheck className="w-6 h-6 text-[#00538A]" aria-hidden="true" /> Done</p>
+                  <p className="mt-3 text-lg leading-relaxed text-[#4A4F5C]">Thank you for answering. Your answers help match lessons to you.</p>
                 </div>
-              ))}
-            </div>
+              ) : (
+                <Note icon={History} title="Not yet">You will find the readiness inventory in the pre-test.</Note>
+              )}
+            </section>
+
+            <section aria-labelledby="readiness-title" className={card}>
+              <h3 id="readiness-title" className={`${cardTitle} mb-4`} style={display}>Your readiness level</h3>
+              <Note icon={Activity} title="Not available yet">
+                Your readiness level appears here after your Muse 2 baseline recording at the learning center has been analyzed.
+              </Note>
+            </section>
+
+            <section aria-labelledby="history-title" className={card}>
+              <h3 id="history-title" className={`${cardTitle} mb-4`} style={display}>Over time</h3>
+              <Note icon={History} title="Nothing to chart yet">
+                A chart of how your readiness changes will appear here once there is more than one reading to compare.
+              </Note>
+            </section>
           </div>
         </div>
-
       </div>
     </AppLayout>
   );
