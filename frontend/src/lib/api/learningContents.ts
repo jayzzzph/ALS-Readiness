@@ -22,3 +22,8 @@ export async function getMyCurriculum(strandId: number): Promise<MyCurriculumRes
   const response = await apiClient.get<MyCurriculumResponse>(`/api/me/curriculum/${strandId}`);
   return response.data;
 }
+
+/** Whole-number percent of a strand's lessons that are done. The backend does not send a percent. */
+export function strandPercent(strand: Pick<LearningStrandProgress, "completed_lessons" | "total_lessons">): number {
+  return strand.total_lessons > 0 ? Math.round((strand.completed_lessons / strand.total_lessons) * 100) : 0;
+}

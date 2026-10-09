@@ -180,7 +180,6 @@ export interface LearningStrandProgress {
   name: string;
   completed_lessons: number;
   total_lessons: number;
-  progress_percent: number | null;
 }
 
 export interface LearningContentNode {
@@ -188,7 +187,11 @@ export interface LearningContentNode {
   title: string;
   content_type: "video" | "audio" | "reading";
   stimulus_level: "low" | "medium" | "high" | null;
-  progress_status: "not_opened" | "in_progress" | "completed";
+  /** Both null: not started. Only last_accessed_at set: in progress. completed_at set: done. */
+  last_accessed_at: string | null;
+  completed_at: string | null;
+  /** Presigned storage URL, valid for about 2 hours. Refetch the curriculum for a fresh one. */
+  file_url: string;
 }
 
 export interface CurriculumLesson {

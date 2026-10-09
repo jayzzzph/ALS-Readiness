@@ -124,7 +124,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
 
   if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(view.test.test_id)} />;
   if (view.name === "lri-attempt") return <LriAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(null)} />;
-  if (view.name === "baseline-eeg") return <BaselineEegRecording onClose={backToHub} onComplete={() => navigate("stimulus-content")} />;
+  if (view.name === "baseline-eeg") return <BaselineEegRecording learnerId={user?.raw?.id != null ? String(user.raw.id) : null} onClose={backToHub} />;
 
   // Strands are identified by strand_code, never by name; unknown codes are skipped.
   const byCode = indexByStrandCode(strandTests);

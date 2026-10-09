@@ -36,7 +36,7 @@ What makes it different is the pairing of an ALS-aligned diagnostic test with an
 ## Capabilities and Constraints
 
 - **Stack (existing):** React 18 + Vite + Tailwind CSS 4 frontend with Radix/shadcn primitives; Python backend (`backend/`, uv, Alembic, PostgreSQL).
-- **Headset:** the study uses the **Muse 2** headband. All NeuroSky / MindWave references are outdated (for example `frontend/src/app/components/learner/EEGProfiling.tsx`) and are to be replaced with Muse 2 later.
+- **Headset:** the study uses the **Muse 2** headband. The old simulated NeuroSky EEG screen has been removed, and Part IV of the pre-test now records with the Muse 2 (`frontend/src/app/components/diagnostic/BaselineEegRecording.tsx`). Any NeuroSky / MindWave wording that turns up is outdated and should say Muse 2.
 - **Language:** English-only for now. The English / Filipino / Bisaya switch in `AppLayout` doesn't work and is to be hidden.
 - **Units:** sample and test content uses metric units (km, km/h, kg), never imperial.
 - **Terminology:** "learning strands" (LS1–LS6), "readiness", "pre-test" / "post-test", "cohort", "facilitator", "stimulus content", "modality" (auditory, visual, reading).

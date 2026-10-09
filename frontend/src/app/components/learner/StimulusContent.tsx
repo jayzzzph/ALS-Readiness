@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, BookOpen, Check, Circle, CircleCheck, Clock, Headphones, Video, type LucideIcon } from "lucide-react";
-import { getMyCohorts, getMyCurriculum, getMyStrands } from "../../../lib/api/learningContents";
+import { AlertCircle, BookOpen, Check, Circle, CircleCheck, Clock, Headphones, Lock, Video, type LucideIcon } from "lucide-react";
+import { getMyCohorts, getMyCurriculum, getMyStrands, strandPercent } from "../../../lib/api/learningContents";
+import type { ContentProgress } from "../../../lib/api/contentPlayback";
+import { getLriTests, getParticipantIntake, getStrandTests } from "../../../lib/api/diagnostic";
 import type { CurriculumLesson, LearningContentNode, LearningStrandProgress, MyCohort, MyCurriculumResponse } from "../../../lib/api/types";
 import { getErrorMessage } from "../../../lib/api/errors";
 import { AppLayout } from "../shared/AppLayout";
+import { ContentPlayer } from "./ContentPlayer";
 import { Ring } from "../diagnostic/DiagnosticTest";
-import { secondaryButton } from "../diagnostic/StrandTestCard";
+import { primaryButton, secondaryButton } from "../diagnostic/StrandTestCard";
+import { isPretestComplete, pretestParts, toPretestProgress, type PretestProgress } from "../diagnostic/pretestLogic";
+import { SectionError } from "../shared/SectionError";
 
 // Learning Content: a course outline. Strands on top (tabs), the selected strand's modules and lessons below like a
 // workbook's table of contents. Type roles and colors follow DESIGN.md: serif headings, Atkinson Hyperlegible for
@@ -23,7 +28,7 @@ const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
  */
 const RECOMMENDED_CONTENT_IDS: ReadonlySet<number> = new Set<number>();
 
-type Status = "not_started" | "in_progress" | "done";
+export type Status = "not_started" | "in_progress" | "done";
 
 const STATUS: Record<Status, { label: string; icon: LucideIcon; className: string }> = {
   not_started: { label: "Not started", icon: Circle, className: "text-[#4A4F5C]" },
@@ -37,14 +42,14 @@ const CONTENT_TYPE: Record<LearningContentNode["content_type"], { verb: string; 
   reading: { verb: "Read", icon: BookOpen },
 };
 
-const ITEM_STATUS: Record<LearningContentNode["progress_status"], Status> = {
-  not_opened: "not_started",
-  in_progress: "in_progress",
-  completed: "done",
-};
+/** Not started (both null), in progress (opened, not finished) or done (completed_at set). */
+export function itemStatus(content: Pick<LearningContentNode, "last_accessed_at" | "completed_at">): Status {
+  if (content.completed_at) return "done";
+  return content.last_accessed_at ? "in_progress" : "not_started";
+}
 
 function lessonStatus(lesson: CurriculumLesson): Status {
-  const statuses = lesson.contents.map((content) => ITEM_STATUS[content.progress_status]);
+  const statuses = lesson.contents.map(itemStatus);
   if (statuses.length > 0 && statuses.every((status) => status === "done")) return "done";
   if (statuses.some((status) => status !== "not_started")) return "in_progress";
   return "not_started";
@@ -55,7 +60,7 @@ function StatusLabel({ status }: { status: Status }) {
   return <span className={`inline-flex items-center gap-2 text-base ${className}`}><Icon className="w-5 h-5 shrink-0" strokeWidth={status === "done" ? 2.25 : 1.75} aria-hidden="true" /> {label}</span>;
 }
 
-const COMING_SOON_ID = "lesson-open-note";
+type PretestState = { status: "loading" } | { status: "error" } | { status: "ready"; progress: PretestProgress };
 
 export function StimulusContent({ navigate, user, onLogout }) {
   const [cohorts, setCohorts] = useState<MyCohort[]>([]);
@@ -66,6 +71,8 @@ export function StimulusContent({ navigate, user, onLogout }) {
   const [loadingCurriculum, setLoadingCurriculum] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [pretest, setPretest] = useState<PretestState>({ status: "loading" });
+  const [playing, setPlaying] = useState<{ contentId: number } | null>(null);
   // A slow response for a strand the learner has already moved away from must not replace the current one.
   const latestStrand = useRef<number | null>(null);
 
@@ -94,6 +101,16 @@ export function StimulusContent({ navigate, user, onLogout }) {
     return () => { cancelled = true; };
   }, [reloadKey]);
 
+  // Lessons are matched to the learner's pre-test results, so the page stays locked until Parts I to III are done.
+  useEffect(() => {
+    let cancelled = false;
+    setPretest({ status: "loading" });
+    Promise.all([getParticipantIntake(), getLriTests(), getStrandTests("pretest")])
+      .then(([intake, lri, pre]) => { if (!cancelled) setPretest({ status: "ready", progress: toPretestProgress(intake, lri.tests, pre.tests) }); })
+      .catch(() => { if (!cancelled) setPretest({ status: "error" }); });
+    return () => { cancelled = true; };
+  }, [reloadKey]);
+
   async function openStrand(strand: LearningStrandProgress) {
     latestStrand.current = strand.strand_id;
     setSelectedId(strand.strand_id);
@@ -118,6 +135,23 @@ export function StimulusContent({ navigate, user, onLogout }) {
     if (strands.length > 0 && selectedId === null) void openStrand(strands[0]);
   }, [strands]);
 
+  // The player reports each saved progress record: the outline updates at once, and the strand counts are refetched.
+  function applyProgress(progress: ContentProgress) {
+    setCurriculum((current) => current && {
+      ...current,
+      modules: current.modules.map((module) => ({
+        ...module,
+        lessons: module.lessons.map((lesson) => ({
+          ...lesson,
+          contents: lesson.contents.map((content) => content.content_id === progress.content_id
+            ? { ...content, last_accessed_at: progress.last_accessed_at, completed_at: progress.completed_at }
+            : content),
+        })),
+      })),
+    });
+    getMyStrands().then(setStrands).catch(() => { /* the counts catch up on the next load */ });
+  }
+
   const selected = strands.find((strand) => strand.strand_id === selectedId) ?? null;
   const noCohort = !loadingPage && cohorts.length === 0 && strands.length === 0;
   // The progress count only includes lessons that have items, so the outline hides empty lessons (and modules left with none).
@@ -126,6 +160,16 @@ export function StimulusContent({ navigate, user, onLogout }) {
     .filter((module) => module.lessons.length > 0);
   const hasContents = visibleModules.length > 0;
 
+  const gate =
+    pretest.status === "loading" ? <PageSkeleton />
+    : pretest.status === "error" ? <SectionError message="Your pre-test progress could not be loaded. Please try again." onRetry={() => setReloadKey((key) => key + 1)} />
+    : !isPretestComplete(pretest.progress) ? <PretestLocked progress={pretest.progress} onGo={() => navigate("diagnostic-test")} />
+    : null;
+
+  if (playing && curriculum) {
+    return <ContentPlayer initialContentId={playing.contentId} strandId={curriculum.strand_id} strandCode={curriculum.strand_code} strandName={curriculum.strand_name} modules={visibleModules} onProgress={applyProgress} onClose={() => setPlaying(null)} />;
+  }
+
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="stimulus-content">
       <main className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
@@ -133,7 +177,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
         <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>Lessons for each of your learning strands.</p>
 
         <div className="mt-8">
-          {loadingPage ? <PageSkeleton /> : noCohort && !error ? (
+          {gate ?? (loadingPage ? <PageSkeleton /> : noCohort && !error ? (
             <Notice title="No lessons yet">Your lessons will appear here after your facilitator adds you to a cohort.</Notice>
           ) : strands.length === 0 && !error ? (
             <Notice title="No lessons yet">No learning strands are available for your cohort yet.</Notice>
@@ -158,16 +202,13 @@ export function StimulusContent({ navigate, user, onLogout }) {
                 <div role="tabpanel" aria-label={selected ? `${selected.name} lessons` : "Lessons"} aria-busy={loadingCurriculum} className="min-w-0 space-y-6">
                   {loadingCurriculum ? <OutlineSkeleton /> : curriculum ? (
                     <>
-                      <p id={COMING_SOON_ID} className="flex items-start gap-2 text-lg leading-snug text-[#4A4F5C]" style={reading}>
-                        <Clock className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={1.75} aria-hidden="true" /> Opening lessons is coming soon.
-                      </p>
                       {!hasContents ? (
                         <Notice title="Nothing here yet">This strand has no lessons yet. Check back soon.</Notice>
                       ) : visibleModules.map((module, moduleIndex) => (
                         <section key={module.module_id} aria-labelledby={`module-${module.module_id}`} className="rounded-2xl border border-[#E2E0DA] bg-white p-6">
                           <h2 id={`module-${module.module_id}`} className={cardTitle} style={display}>Module {moduleIndex + 1}: {module.title}</h2>
                           <ol className="mt-4 divide-y divide-[#E2E0DA] border-t border-[#E2E0DA]">
-                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} />)}
+                            {module.lessons.map((lesson, lessonIndex) => <LessonRow key={lesson.lesson_id} lesson={lesson} number={lessonIndex + 1} onOpen={(content) => setPlaying({ contentId: content.content_id })} />)}
                           </ol>
                         </section>
                       ))}
@@ -197,7 +238,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
                 </div>
               </div>
             </>
-          )}
+          ))}
         </div>
       </main>
     </AppLayout>
@@ -205,7 +246,7 @@ export function StimulusContent({ navigate, user, onLogout }) {
 }
 
 function StrandTab({ strand, selected, disabled, onSelect }: { strand: LearningStrandProgress; selected: boolean; disabled: boolean; onSelect: () => void }) {
-  const percent = strand.total_lessons > 0 ? Math.round((strand.completed_lessons / strand.total_lessons) * 100) : 0;
+  const percent = strandPercent(strand);
   return (
     <button
       type="button" role="tab" aria-selected={selected} onClick={onSelect} disabled={disabled && !selected}
@@ -224,7 +265,7 @@ function StrandTab({ strand, selected, disabled, onSelect }: { strand: LearningS
   );
 }
 
-function LessonRow({ lesson, number }: { lesson: CurriculumLesson; number: number }) {
+function LessonRow({ lesson, number, onOpen }: { lesson: CurriculumLesson; number: number; onOpen: (content: LearningContentNode) => void }) {
   const status = lessonStatus(lesson);
   const count = lesson.contents.length;
   return (
@@ -238,14 +279,14 @@ function LessonRow({ lesson, number }: { lesson: CurriculumLesson; number: numbe
       </div>
       {count > 0 && (
         <ul className="mt-3 sm:ml-4 divide-y divide-[#E2E0DA] rounded-xl bg-[#F2F1ED] px-4">
-          {lesson.contents.map((content) => <ItemRow key={content.content_id} content={content} />)}
+          {lesson.contents.map((content) => <ItemRow key={content.content_id} content={content} onOpen={() => onOpen(content)} />)}
         </ul>
       )}
     </li>
   );
 }
 
-function ItemRow({ content }: { content: LearningContentNode }) {
+function ItemRow({ content, onOpen }: { content: LearningContentNode; onOpen: () => void }) {
   const { verb, icon: Icon } = CONTENT_TYPE[content.content_type] ?? CONTENT_TYPE.reading;
   return (
     <li className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
@@ -254,10 +295,43 @@ function ItemRow({ content }: { content: LearningContentNode }) {
         <p className="text-lg leading-snug text-[#1B1D26]" style={reading}>{content.title}</p>
         {RECOMMENDED_CONTENT_IDS.has(content.content_id) && <p className="mt-1 text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#835500]">Recommended for you</p>}
       </div>
-      <div className="sm:w-36 shrink-0"><StatusLabel status={ITEM_STATUS[content.progress_status] ?? "not_started"} /></div>
-      {/* There is no learner endpoint to open content yet, so this stays disabled. */}
-      <button type="button" disabled aria-describedby={COMING_SOON_ID} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#D3D5DC] bg-transparent text-[0.9375rem] font-bold text-[#767B88] cursor-not-allowed">Open</button>
+      <div className="sm:w-36 shrink-0"><StatusLabel status={itemStatus(content)} /></div>
+      {/* Only video has a player so far; audio and reading stay disabled. */}
+      {content.content_type === "video" ? (
+        <button type="button" onClick={onOpen} aria-label={`Open ${content.title}`} className={`h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#00538A] bg-white text-[0.9375rem] font-bold text-[#00538A] hover:bg-[#CFE4FF] transition-colors duration-150 ${focus}`}>Open</button>
+      ) : (
+        <button type="button" disabled aria-label={`Open ${content.title} (not available yet)`} className="h-12 px-6 shrink-0 inline-flex items-center justify-center rounded-xl border border-[#D3D5DC] bg-transparent text-[0.9375rem] font-bold text-[#767B88] cursor-not-allowed">Open</button>
+      )}
     </li>
+  );
+}
+
+/** Shown instead of the outline until the pre-test is done: the order, what is left, and the way to the pre-test. */
+function PretestLocked({ progress, onGo }: { progress: PretestProgress; onGo: () => void }) {
+  const parts = pretestParts(progress);
+  return (
+    <section aria-labelledby="locked-title" className="rounded-2xl border border-[#E2E0DA] bg-white p-8">
+      <h2 id="locked-title" className={`${cardTitle} flex items-center gap-3`} style={display}>
+        <Lock className="w-6 h-6 shrink-0 text-[#4A4F5C]" strokeWidth={1.75} aria-hidden="true" /> Finish your pre-test first
+      </h2>
+      <p className="mt-3 max-w-[34rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
+        Your lessons are matched to you from your results.
+      </p>
+      <ul className="mt-6 max-w-[28rem] space-y-3" aria-label="Pre-test parts">
+        {parts.map((part) => (
+          <li key={part.label} className="flex items-center gap-3">
+            {part.done
+              ? <CircleCheck className="w-5 h-5 shrink-0 text-[#00538A]" strokeWidth={2.25} aria-hidden="true" />
+              : <Clock className="w-5 h-5 shrink-0 text-[#4A4F5C]" strokeWidth={1.75} aria-hidden="true" />}
+            <span className="flex-1 min-w-0 text-base font-bold text-[#1B1D26]" style={reading}>
+              {part.code && <span className="mr-1.5 text-[#4D35BD]">{part.code}</span>}{part.label}
+            </span>
+            <span className="text-base text-[#4A4F5C]" style={reading}>{part.done ? "Done" : "Not yet"}</span>
+          </li>
+        ))}
+      </ul>
+      <button type="button" onClick={onGo} className={`mt-8 ${primaryButton}`}>Go to the pre-test</button>
+    </section>
   );
 }
 

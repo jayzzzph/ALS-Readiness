@@ -106,9 +106,10 @@ function Countdown({ secondsLeft, expired }: { secondsLeft: number; expired: boo
  * every change, so leaving keeps them. `exitHint` says what leaving does, as
  * visible text (a tooltip would never open on touch): inline just before the
  * exit button on wide screens, and on its own line under the bar on narrow ones,
- * so the header row itself stays one centered 64px line. `wide` is for the LRI table.
+ * so the header row itself stays one centered 64px line. `wide` is for the LRI table; `maxWidth` overrides the column
+ * width and `compact` trims the vertical padding, for screens that must fit one viewport without scrolling.
  */
-export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", exitHint, countdown, footer, wide = false, children }: { title: string; onClose: () => void; exitLabel?: string; exitHint?: string; countdown?: ReactNode; footer?: ReactNode; wide?: boolean; children: ReactNode }) {
+export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", exitHint, countdown, footer, wide = false, maxWidth, compact = false, children }: { title: string; onClose: () => void; exitLabel?: string; exitHint?: string; countdown?: ReactNode; footer?: ReactNode; wide?: boolean; maxWidth?: string; compact?: boolean; children: ReactNode }) {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#F8F6F2] text-[#1B1D26] selection:bg-[#FFAB2E]/50" style={chrome}>
       <style>{fontCss}</style>
@@ -131,8 +132,8 @@ export function AttemptShell({ title, onClose, exitLabel = "Save & Exit", exitHi
         {/* Narrow screens: the same hint, right-aligned under the row (screen readers get it from #exit-hint either way). */}
         {exitHint && <p aria-hidden="true" className="lg:hidden px-4 sm:px-6 pb-2 -mt-1 text-right text-[0.9375rem] leading-5 text-[#4A4F5C]">{exitHint}</p>}
       </header>
-      <main className="flex-1 px-4 sm:px-6 py-10 sm:py-12">
-        <div className={`mx-auto ${wide ? "max-w-5xl" : "max-w-3xl"}`}>{children}</div>
+      <main className={`flex-1 px-4 sm:px-6 ${compact ? "py-6" : "py-10 sm:py-12"}`}>
+        <div className={`mx-auto ${maxWidth ?? (wide ? "max-w-5xl" : "max-w-3xl")}`}>{children}</div>
       </main>
       {/* Sticks to the bottom of the viewport while its natural spot is below the fold; at the end of a long page it rests
           under main's bottom padding, so the last answer is never covered. */}
