@@ -52,7 +52,7 @@ const cardTitle = "text-2xl leading-[1.25] text-[#1B1D26]";
 function PretestLoadingIndicator() {
   return (
     <div role="status" className="py-12 flex items-center justify-center gap-3 text-lg text-[#4A4F5C]" style={reading}>
-      <LoaderCircle className="w-6 h-6 text-[#00538A] motion-safe:animate-spin" aria-hidden="true" /> Loading your pre-test...
+      <LoaderCircle className="w-6 h-6 text-[#00538A] motion-safe:animate-spin" aria-hidden="true" /> Loading Readiness Profiling...
     </div>
   );
 }
@@ -110,7 +110,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
         else rememberOpenAttempt("pretest", null);
       }
     } catch (err) {
-      setError(getErrorMessage(err, "The pre-test could not be loaded. Please try again."));
+      setError(getErrorMessage(err, "Readiness Profiling could not be loaded. Please try again."));
     } finally { setLoading(false); }
   };
   const loadEegStatus = async () => {
@@ -189,7 +189,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
           />
         </li>
       ))}
-      {!strands.length && <li className="py-4 text-lg text-[#4A4F5C]" style={reading}>No pre-test strands are currently available.</li>}
+      {!strands.length && <li className="py-4 text-lg text-[#4A4F5C]" style={reading}>No diagnostic exams are currently available.</li>}
     </ul>
   );
 
@@ -237,7 +237,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
               </TimelineItem>
 
               <TimelineItem index={3} status={statusOf(2)}>
-                <PartBody number="Part III" title="Diagnostic / Equivalency Exams" description="One baseline exam for each enrolled learning strand. Completed pre-tests cannot be retaken." status={statusOf(2)} note={intakeComplete ? "Finish Part II first" : "Finish Part I first"}>
+                <PartBody number="Part III" title="Diagnostic / Equivalency Exams" description="One baseline exam for each enrolled learning strand. Completed exams cannot be retaken." status={statusOf(2)} note={intakeComplete ? "Finish Part II first" : "Finish Part I first"}>
                   {strandRows}
                 </PartBody>
               </TimelineItem>
