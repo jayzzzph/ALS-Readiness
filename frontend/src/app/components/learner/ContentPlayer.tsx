@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, ChevronDown, Headphones, ListVideo, LoaderCircle, Video, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronDown, Headphones, ListVideo, LoaderCircle, Video, X, type LucideIcon } from "lucide-react";
 import { AttemptShell } from "../diagnostic/PretestAttempts";
 import { SectionError } from "../shared/SectionError";
-import { openContent, updateProgress } from "../../../lib/api/contentPlayback";
+import { openContent, updateProgress, type ContentProgress } from "../../../lib/api/contentPlayback";
 import type { CurriculumModule, LearningContentNode } from "../../../lib/api/types";
 
 // Course view for a strand's video lessons, in the AttemptShell frame the tests use (header with the lesson title and
@@ -32,17 +32,17 @@ type Entry = { content: LearningContentNode; moduleId: number; lessonTitle: stri
 // Only video has a player so far. Previous and Next skip the rest; the panel shows them as not available yet.
 const isPlayable = (content: LearningContentNode) => content.content_type === "video";
 
-/**
- * COMPLETION GOES HERE. The progress route (PUT /api/me/contents/{id}/progress) does not exist yet, so the outline's
- * `progress_status` goes stale the moment a learner watches something and no item shows a mark. Once the route works
- * (see updateProgress in lib/api/contentPlayback.ts), return a check icon plus the word "Done" for a completed item here,
- * and keep the "Now playing" label for the current one.
- */
-function CompletionMark(_: { content: LearningContentNode }) {
-  return null;
+/** A check and "Done" on a finished item, the current one too (it also keeps its "Now playing" label). */
+function CompletionMark({ content, nowPlaying }: { content: LearningContentNode; nowPlaying: boolean }) {
+  if (!content.completed_at) return null;
+  return (
+    <span className={`mt-0.5 inline-flex shrink-0 items-center gap-1.5 text-[0.9375rem] font-bold ${nowPlaying ? "text-[#1B1D26]" : "text-[#00538A]"}`}>
+      <Check className="h-5 w-5" strokeWidth={2.5} aria-hidden="true" /> Done
+    </span>
+  );
 }
 
-export function ContentPlayer({ initialContentId, strandId, strandCode, strandName, modules, onClose }: { initialContentId: number; strandId: number; strandCode: string; strandName: string; modules: CurriculumModule[]; onClose: () => void }) {
+export function ContentPlayer({ initialContentId, strandId, strandCode, strandName, modules, onProgress, onClose }: { initialContentId: number; strandId: number; strandCode: string; strandName: string; modules: CurriculumModule[]; onProgress: (progress: ContentProgress) => void; onClose: () => void }) {
   const entries = useMemo<Entry[]>(
     () => modules.flatMap((module) => module.lessons.flatMap((lesson) => lesson.contents.map((content) => ({ content, moduleId: module.module_id, lessonTitle: lesson.title })))),
     [modules],
@@ -157,7 +157,13 @@ export function ContentPlayer({ initialContentId, strandId, strandCode, strandNa
   function handlePlay() {
     if (started.current) return;
     started.current = true;
-    void updateProgress(contentId, "in_progress");
+    report("started");
+  }
+
+  // Saves in the background: playback never waits for it, and a failed save (null) just leaves the outline as it was.
+  function report(event: "started" | "completed") {
+    const id = contentId;
+    void updateProgress(id, event, Boolean(current?.content.last_accessed_at)).then((progress) => { if (progress) onProgress(progress); });
   }
 
   const showVideo = url && phase !== "opening" && phase !== "error";
@@ -251,7 +257,7 @@ export function ContentPlayer({ initialContentId, strandId, strandCode, strandNa
                   refreshed.current = false;
                 }}
                 onPlay={handlePlay}
-                onEnded={() => { void updateProgress(contentId, "completed"); }}
+                onEnded={() => report("completed")}
                 onError={handleError}
               />
             )}
@@ -310,7 +316,7 @@ function PanelItem({ content, nowPlaying, onPlay }: { content: LearningContentNo
           {nowPlaying && <span className="mt-0.5 block text-[0.9375rem] font-bold">Now playing</span>}
           {!playable && <span className="mt-0.5 block text-[0.9375rem]">Not available yet</span>}
         </span>
-        <CompletionMark content={content} />
+        <CompletionMark content={content} nowPlaying={nowPlaying} />
       </button>
     </li>
   );
