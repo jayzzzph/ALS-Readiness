@@ -41,7 +41,9 @@ class CurriculumRepository:
         result = await self._session.execute(stmt)
         return {row.content_id: row for row in result.scalars()}
 
-    async def get_cohort_curriculum_map(self, cohort_id: int) -> dict[int, dict[int, list[int]]]:
+    async def get_cohort_curriculum_map(
+        self, cohort_id: int
+    ) -> dict[int, dict[int, list[int]]]:
         """Returns {strand_id: {lesson_id: [content_id, ...]}}, only content assigned to this cohort."""
         stmt = (
             select(LearningStrand.id, Lesson.id, Content.id)
@@ -56,18 +58,22 @@ class CurriculumRepository:
 
         mapping: dict[int, dict[int, list[int]]] = {}
         for strand_id, lesson_id, content_id in result.all():
-            mapping.setdefault(strand_id, {}).setdefault(lesson_id, []).append(content_id)
+            mapping.setdefault(strand_id, {}).setdefault(lesson_id, []).append(
+                content_id
+            )
         return mapping
 
     async def get_completed_content_ids(
-        self, learner_id: int, content_ids: list[int]
+        self,
+        learner_id: int,
+        content_ids: list[int],
     ) -> set[int]:
         if not content_ids:
             return set()
         stmt = select(LearnerContentProgress.content_id).where(
             LearnerContentProgress.learner_id == learner_id,
             LearnerContentProgress.content_id.in_(content_ids),
-            LearnerContentProgress.status == ContentProgressStatus.COMPLETED,
+            LearnerContentProgress.completed_at.is_not(None),
         )
         result = await self._session.execute(stmt)
         return set(result.scalars())
