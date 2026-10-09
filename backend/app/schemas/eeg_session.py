@@ -28,3 +28,7 @@ class EEGSessionResponse(EEGSessionBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class EEGSessionListResponse(BaseModel):
+    eeg_sessions: list[EEGSessionResponse]
