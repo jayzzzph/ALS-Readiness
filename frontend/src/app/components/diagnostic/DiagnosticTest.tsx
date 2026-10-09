@@ -136,8 +136,10 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
     };
   };
 
-  if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(view.test.test_id)} />;
-  if (view.name === "lri-attempt") return <LriAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(null)} />;
+  // Keyed by test so each exam gets a fresh instance: without it React reuses one StrandAttempt when "Next" swaps the
+  // test, carrying the previous exam's submitted screen (and draft state) into the new one.
+  if (view.name === "strand-attempt") return <StrandAttempt key={view.test.test_id} test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(view.test.test_id)} />;
+  if (view.name === "lri-attempt") return <LriAttempt key={view.test.test_id} test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(null)} />;
   if (view.name === "baseline-eeg") return <BaselineEegRecording learnerId={user?.raw?.id != null ? String(user.raw.id) : null} onClose={backToHub} />;
   if (view.name === "stimulus-exposure") return <StimulusExposure learnerId={user?.raw?.id != null ? String(user.raw.id) : null} onClose={backToHub} />;
 
