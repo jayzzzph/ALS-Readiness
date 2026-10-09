@@ -11,6 +11,7 @@ import {
   toIntakeUpsert,
 } from "./intakeForm";
 import { primaryButton } from "./StrandTestCard";
+import { INTAKE_SAVED_FLAG } from "./attemptDraft";
 
 // Type roles from DESIGN.md: serif headings, DM Sans chrome, Atkinson Hyperlegible (18px) for what learners read and fill in.
 const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
@@ -67,7 +68,10 @@ export function ParticipantIntake({ navigate, user, onLogout }) {
       const saved = await submitParticipantIntake(toIntakeUpsert(form));
       setForm(intakeFormFromIntake(saved));
       setExistingIntake(true);
-      setMessage("Participant intake saved. You may now start Part II and Part III.");
+      // The hub shows a one-time "Part I saved" note on arrival (navigate() carries no state).
+      try { window.sessionStorage.setItem(INTAKE_SAVED_FLAG, "1"); } catch { /* the hub just shows no note */ }
+      navigate("diagnostic-test");
+      return;
     } catch (err) {
       setError(readable(getErrorMessage(err, "Your intake could not be saved. Please try again.")));
     } finally { setSaving(false); }

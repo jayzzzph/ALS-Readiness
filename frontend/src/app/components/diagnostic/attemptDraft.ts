@@ -74,6 +74,9 @@ export function readOpenAttempt(hub: HubName): OpenAttempt | null {
   }
 }
 
+/** sessionStorage flag set when Part I is saved; the hub reads and clears it once to show "Part I saved". */
+export const INTAKE_SAVED_FLAG = "als:intake-saved:v1";
+
 /**
  * Draft state for one attempt. `draft` is null until the learner starts (and
  * again after `clear`); a saved draft found on mount means the attempt is

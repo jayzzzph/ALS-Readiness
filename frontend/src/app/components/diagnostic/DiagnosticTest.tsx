@@ -11,7 +11,7 @@ import {
 } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { LriTestListItem, StrandTestListItem } from "../../../lib/api/types";
-import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
+import { INTAKE_SAVED_FLAG, discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
 import { LriAttempt, StrandAttempt, type NextStep } from "./PretestAttempts";
 import { StrandTestCard, primaryButton, secondaryButton } from "./StrandTestCard";
 import { BASELINE_SECONDS, describeDuration } from "../../features/eeg/constants";
@@ -71,6 +71,14 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   const [eegError, setEegError] = useState(false);
   // Only the first hub load after mounting may reopen an attempt (i.e. after a reload).
   const reopenPending = useRef(true);
+  // Set by Part I when it saves and sends the learner here; read once, then cleared.
+  const [intakeSaved] = useState(() => {
+    try {
+      const flagged = window.sessionStorage.getItem(INTAKE_SAVED_FLAG) === "1";
+      window.sessionStorage.removeItem(INTAKE_SAVED_FLAG);
+      return flagged;
+    } catch { return false; }
+  });
 
   // Gate for Parts II/III is the learner's real intake record, not a browser-local flag.
   const loadHub = async () => {
@@ -191,6 +199,13 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
       <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
         Do these five parts in order. Each one opens when the one before it is done.
       </p>
+
+      {intakeSaved && (
+        <div role="status" className="mt-6 flex items-center gap-3 rounded-xl border border-[#00538A] bg-[#CFE4FF] px-5 py-4 text-[#1B1D26]">
+          <Check className="w-5 h-5 shrink-0 text-[#00538A]" strokeWidth={2.5} aria-hidden="true" />
+          <p className="text-lg leading-snug" style={reading}>Part I saved. You can continue with Part II.</p>
+        </div>
+      )}
 
       <div className="mt-8">
         {loading ? <PretestLoadingIndicator /> : error ? (
