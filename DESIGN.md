@@ -296,6 +296,7 @@ Big, solid, and calm.
 
 ### Navigation
 - **Sidebar items:** an icon plus a Label in ink, 44px tall, 8px corners, with a `surface` hover. The **active item is a solid Highlighter Amber pill with ink text and icon.**
+- **Facilitator exception:** on facilitator pages the active item uses Amber Wash (`amber-tint`) with ink text and an `amber-ink` icon instead of the solid pill, so it still marks "you are here" without outweighing the dense page content.
 - **Per role:** each role shows only its own items. The mockups reused one sidebar with Cohort Management and EEG Insights on the learner screen. Follow the role nav in code, not the mockup.
 - **Bottom:** a primary "Start Session" button, then Support and Logout as plain items above the hairline.
 
