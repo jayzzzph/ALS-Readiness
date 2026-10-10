@@ -47,7 +47,7 @@ import {
 import { formatCalendarDate } from "../../../lib/dates";
 import { requiredError } from "../../../lib/formText";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { cohortStatusLabel, contentTypeLabel, orDash } from "../../../lib/labels";
+import { contentTypeLabel, orDash } from "../../../lib/labels";
 import { useCohortSelection } from "../../../lib/store/cohortStore";
 import { toast, type ToastAction } from "../../../lib/toast";
 import { AssignContentModal } from "./AssignContentModal";
@@ -55,6 +55,7 @@ import {
   ActionMenu,
   Button,
   Chip,
+  CohortStatus,
   ConfirmDialog,
   EmptyState,
   ErrorState,
@@ -64,11 +65,13 @@ import {
   Modal,
   NoCohortsState,
   PageHeader,
+  Section,
+  StatusText,
   Pill,
   Tabs,
   type ActionMenuItem,
 } from "./shared";
-import { MUTED, SECTION_TITLE } from "./shared/tokens";
+import { MUTED, PAGE_BODY, SECTION_TITLE } from "./shared/tokens";
 
 // Learning Contents: the selected cohort's details, the learning strands, and
 // each strand's curriculum (modules, lessons, and the content assigned to the
@@ -204,25 +207,18 @@ function StructureFormDialog({ heading, subtitle, initialTitle, initialDescripti
 // ── Cohort info and strand cards (the page's first view) ─────────────────────
 
 /**
- * The selected cohort in one quiet line. The top bar already names the cohort
- * and school year, so this adds only what it does not show: the code, the
- * dates and the status. Every value comes from GET /api/facilitator/cohorts.
+ * The selected cohort as the header's meta line: name, code and dates. Every
+ * value comes from GET /api/facilitator/cohorts; the status goes beside it as
+ * on every page.
  */
-function CohortLine({ cohort }: { cohort: FacilitatorCohortItem }) {
-  return (
-    <span className="flex items-center gap-2 flex-wrap tabular-nums">
-      <span>
-        {cohort.name} · {orDash(cohort.code)} · {orDash(formatCalendarDate(cohort.start_date))} – {orDash(formatCalendarDate(cohort.end_date))}
-      </span>
-      <Pill tone={cohort.status === "active" ? "success" : "muted"}>{cohortStatusLabel(cohort.status)}</Pill>
-    </span>
-  );
+function cohortMetaLine(cohort: FacilitatorCohortItem): string {
+  return `${cohort.name} · ${orDash(cohort.code)} · ${orDash(formatCalendarDate(cohort.start_date))} – ${orDash(formatCalendarDate(cohort.end_date))}`;
 }
 
 /** One strand in the list: its code and name, and the row action that opens its curriculum. */
 function StrandRow({ strand, onOpen }: { strand: StrandItem; onOpen: () => void }) {
   return (
-    <li className="flex items-center gap-4 px-6 py-4">
+    <li className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
       <div className="min-w-0 flex-1">
         <div className="text-[#4D35BD] text-[0.8125rem] font-bold uppercase tracking-[0.06em]">{strand.code}</div>
         <div className="text-[#1B1D26] text-base font-bold">{strand.name}</div>
@@ -315,7 +311,8 @@ function LessonItem({ module, lesson, controls, busy, actions }: LessonItemProps
       {/* The buttons sit beside the trigger, not inside it: a button cannot hold another. */}
       <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0">
-          <AccordionTrigger className="text-[#1B1D26] text-[0.9375rem]">
+          {/* The chevron leads the row, in the same column and direction as the module's: right when closed, down when open. */}
+          <AccordionTrigger className="flex-row-reverse justify-end gap-2 text-[#1B1D26] text-[0.9375rem] [&>svg]:size-5 [&>svg]:translate-y-0 [&>svg]:text-[#4A4F5C] [&>svg]:-rotate-90 [&[data-state=open]>svg]:rotate-0">
             <span className={`min-w-0 ${offers.muted ? "opacity-60" : ""}`}>
               <span className="block">{lesson.title}</span>
               {lesson.description && <span className="block text-[#4A4F5C] text-[0.9375rem] font-normal">{lesson.description}</span>}
@@ -323,7 +320,7 @@ function LessonItem({ module, lesson, controls, busy, actions }: LessonItemProps
             </span>
           </AccordionTrigger>
         </div>
-        {offers.archived && <Pill tone="muted">Archived</Pill>}
+        {offers.archived && <StatusText tone="quiet">Archived</StatusText>}
         {/* A count, not a badge: "No content assigned" stays quiet. */}
         <span className={`flex-shrink-0 whitespace-nowrap text-[0.9375rem] ${count > 0 && !offers.muted ? "text-[#1B1D26] font-bold" : "text-[#4A4F5C]"}`}>
           {lessonPillText(count, controls.hasCohort)}
@@ -402,7 +399,7 @@ function ModuleCard({ module, activeModuleIds, collapsed, onToggle, openLessons,
             {module.description && <span className="block text-[#4A4F5C] text-[0.9375rem] truncate">{module.description}</span>}
           </span>
         </button>
-        {offers.archived && <Pill tone="muted">Archived</Pill>}
+        {offers.archived && <StatusText tone="quiet">Archived</StatusText>}
         {offers.canRestore && (
           <Button variant="outline" size="sm" onClick={() => actions.restoreModule(module)} disabled={busy} className="flex-shrink-0">
             Restore
@@ -674,19 +671,18 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
     // One strand's curriculum.
     body = (
       <div className="space-y-4">
+        {/* Short codes keep every strand visible without scrolling; the full name is the tab's accessible name and the heading below. */}
         <Tabs
           label="Learning strands"
-          tabs={strandItems.map((strand) => ({ value: strand.id, label: strandTabLabel(strand) }))}
+          tabs={strandItems.map((strand) => ({ value: strand.id, label: strand.code, title: strandTabLabel(strand) }))}
           value={strandId}
           onChange={openStrand}
         />
         <div>
           <h2 className={SECTION_TITLE}>Learning Curriculum</h2>
           <div className="mt-1 space-y-1">
-            <p className={`${MUTED} tabular-nums flex items-center gap-2 flex-wrap`}>
-              <span>{cohort ? `${cohort.code ?? cohort.name} - ` : ""}{selectedStrand.code} - {selectedStrand.name}</span>
-              {cohort && cohort.status !== "active" && <Pill tone="muted">{cohortStatusLabel(cohort.status)}</Pill>}
-            </p>
+            {/* The cohort and its status are in the page header; this line names the open strand. */}
+            <p className={MUTED}>{strandTabLabel(selectedStrand)}</p>
             {/* Why some actions are missing: worth knowing, nothing to act on, so a quiet line. */}
             {cohortsSettled && controls.note && <p className={MUTED}>{controls.note}</p>}
           </div>
@@ -716,18 +712,15 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
     body = (
       <>
         {cohortBlock}
-        <section aria-labelledby="strand-list-title">
-          <h3 id="strand-list-title" className={`${SECTION_TITLE} mb-4`}>Learning Strands</h3>
-          {strandItems.length === 0 ? (
-            <p className={MUTED}>No active learning strands</p>
-          ) : (
-            <ul className="bg-white rounded-2xl border border-[#E2E0DA] divide-y divide-[#E2E0DA]">
+        <Section titleId="strand-list-title" title="Learning Strands" note={strandItems.length === 0 && <p>No active learning strands</p>}>
+          {strandItems.length > 0 && (
+            <ul className="divide-y divide-[#E2E0DA]">
               {strandItems.map((strand) => (
                 <StrandRow key={strand.id} strand={strand} onOpen={() => openStrand(strand.id)} />
               ))}
             </ul>
           )}
-        </section>
+        </Section>
       </>
     );
   }
@@ -812,21 +805,18 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
         />
       )}
 
-      <div className="p-6 space-y-6">
+      <div className={PAGE_BODY}>
         <PageHeader
           title="Learning Contents"
           backLabel={selectedStrand ? "Back to the learning strands" : undefined}
           onBack={selectedStrand ? () => openStrand(null) : undefined}
-          subtitle={
-            <span className="block space-y-1">
-              <span className="block">Cohort info and per-strand learning curriculum, module by module.</span>
-              {!selectedStrand && cohortsSettled && cohort && <CohortLine cohort={cohort} />}
-            </span>
-          }
+          subtitle={cohortsSettled && cohort ? cohortMetaLine(cohort) : undefined}
+          status={cohortsSettled && cohort && <CohortStatus status={cohort.status} />}
+          note="Cohort info and per-strand learning curriculum, module by module."
           action={
             selectedStrand && (
               <HeaderButton onClick={openAddModule} disabled={busy}>
-                <Plus className="w-4 h-4" /> Add Module
+                <Plus className="w-4 h-4" aria-hidden="true" /> Add Module
               </HeaderButton>
             )
           }
