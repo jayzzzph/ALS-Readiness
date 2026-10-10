@@ -308,7 +308,7 @@ const ERROR_MESSAGE: Record<string, string> = {
 };
 
 /** Where an archived module or lesson is brought back. */
-const RESTORE_WHERE = "This is done on the Curriculum page, with Show archived turned on.";
+const RESTORE_WHERE = "This is done on the Learning Contents page, with Show archived turned on.";
 
 const RESTORE_ERROR_MESSAGE: Record<string, string> = {
   LESSON_NOT_ACTIVE: `This item's lesson is archived, so it cannot be restored yet. Restore the lesson first. ${RESTORE_WHERE}`,

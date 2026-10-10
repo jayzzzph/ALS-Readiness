@@ -140,8 +140,8 @@ export function LessonPicker({ lessonId, onChange, initial, disabled = false, on
       )}
       {strandHasNoLessons && (
         <p className="text-gray-500 text-xs flex items-center gap-2 flex-wrap">
-          This strand has no lessons yet. Modules and lessons are added in Curriculum.
-          <Button variant="link" onClick={onOpenCurriculum} disabled={disabled}>Go to Curriculum</Button>
+          This strand has no lessons yet. Modules and lessons are added in Learning Contents.
+          <Button variant="link" onClick={onOpenCurriculum} disabled={disabled}>Go to Learning Contents</Button>
         </p>
       )}
     </div>
