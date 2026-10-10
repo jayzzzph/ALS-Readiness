@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { AlertCircle, AlertTriangle, CircleCheck, Clock, Lock } from "lucide-react";
+import { cohortStatusLabel, memberStatusLabel } from "../../../../lib/labels";
+import type { CohortMemberStatus, CohortStatus as CohortStatusValue } from "../../../../lib/api/types";
 
 /**
  * What a status means, not what colour it is:
@@ -74,4 +76,14 @@ export function StatusText({ tone, children, title }: StatusTextProps) {
       {children}
     </span>
   );
+}
+
+/** A cohort's status, the same on every page: Active, Upcoming, Completed, Archived. */
+export function CohortStatus({ status }: { status: CohortStatusValue }) {
+  return <StatusText tone={COHORT_STATUS_TONE[status] ?? "quiet"}>{cohortStatusLabel(status)}</StatusText>;
+}
+
+/** A learner's membership in a cohort: Active or Ended. */
+export function MemberStatus({ status }: { status: CohortMemberStatus }) {
+  return <StatusText tone={MEMBER_STATUS_TONE[status] ?? "quiet"}>{memberStatusLabel(status)}</StatusText>;
 }

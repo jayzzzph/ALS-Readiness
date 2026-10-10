@@ -1,7 +1,7 @@
 // The Learners list. The file keeps the name of the "Cohort" mockup it was
 // revised from, so its history is preserved; everything it shows says "Learners".
 import { useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
 import { getLearners } from "../../../lib/api/facilitator";
@@ -10,7 +10,7 @@ import type { FacilitatorLearnerRow, MembershipStatusFilter } from "../../../lib
 import { formatLastActive } from "../../../lib/dates";
 import { useDebouncedValue } from "../../../lib/hooks/useDebouncedValue";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { atRiskReasonLabel, memberStatusLabel, orDash, personName } from "../../../lib/labels";
+import { atRiskReasonLabel, orDash, personName } from "../../../lib/labels";
 import {
   buildLearnerQuery,
   emptyListMessage,
@@ -28,18 +28,22 @@ import {
   Card,
   Chip,
   ChipGroup,
+  CohortStatus,
   DataTable,
   ErrorState,
+  FilterBar,
+  FilterDivider,
   LoadingState,
+  MemberStatus,
   NoCohortsState,
   PageHeader,
   Pagination,
-  Pill,
   ProgressBar,
   ReadinessPill,
   SearchInput,
   type DataTableColumn,
 } from "./shared";
+import { MUTED, PAGE_BODY } from "./shared/tokens";
 
 const MEMBERSHIP_OPTIONS: readonly { value: MembershipStatusFilter; label: string }[] = [
   { value: "active", label: "Active" },
@@ -50,18 +54,20 @@ const MEMBERSHIP_OPTIONS: readonly { value: MembershipStatusFilter; label: strin
 function LearnerCell({ row }: { row: FacilitatorLearnerRow }) {
   const reasons = row.at_risk_reasons.map(atRiskReasonLabel).join(", ");
   return (
-    <div>
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[#1B1D26] text-[0.9375rem] font-medium">{personName(row, "Unnamed learner")}</span>
+    <div className="min-w-0">
+      <div className="flex items-center gap-2 whitespace-nowrap">
+        <span className="text-[#1B1D26] font-bold">{personName(row, "Unnamed learner")}</span>
         {row.at_risk_reasons.length > 0 && (
           <span className="inline-flex items-center text-[#BA1A1A]" title={`At risk: ${reasons}`}>
-            <AlertCircle className="w-4 h-4" aria-hidden="true" />
+            <AlertTriangle className="w-4 h-4" aria-hidden="true" />
             <span className="sr-only">At risk: {reasons}</span>
           </span>
         )}
-        {row.membership_status === "ended" && <Pill tone="muted">{memberStatusLabel(row.membership_status)}</Pill>}
       </div>
-      <div className="text-[#4A4F5C] text-[0.9375rem] tabular-nums">{orDash(row.id_no)}</div>
+      <div className={`${MUTED} tabular-nums flex items-center gap-2 whitespace-nowrap`}>
+        {orDash(row.id_no)}
+        {row.membership_status === "ended" && <><span aria-hidden="true">·</span><MemberStatus status={row.membership_status} /></>}
+      </div>
     </div>
   );
 }
@@ -97,20 +103,26 @@ export function FacilitatorCohort({ navigate, user, onLogout }: PageProps) {
   const strands = useFetch(getStrands, [], { fallbackError: "Unable to load the learning strands." });
   const strandCols = strandColumns(strands.data?.items ?? []);
 
+  // With one cohort selected the header already names it, so the column would repeat it on every row.
+  const showCohortColumn = selection.isAllCohorts || selection.cohort === null;
+
   const columns: DataTableColumn<FacilitatorLearnerRow>[] = [
     { key: "learner", header: "Learner", render: (row) => <LearnerCell row={row} /> },
-    { key: "cohort", header: "Cohort", className: "text-[#4A4F5C]", render: (row) => row.cohort_name },
+    ...(showCohortColumn
+      ? [{ key: "cohort", header: "Cohort", className: "text-[#4A4F5C] whitespace-nowrap", render: (row: FacilitatorLearnerRow) => row.cohort_name }]
+      : []),
     { key: "readiness", header: "Readiness", render: (row) => <ReadinessPill readiness={row.readiness} /> },
     ...strandCols.map((strand): DataTableColumn<FacilitatorLearnerRow> => ({
       key: `strand-${strand.strand_id}`,
       header: `${strand.strand_code} Progress`,
+      className: "whitespace-nowrap",
       render: (row) => {
         // A row with no entry for this strand shows a dash.
         const cell = progressCell(progressForStrand(row, strand.strand_id));
         return <ProgressBar value={cell.barValue} widthClass="w-16" label={`${strand.strand_code} progress`} />;
       },
     })),
-    { key: "last-active", header: "Last Active", className: "text-[#4A4F5C] text-[0.9375rem]", render: (row) => formatLastActive(row.last_active_at) },
+    { key: "last-active", header: "Last Active", className: "text-[#4A4F5C] whitespace-nowrap", render: (row) => formatLastActive(row.last_active_at) },
   ];
 
   let body;
@@ -124,13 +136,14 @@ export function FacilitatorCohort({ navigate, user, onLogout }: PageProps) {
     const failure = list.error ? listFailureText(list.errorStatus, list.error) : null;
     body = (
       <>
-        <Card padding="sm" className="flex items-center gap-3 flex-wrap">
+        <FilterBar label="Filter learners">
           <SearchInput value={searchText} onChange={setSearchText} placeholder="Search by name or ID number" />
+          <FilterDivider />
           <ChipGroup label="Membership" options={MEMBERSHIP_OPTIONS} value={membership} onChange={setMembership} />
           <Chip selected={atRiskOnly} onClick={() => setAtRiskOnly((value) => !value)}>
-            <AlertCircle className="w-3 h-3" aria-hidden="true" /> At risk only
+            <AlertTriangle className="w-4 h-4" aria-hidden="true" /> At risk only
           </Chip>
-        </Card>
+        </FilterBar>
 
         {failure ? (
           <ErrorState title={failure.title} message={failure.message} onRetry={failure.canRetry ? list.reload : undefined} />
@@ -165,15 +178,15 @@ export function FacilitatorCohort({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-learners" allowAllCohorts>
-      <div className="p-6 space-y-6">
+      <div className={PAGE_BODY}>
         <PageHeader
-          eyebrow="Learners"
           title="Learners"
           subtitle={
             cohortsReady
               ? learnersSubtitle(data ? data.total : null, selection.cohort ? selection.cohort.name : null, selection.schoolYear)
               : undefined
           }
+          status={cohortsReady && selection.cohort && <CohortStatus status={selection.cohort.status} />}
         />
         {body}
       </div>

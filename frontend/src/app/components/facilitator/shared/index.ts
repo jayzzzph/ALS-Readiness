@@ -26,6 +26,6 @@ export { FileDrop } from "./FileDrop";
 export { Steps } from "./Steps";
 export { LessonPicker } from "./LessonPicker";
 export { SummaryStrip, SummaryCell, SummaryEmpty, SUMMARY_NUMBER } from "./SummaryStrip";
-export { StatusText, COHORT_STATUS_TONE, MEMBER_STATUS_TONE, FLAG_STATUS_TONE, type StatusTone } from "./StatusText";
+export { StatusText, CohortStatus, MemberStatus, COHORT_STATUS_TONE, MEMBER_STATUS_TONE, FLAG_STATUS_TONE, type StatusTone } from "./StatusText";
 export { LevelMeter } from "./LevelMeter";
 export { FilterBar, FilterDivider } from "./FilterBar";

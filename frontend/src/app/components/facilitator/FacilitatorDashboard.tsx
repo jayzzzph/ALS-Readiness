@@ -23,7 +23,7 @@ import {
 } from "../../../lib/dashboardText";
 import { formatLastActive } from "../../../lib/dates";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { cohortStatusLabel, formatMps, formatPercent, orDash, personName } from "../../../lib/labels";
+import { formatMps, formatPercent, orDash, personName } from "../../../lib/labels";
 import { learnerDetailPage } from "../../../lib/navigation";
 import { useCohortSelection } from "../../../lib/store/cohortStore";
 import {
@@ -36,16 +36,18 @@ import {
   NoCohortsState,
   NOT_YET_PROFILED,
   PageHeader,
-  Pill,
   ProgressBar,
   ReadinessPill,
+  CohortStatus,
+  FLAG_STATUS_TONE,
+  StatusText,
   SUMMARY_NUMBER,
   SummaryCell,
   SummaryEmpty,
   SummaryStrip,
   type DataTableColumn,
 } from "./shared";
-import { FOCUS_RING, MUTED, SECTION_TITLE } from "./shared/tokens";
+import { FOCUS_RING, MUTED, PAGE_BODY, SECTION_TITLE } from "./shared/tokens";
 
 // A facilitator's working view: one summary strip, then the learners who need
 // attention, then the per-strand numbers as a table. The serif is kept for the
@@ -94,6 +96,8 @@ function DashboardSummary({ data }: { data: DashboardResponse }) {
 
 /** An MPS average with how many learners it covers, e.g. "30" over "1 learner". */
 function MpsCell({ average }: { average: MpsAverage }) {
+  // Nobody has taken it: one quiet dash, as on Reports, not a dash over "0 learners".
+  if (average.count === 0) return <span className="text-[#4A4F5C]">{formatMps(null)}</span>;
   return (
     <div className="tabular-nums">
       <div className="font-bold text-[#1B1D26]">{formatMps(average.average_mps)}</div>
@@ -174,7 +178,7 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
           {learner.flags.map((flag) => (
             <div key={flag.id} className="flex items-center gap-2 flex-wrap">
               <span>{flagReasonText(flag)}</span>
-              {flag.status === "reviewed" && <Pill tone="neutral">Reviewed</Pill>}
+              {flag.status === "reviewed" && <StatusText tone={FLAG_STATUS_TONE.reviewed}>Reviewed</StatusText>}
             </div>
           ))}
         </div>
@@ -205,29 +209,42 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
   ];
 
   const flagged = atRisk.learners.length > 0;
+  const inactiveNote = !cohortIsActive && <p>Flags are only updated for active cohorts.</p>;
+
+  // One region either way, its title inside, as every learner-page section is.
+  if (!flagged) {
+    return (
+      <section aria-labelledby="at-risk-title" className="bg-white rounded-2xl border border-[#E2E0DA] px-6 py-5">
+        <h3 id="at-risk-title" className={SECTION_TITLE}>At-Risk Learners</h3>
+        <div className={`mt-1 space-y-1 ${MUTED}`}>
+          <p>No learners flagged</p>
+          {inactiveNote}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section aria-labelledby="at-risk-title">
-      <h3 id="at-risk-title" className={SECTION_TITLE}>At-Risk Learners</h3>
-      <div className="mt-1 space-y-1">
-        {flagged ? (
-          <p className="flex items-start gap-2 text-[0.9375rem] text-[#1B1D26]" role="status">
-            <AlertCircle className="w-4 h-4 mt-[3px] flex-shrink-0 text-[#835500]" aria-hidden="true" />
-            <span>
-              <strong className="font-bold">{atRiskNoticeTitle(atRisk.learner_count)}</strong>
-              <span className="text-[#4A4F5C]"> — {AT_RISK_RULE_TEXT}</span>
-            </span>
-          </p>
-        ) : (
-          <p className={MUTED}>No learners flagged</p>
-        )}
-        {!cohortIsActive && <p className={MUTED}>Flags are only updated for active cohorts.</p>}
-      </div>
-      {flagged && (
-        <div className="mt-4">
-          <DataTable columns={columns} rows={atRisk.learners} rowKey={(learner) => learner.learner_id} />
-        </div>
-      )}
+      <DataTable
+        title="At-Risk Learners"
+        titleId="at-risk-title"
+        titleNote={
+          <>
+            <p className="flex items-start gap-2 text-[#1B1D26]" role="status">
+              <AlertCircle className="w-4 h-4 mt-[3px] flex-shrink-0 text-[#835500]" aria-hidden="true" />
+              <span>
+                <strong className="font-bold">{atRiskNoticeTitle(atRisk.learner_count)}</strong>
+                <span className="text-[#4A4F5C]"> — {AT_RISK_RULE_TEXT}</span>
+              </span>
+            </p>
+            {inactiveNote}
+          </>
+        }
+        columns={columns}
+        rows={atRisk.learners}
+        rowKey={(learner) => learner.learner_id}
+      />
     </section>
   );
 }
@@ -276,8 +293,9 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
         />
 
         <section aria-labelledby="strand-progress-title">
-          <h3 id="strand-progress-title" className={`${SECTION_TITLE} mb-4`}>Progress by Learning Strand</h3>
           <DataTable
+            title="Progress by Learning Strand"
+            titleId="strand-progress-title"
             columns={STRAND_COLUMNS}
             rows={data.progress_by_strand}
             rowKey={(strand) => strand.strand_id}
@@ -299,20 +317,11 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
         />
       )}
 
-      <div className="p-6 space-y-8">
+      <div className={PAGE_BODY}>
         <PageHeader
           title="Cohort Overview"
-          subtitle={
-            headerCohort ? (
-              <span className="flex items-center gap-2 flex-wrap">
-                <span>
-                  {headerCohort.name}
-                  {data ? ` · ${learnerCountLabel(data.learner_count)}` : ""}
-                </span>
-                {headerCohort.status !== "active" && <Pill tone="muted">{cohortStatusLabel(headerCohort.status)}</Pill>}
-              </span>
-            ) : undefined
-          }
+          subtitle={headerCohort ? `${headerCohort.name}${data ? ` · ${learnerCountLabel(data.learner_count)}` : ""}` : undefined}
+          status={headerCohort && <CohortStatus status={headerCohort.status} />}
         />
         {body}
       </div>
