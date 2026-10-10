@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { MoreVertical } from "lucide-react";
+import { EASE_OUT, FOCUS_RING } from "./tokens";
 
 export interface ActionMenuItem {
   /** Unique within the menu; used as the React key. */
@@ -79,9 +80,9 @@ export function ActionMenu({ label, items, disabled = false }: ActionMenuProps) 
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className={`w-10 h-10 grid place-items-center hover:bg-[#F2F1ED] rounded-lg text-[#4A4F5C] transition-colors duration-150 ${EASE_OUT} ${FOCUS_RING} disabled:opacity-40 disabled:cursor-not-allowed`}
       >
-        <MoreVertical className="w-4 h-4" />
+        <MoreVertical className="w-5 h-5" aria-hidden="true" />
       </button>
 
       {open && (
@@ -90,7 +91,8 @@ export function ActionMenu({ label, items, disabled = false }: ActionMenuProps) 
           role="menu"
           aria-label={label}
           onKeyDown={onMenuKeyDown}
-          className="absolute right-0 top-full mt-1 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-20 py-1"
+          // A menu floats, so it gets DESIGN.md's soft shadow.
+          className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-[0_8px_24px_rgba(27,29,38,0.08)] border border-[#E2E0DA] z-20 py-1"
         >
           {items.map((item) => (
             <button
@@ -105,7 +107,7 @@ export function ActionMenu({ label, items, disabled = false }: ActionMenuProps) 
                 buttonRef.current?.focus();
                 item.onSelect();
               }}
-              className={`w-full text-left px-3 py-2 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${item.tone === "danger" ? "text-red-600 hover:bg-red-50" : "text-gray-700 hover:bg-gray-50"}`}
+              className={`w-full text-left min-h-11 px-4 py-2 text-[0.9375rem] font-medium transition-colors duration-150 ${FOCUS_RING} focus-visible:-outline-offset-2 disabled:opacity-40 disabled:cursor-not-allowed ${item.tone === "danger" ? "text-[#B42318] hover:bg-[#FDECEA]" : "text-[#1B1D26] hover:bg-[#F2F1ED]"}`}
             >
               {item.label}
             </button>

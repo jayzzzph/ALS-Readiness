@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { X } from "lucide-react";
 import { canReturnFocus, dialogOpener } from "../../../../lib/focusReturn";
+import { DISPLAY_FONT, EASE_OUT, FOCUS_RING } from "./tokens";
 
 interface ModalProps {
   title: string;
@@ -88,7 +89,7 @@ export function Modal({ title, subtitle, onClose, children, footer, busy = false
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={close}>
+    <div className="fixed inset-0 bg-[#1B1D26]/40 flex items-center justify-center z-50 p-4" onClick={close}>
       <div
         ref={panelRef}
         role="dialog"
@@ -97,25 +98,26 @@ export function Modal({ title, subtitle, onClose, children, footer, busy = false
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         onKeyDown={onKeyDown}
-        className={`bg-white rounded-2xl shadow-2xl w-full ${SIZE[size]} max-h-full flex flex-col focus:outline-none`}
+        // A dialog floats, so it is the one panel that gets DESIGN.md's soft shadow.
+        className={`bg-white rounded-2xl border border-[#E2E0DA] shadow-[0_8px_24px_rgba(27,29,38,0.08)] w-full ${SIZE[size]} max-h-full flex flex-col focus:outline-none`}
       >
-        <div className="flex items-center justify-between gap-3 p-5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-start justify-between gap-3 p-6 border-b border-[#E2E0DA] flex-shrink-0">
           <div className="min-w-0">
-            <h3 id={titleId} className="text-gray-800 font-bold">{title}</h3>
-            {subtitle && <p className="text-gray-500 text-xs mt-0.5">{subtitle}</p>}
+            <h3 id={titleId} className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>{title}</h3>
+            {subtitle && <p className="text-[#4A4F5C] text-[0.9375rem] mt-1">{subtitle}</p>}
           </div>
           <button
             type="button"
             onClick={close}
             disabled={busy}
             aria-label="Close"
-            className="p-1.5 hover:bg-gray-100 rounded-lg disabled:opacity-40 flex-shrink-0"
+            className={`w-10 h-10 grid place-items-center hover:bg-[#F2F1ED] rounded-lg disabled:opacity-40 flex-shrink-0 transition-colors duration-150 ${EASE_OUT} ${FOCUS_RING}`}
           >
-            <X className="w-4 h-4 text-gray-500" />
+            <X className="w-5 h-5 text-[#4A4F5C]" aria-hidden="true" />
           </button>
         </div>
-        <div className="p-5 overflow-y-auto">{children}</div>
-        {footer && <div className="flex gap-3 p-5 pt-0 flex-shrink-0">{footer}</div>}
+        <div className="p-6 overflow-y-auto text-base leading-[1.55] text-[#1B1D26]">{children}</div>
+        {footer && <div className="flex gap-3 p-6 pt-0 flex-shrink-0">{footer}</div>}
       </div>
     </div>
   );

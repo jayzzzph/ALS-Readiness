@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
+import { DISPLAY_FONT, EASE_OUT, FOCUS_RING, LABEL, OVERLINE } from "./tokens";
 
 interface PageHeaderProps {
   title: string;
@@ -13,24 +14,23 @@ interface PageHeaderProps {
   onBack?: () => void;
 }
 
-/** The navy banner at the top of every facilitator page. */
+/** The heading block at the top of every facilitator page: a Headline-size serif title on the paper ground. */
 export function PageHeader({ title, subtitle, eyebrow, action, backLabel, onBack }: PageHeaderProps) {
   return (
-    <div className="bg-gradient-to-r from-[#0B1F3A] to-[#1a3a5c] rounded-2xl p-5 text-white flex items-center justify-between gap-4">
+    <div className="flex items-start justify-between gap-4 flex-wrap">
       <div className="min-w-0">
         {backLabel && onBack && (
-          <button type="button" onClick={onBack} className="flex items-center gap-1.5 mb-2 text-blue-200 hover:text-white text-xs transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" /> {backLabel}
+          <button
+            type="button"
+            onClick={onBack}
+            className={`flex items-center gap-2 mb-3 min-h-9 -ml-2 px-2 rounded-lg text-[#00538A] hover:text-[#004270] hover:bg-[#CFE4FF] ${LABEL} transition-colors duration-150 ${EASE_OUT} ${FOCUS_RING}`}
+          >
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" /> {backLabel}
           </button>
         )}
-        {eyebrow && (
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs bg-white/15 px-2 py-0.5 rounded font-mono">M05</span>
-            <span className="text-blue-300 text-xs">{eyebrow}</span>
-          </div>
-        )}
-        <h2 className="mb-1" style={{ fontSize: "1.25rem", fontWeight: 700 }}>{title}</h2>
-        {subtitle && <p className="text-blue-200/70 text-sm">{subtitle}</p>}
+        {eyebrow && <div className={`${OVERLINE} text-[#4A4F5C] mb-2`}>{eyebrow}</div>}
+        <h2 className="text-[2rem] leading-[1.2] text-[#1B1D26]" style={DISPLAY_FONT}>{title}</h2>
+        {subtitle && <p className="text-base leading-[1.55] text-[#4A4F5C] mt-2 max-w-[70ch]">{subtitle}</p>}
       </div>
       {action && <div className="flex items-center gap-3 flex-shrink-0">{action}</div>}
     </div>
@@ -44,7 +44,7 @@ interface HeaderButtonProps {
   title?: string;
 }
 
-/** The orange button the existing pages put in the header's action slot. */
+/** The primary button the pages put in the header's action slot: deep blue, white label. */
 export function HeaderButton({ children, onClick, disabled, title }: HeaderButtonProps) {
   return (
     <button
@@ -52,7 +52,7 @@ export function HeaderButton({ children, onClick, disabled, title }: HeaderButto
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-400 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:hover:bg-orange-500"
+      className={`flex items-center gap-2 min-h-11 px-5 py-2.5 bg-[#00538A] hover:bg-[#004270] text-white rounded-xl ${LABEL} transition-colors duration-150 ${EASE_OUT} ${FOCUS_RING} disabled:opacity-40 disabled:hover:bg-[#00538A] disabled:cursor-not-allowed`}
     >
       {children}
     </button>

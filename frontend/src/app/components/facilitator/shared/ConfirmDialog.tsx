@@ -46,7 +46,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <div className="text-gray-600 text-sm space-y-3">{children}</div>
+      <div className="text-[#1B1D26] text-base space-y-3">{children}</div>
     </Modal>
   );
 }
