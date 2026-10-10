@@ -349,11 +349,11 @@ function LessonItem({ module, lesson, controls, busy, actions }: LessonItemProps
       </div>
       <AccordionContent>
         {count === 0 ? (
-          <p className="pl-1 text-[#4A4F5C] text-[0.9375rem]">
+          <p className="pl-7 text-[#4A4F5C] text-[0.9375rem]">
             {controls.hasCohort ? "No content is assigned to this cohort for this lesson." : "No content to show for this lesson."}
           </p>
         ) : (
-          <ul className={`space-y-2 pl-1 ${offers.muted ? "opacity-60" : ""}`}>
+          <ul className={`space-y-2 pl-7 ${offers.muted ? "opacity-60" : ""}`}>
             {lesson.contents.map((content) => (
               <ContentRow
                 key={content.content_id}

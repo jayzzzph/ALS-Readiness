@@ -52,7 +52,7 @@ export function PageHeader({ title, subtitle, status, note, action, backLabel, o
             {status}
           </div>
         )}
-        {note && <p className="mt-1 text-[0.9375rem] leading-[1.55] text-[#4A4F5C] max-w-[70ch]">{note}</p>}
+        {note && <p className="mt-1 text-[0.9375rem] leading-[1.55] text-[#4A4F5C]">{note}</p>}
       </div>
       {action && <div className="flex items-center gap-3 flex-shrink-0">{action}</div>}
     </header>

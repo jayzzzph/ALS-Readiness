@@ -19,7 +19,6 @@ import {
   gainText,
   generatedText,
   masteredText,
-  masteryCountText,
   reportFailureText,
   reportSubtitle,
   strandGroups,
@@ -109,19 +108,12 @@ const STRAND_COLUMNS: DataTableColumn<ReportStrandTotals>[] = [
     align: "right",
     render: (strand) => <AverageWithCount main={gainText(strand.gain.average)} count={strand.gain.count} />,
   },
+  // The same column, wording and number format as the Dashboard's strand table: "At mastery", a bare count.
   {
     key: "mastered",
-    header: "Mastered",
+    header: "At mastery",
     align: "right",
-    // "2 learners": the count leads, the noun is quiet.
-    render: (strand) => {
-      const [count, ...noun] = masteryCountText(strand.mastery_count).split(" ");
-      return (
-        <span className="whitespace-nowrap">
-          <Figure text={count} /> <span className={MUTED}>{noun.join(" ")}</span>
-        </span>
-      );
-    },
+    render: (strand) => <span className="font-bold tabular-nums text-[#1B1D26]">{strand.mastery_count}</span>,
   },
 ];
 
@@ -130,8 +122,8 @@ const quietCell = (text: string) => (text === DASH ? <span className="text-[#4A4
 
 /**
  * One strand for one learner: the progress, then "MPS 30 → 45" and "Gain +15 ·
- * Mastered: Yes" under it when there is something to say. With no entry for
- * the strand it is one quiet dash.
+ * At mastery: Yes" under it when there is something to say ("At mastery" as in
+ * the strand tables). With no entry for the strand it is one quiet dash.
  */
 function StrandCell({ strand }: { strand: ReturnType<typeof strandOfLearner> }) {
   const progress = formatPercent(strand?.progress_percent);
@@ -140,7 +132,7 @@ function StrandCell({ strand }: { strand: ReturnType<typeof strandOfLearner> }) 
   if (progress === DASH && pre === DASH && post === DASH) return quietCell(DASH);
   const gain = gainText(strand?.gain);
   const mastered = masteredText(strand?.mastered);
-  const outcome = [gain !== DASH ? `Gain ${gain}` : null, mastered !== DASH ? `Mastered: ${mastered}` : null].filter(Boolean).join(" · ");
+  const outcome = [gain !== DASH ? `Gain ${gain}` : null, mastered !== DASH ? `At mastery: ${mastered}` : null].filter(Boolean).join(" · ");
   return (
     <div className="tabular-nums">
       <div className={progress === DASH ? "text-[#4A4F5C]" : "font-bold text-[#1B1D26]"}>{progress}</div>
@@ -248,7 +240,7 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
     // The filter applies to the whole report: it heads the content it filters, in the same bar as every
     // page, and stays put while a new filter loads or fails.
     const filterBar = (
-      <FilterBar label="Filter the report">
+      <FilterBar label="Filter the report" compact>
         <ChipGroup label="Membership" options={MEMBERSHIP_OPTIONS} value={membership} onChange={setMembership} />
       </FilterBar>
     );
