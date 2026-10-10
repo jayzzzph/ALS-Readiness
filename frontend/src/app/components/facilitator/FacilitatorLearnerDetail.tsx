@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { Activity, ClipboardList, Clock, UserX } from "lucide-react";
+import { UserX } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
 import { getErrorMessage, getErrorStatus } from "../../../lib/api/errors";
@@ -35,16 +35,19 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  Notice,
+  NOT_YET_PROFILED,
   PageHeader,
   Pill,
   ProgressBar,
   ReadinessPill,
-  StatTile,
+  SUMMARY_NUMBER,
+  SummaryCell,
+  SummaryEmpty,
+  SummaryStrip,
   type DataTableColumn,
   type PillTone,
 } from "./shared";
-import { DISPLAY_FONT } from "./shared/tokens";
+import { MUTED, SECTION_TITLE } from "./shared/tokens";
 
 const LEARNERS_PAGE = "facilitator-learners";
 
@@ -55,13 +58,14 @@ const FLAG_STATUS_TONE: Record<AtRiskFlagStatus, PillTone> = {
   resolved: "success",
 };
 
+/** An MPS with its raw score and date under it, right-aligned as a number; "Not taken" quietly. */
 function TestResultCell({ result }: { result: StrandTestResult | null }) {
   const cell = testCell(result);
-  if (result === null) return <span className="text-[#4A4F5C]">{cell.main}</span>;
+  if (result === null) return <span className={MUTED}>{cell.main}</span>;
   return (
-    <div>
-      <div className="text-[#1B1D26] font-medium">{cell.main}</div>
-      <div className="text-[#4A4F5C] text-[0.9375rem]">{cell.score}{cell.date ? ` · ${cell.date}` : ""}</div>
+    <div className="tabular-nums">
+      <div className="text-[#1B1D26] font-bold">{cell.main}</div>
+      <div className={`${MUTED} whitespace-nowrap`}>{cell.score}{cell.date ? ` · ${cell.date}` : ""}</div>
     </div>
   );
 }
@@ -71,28 +75,55 @@ const STRAND_COLUMNS: DataTableColumn<LearnerStrandDetail>[] = [
     key: "strand",
     header: "Strand",
     render: (strand) => (
-      <div>
-        <div className="text-[#1B1D26] font-medium">{strand.strand_code}</div>
-        <div className="text-[#4A4F5C] text-[0.9375rem]">{strand.strand_name}</div>
+      <div className="min-w-0">
+        <div className="text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#4D35BD]">{strand.strand_code}</div>
+        <div className="text-[#1B1D26] font-medium">{strand.strand_name}</div>
       </div>
     ),
   },
-  { key: "pretest", header: "Pretest MPS", render: (strand) => <TestResultCell result={strand.pretest} /> },
-  { key: "posttest", header: "Posttest MPS", render: (strand) => <TestResultCell result={strand.posttest} /> },
+  { key: "pretest", header: "Pretest MPS", align: "right", className: "w-[19%]", render: (strand) => <TestResultCell result={strand.pretest} /> },
+  { key: "posttest", header: "Posttest MPS", align: "right", className: "w-[19%]", render: (strand) => <TestResultCell result={strand.posttest} /> },
   {
     key: "progress",
     header: "Progress",
+    className: "w-[24%]",
     render: (strand) => {
       const cell = progressCell(strand.progress);
+      if (cell.barValue === null) return <span className={MUTED}>{cell.text}</span>;
+      // The percentage gets a fixed slot so every track is the same length and the bars compare.
       return (
         <div>
-          <ProgressBar value={cell.barValue} widthClass="w-24" label={`${strand.strand_code} progress`} />
-          {cell.detail && <div className="text-[#4A4F5C] text-[0.9375rem] mt-0.5">{cell.detail}</div>}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <ProgressBar value={cell.barValue} showValue={false} label={`${strand.strand_code} progress`} />
+            </div>
+            <span className="w-12 text-right font-bold tabular-nums text-[#1B1D26]">{cell.text}</span>
+          </div>
+          {cell.detail && <div className={`${MUTED} mt-0.5`}>{cell.detail}</div>}
         </div>
       );
     },
   },
 ];
+
+/**
+ * The readiness figure. The API types it as null until EEG profiling exists,
+ * and that is the only state built here: a quiet line, not a badge.
+ */
+function ReadinessValue({ readiness }: { readiness: FacilitatorLearnerDetailResponse["readiness"] }) {
+  if (readiness === null) return <SummaryEmpty>{NOT_YET_PROFILED}</SummaryEmpty>;
+  return <ReadinessPill readiness={readiness} />;
+}
+
+/** A section heading with its quiet supporting lines under it. */
+function SectionHead({ id, title, children }: { id: string; title: string; children?: ReactNode }) {
+  return (
+    <div className="mb-4">
+      <h3 id={id} className={SECTION_TITLE}>{title}</h3>
+      {children && <div className="mt-1 space-y-1">{children}</div>}
+    </div>
+  );
+}
 
 function MembershipPills({ membership }: { membership: Pick<LearnerMembership, "status" | "membership_status"> }) {
   return (
@@ -140,28 +171,24 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
     },
   ];
 
+  const hasFlags = data.at_risk_flags.length > 0;
+
   return (
     <>
-      <div className="grid grid-cols-3 gap-4">
-        <StatTile
-          label="Readiness"
-          icon={Activity}
-          tone="teal"
-          value={<ReadinessPill readiness={data.readiness} />}
-          hint="Readiness appears once EEG profiling is available."
-        />
-        <StatTile
-          label="Last active"
-          icon={Clock}
-          tone="blue"
-          value={formatLastActive(data.last_active_at)}
-          hint={formatDateTime(data.last_active_at) ?? undefined}
-        />
-        <StatTile label="LRI score" icon={ClipboardList} tone="purple" value={lri.value} hint={lri.hint ?? undefined} />
-      </div>
+      <SummaryStrip>
+        <SummaryCell label="Last active" hint={formatDateTime(data.last_active_at) ?? undefined}>
+          <span className={SUMMARY_NUMBER}>{formatLastActive(data.last_active_at)}</span>
+        </SummaryCell>
+        <SummaryCell label="LRI score" hint={lri.hint ?? undefined}>
+          <span className={SUMMARY_NUMBER}>{lri.value}</span>
+        </SummaryCell>
+        <SummaryCell label="Readiness" hint="Readiness appears once EEG profiling is available.">
+          <ReadinessValue readiness={data.readiness} />
+        </SummaryCell>
+      </SummaryStrip>
 
-      <section className="space-y-4">
-        <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>Performance by strand</h3>
+      <section aria-labelledby="strands-title">
+        <SectionHead id="strands-title" title="Performance by strand" />
         <DataTable
           columns={STRAND_COLUMNS}
           rows={data.strands}
@@ -170,40 +197,39 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
         />
       </section>
 
-      <Card title="Intake summary">
-        {data.intake === null ? (
-          <p className="text-[#4A4F5C] text-[0.9375rem]">No intake form submitted yet</p>
-        ) : (
-          <dl className="grid grid-cols-3 gap-x-6 gap-y-4">
+      <section aria-labelledby="flags-title">
+        <SectionHead id="flags-title" title="At-risk history">
+          {!hasFlags && <p className={MUTED}>No flags for this learner</p>}
+          {data.cohort.status !== "active" && <p className={MUTED}>{FLAGS_NOT_UPDATED_TEXT}</p>}
+        </SectionHead>
+        {hasFlags && <DataTable columns={flagColumns} rows={data.at_risk_flags} rowKey={(flag) => flag.id} />}
+      </section>
+
+      <section aria-labelledby="intake-title">
+        <SectionHead id="intake-title" title="Intake summary">
+          {data.intake === null && <p className={MUTED}>No intake form submitted yet</p>}
+        </SectionHead>
+        {data.intake !== null && (
+          <dl className="grid grid-cols-3 gap-x-6 gap-y-5 bg-white rounded-2xl border border-[#E2E0DA] p-6">
             {intakeRows(data.intake).map((row) => (
-              <div key={row.label}>
-                <dt className="text-[#4A4F5C] text-[0.9375rem]">{row.label}</dt>
-                <dd className="text-[#1B1D26] text-[0.9375rem] font-medium mt-0.5">{row.value}</dd>
+              <div key={row.label} className="min-w-0">
+                <dt className={MUTED}>{row.label}</dt>
+                <dd className="text-[#1B1D26] text-base font-bold mt-1">{row.value}</dd>
               </div>
             ))}
           </dl>
         )}
-      </Card>
-
-      <section className="space-y-4">
-        <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>At-risk history</h3>
-        {data.cohort.status !== "active" && <Notice>{FLAGS_NOT_UPDATED_TEXT}</Notice>}
-        <DataTable
-          columns={flagColumns}
-          rows={data.at_risk_flags}
-          rowKey={(flag) => flag.id}
-          emptyMessage="No flags for this learner"
-        />
       </section>
 
       {data.memberships.length > 0 && (
-        <Card title="Other cohorts">
-          <ul className="divide-y divide-[#E2E0DA]">
+        <section aria-labelledby="other-cohorts-title">
+          <SectionHead id="other-cohorts-title" title="Other cohorts" />
+          <ul className="bg-white rounded-2xl border border-[#E2E0DA] divide-y divide-[#E2E0DA]">
             {data.memberships.map((membership) => (
-              <li key={membership.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+              <li key={membership.id} className="flex items-center justify-between gap-3 px-6 py-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[#1B1D26] text-[0.9375rem] font-medium">{membership.name}</span>
-                  <span className="text-[#4A4F5C] text-[0.9375rem]">SY {membership.school_year}</span>
+                  <span className="text-[#1B1D26] font-bold">{membership.name}</span>
+                  {!membership.name.includes(membership.school_year) && <span className={MUTED}>SY {membership.school_year}</span>}
                   <Pill tone={membership.membership_status === "active" ? "success" : "muted"}>
                     {memberStatusLabel(membership.membership_status)}
                   </Pill>
@@ -212,7 +238,7 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
               </li>
             ))}
           </ul>
-        </Card>
+        </section>
       )}
     </>
   );
@@ -291,16 +317,19 @@ export function FacilitatorLearnerDetail({ navigate, user, onLogout }: PageProps
         />
       )}
 
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-8">
         <PageHeader
           backLabel="Back to Learners"
           onBack={() => navigate(LEARNERS_PAGE)}
-          eyebrow="Learner Detail"
           title={data ? personName(data.learner, "Unnamed learner") : "Learner"}
           subtitle={
             data ? (
               <span className="flex items-center gap-2 flex-wrap">
-                <span>{orDash(data.learner.id_no)} · {data.cohort.name} · SY {data.cohort.school_year}</span>
+                <span className="tabular-nums">
+                  {orDash(data.learner.id_no)} · {data.cohort.name}
+                  {/* Cohort names often carry the school year already; say it once. */}
+                  {!data.cohort.name.includes(data.cohort.school_year) && ` · SY ${data.cohort.school_year}`}
+                </span>
                 <MembershipPills membership={data.cohort} />
               </span>
             ) : undefined
