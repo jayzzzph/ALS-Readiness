@@ -11,7 +11,7 @@ import {
 } from "../../../lib/api/diagnostic";
 import { getErrorMessage } from "../../../lib/api/errors";
 import type { LriTestListItem, StrandTestListItem } from "../../../lib/api/types";
-import { discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
+import { INTAKE_SAVED_FLAG, discardAttemptDraft, hasAttemptDraft, readOpenAttempt, rememberOpenAttempt } from "./attemptDraft";
 import { LriAttempt, StrandAttempt, type NextStep } from "./PretestAttempts";
 import { StrandTestCard, primaryButton, secondaryButton } from "./StrandTestCard";
 import { BASELINE_SECONDS, describeDuration } from "../../features/eeg/constants";
@@ -52,7 +52,7 @@ const cardTitle = "text-2xl leading-[1.25] text-[#1B1D26]";
 function PretestLoadingIndicator() {
   return (
     <div role="status" className="py-12 flex items-center justify-center gap-3 text-lg text-[#4A4F5C]" style={reading}>
-      <LoaderCircle className="w-6 h-6 text-[#00538A] motion-safe:animate-spin" aria-hidden="true" /> Loading your pre-test...
+      <LoaderCircle className="w-6 h-6 text-[#00538A] motion-safe:animate-spin" aria-hidden="true" /> Loading Readiness Profiling...
     </div>
   );
 }
@@ -71,6 +71,14 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
   const [eegError, setEegError] = useState(false);
   // Only the first hub load after mounting may reopen an attempt (i.e. after a reload).
   const reopenPending = useRef(true);
+  // Set by Part I when it saves and sends the learner here; read once, then cleared.
+  const [intakeSaved] = useState(() => {
+    try {
+      const flagged = window.sessionStorage.getItem(INTAKE_SAVED_FLAG) === "1";
+      window.sessionStorage.removeItem(INTAKE_SAVED_FLAG);
+      return flagged;
+    } catch { return false; }
+  });
 
   // Gate for Parts II/III is the learner's real intake record, not a browser-local flag.
   const loadHub = async () => {
@@ -102,7 +110,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
         else rememberOpenAttempt("pretest", null);
       }
     } catch (err) {
-      setError(getErrorMessage(err, "The pre-test could not be loaded. Please try again."));
+      setError(getErrorMessage(err, "Readiness Profiling could not be loaded. Please try again."));
     } finally { setLoading(false); }
   };
   const loadEegStatus = async () => {
@@ -136,8 +144,10 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
     };
   };
 
-  if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(view.test.test_id)} />;
-  if (view.name === "lri-attempt") return <LriAttempt test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(null)} />;
+  // Keyed by test so each exam gets a fresh instance: without it React reuses one StrandAttempt when "Next" swaps the
+  // test, carrying the previous exam's submitted screen (and draft state) into the new one.
+  if (view.name === "strand-attempt") return <StrandAttempt key={view.test.test_id} test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(view.test.test_id)} />;
+  if (view.name === "lri-attempt") return <LriAttempt key={view.test.test_id} test={view.test} learnerId={learnerId} onClose={backToHub} next={nextStrandStep(null)} />;
   if (view.name === "baseline-eeg") return <BaselineEegRecording learnerId={user?.raw?.id != null ? String(user.raw.id) : null} onClose={backToHub} />;
   if (view.name === "stimulus-exposure") return <StimulusExposure learnerId={user?.raw?.id != null ? String(user.raw.id) : null} onClose={backToHub} />;
 
@@ -179,7 +189,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
           />
         </li>
       ))}
-      {!strands.length && <li className="py-4 text-lg text-[#4A4F5C]" style={reading}>No pre-test strands are currently available.</li>}
+      {!strands.length && <li className="py-4 text-lg text-[#4A4F5C]" style={reading}>No diagnostic exams are currently available.</li>}
     </ul>
   );
 
@@ -189,6 +199,13 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
       <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
         Do these five parts in order. Each one opens when the one before it is done.
       </p>
+
+      {intakeSaved && (
+        <div role="status" className="mt-6 flex items-center gap-3 rounded-xl border border-[#00538A] bg-[#CFE4FF] px-5 py-4 text-[#1B1D26]">
+          <Check className="w-5 h-5 shrink-0 text-[#00538A]" strokeWidth={2.5} aria-hidden="true" />
+          <p className="text-lg leading-snug" style={reading}>Part I saved. You can continue with Part II.</p>
+        </div>
+      )}
 
       <div className="mt-8">
         {loading ? <PretestLoadingIndicator /> : error ? (
@@ -220,7 +237,7 @@ export function DiagnosticTest({ navigate, user, onLogout }) {
               </TimelineItem>
 
               <TimelineItem index={3} status={statusOf(2)}>
-                <PartBody number="Part III" title="Diagnostic / Equivalency Exams" description="One baseline exam for each enrolled learning strand. Completed pre-tests cannot be retaken." status={statusOf(2)} note={intakeComplete ? "Finish Part II first" : "Finish Part I first"}>
+                <PartBody number="Part III" title="Diagnostic / Equivalency Exams" description="One baseline exam for each enrolled learning strand. Completed exams cannot be retaken." status={statusOf(2)} note={intakeComplete ? "Finish Part II first" : "Finish Part I first"}>
                   {strandRows}
                 </PartBody>
               </TimelineItem>

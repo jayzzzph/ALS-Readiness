@@ -99,7 +99,7 @@ export function PostTest({ navigate, user, onLogout }) {
     };
   };
 
-  if (view.name === "strand-attempt") return <StrandAttempt test={view.test} learnerId={learnerId} onClose={backToHub} stage="Post-test" backLabel="Back to post-test" next={nextPostTestStep(view.test.test_id)} />;
+  if (view.name === "strand-attempt") return <StrandAttempt key={view.test.test_id} test={view.test} learnerId={learnerId} onClose={backToHub} stage="Post-test" backLabel="Back to post-test" next={nextPostTestStep(view.test.test_id)} />;
 
   // Strands are identified by strand_code, never by name; unknown codes are skipped.
   const byCode = indexByStrandCode(postTests);

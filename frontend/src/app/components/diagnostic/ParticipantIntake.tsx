@@ -11,6 +11,7 @@ import {
   toIntakeUpsert,
 } from "./intakeForm";
 import { primaryButton } from "./StrandTestCard";
+import { INTAKE_SAVED_FLAG } from "./attemptDraft";
 
 // Type roles from DESIGN.md: serif headings, DM Sans chrome, Atkinson Hyperlegible (18px) for what learners read and fill in.
 const display = { fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400 } as const;
@@ -67,7 +68,10 @@ export function ParticipantIntake({ navigate, user, onLogout }) {
       const saved = await submitParticipantIntake(toIntakeUpsert(form));
       setForm(intakeFormFromIntake(saved));
       setExistingIntake(true);
-      setMessage("Participant intake saved. You may now start Part II and Part III.");
+      // The hub shows a one-time "Part I saved" note on arrival (navigate() carries no state).
+      try { window.sessionStorage.setItem(INTAKE_SAVED_FLAG, "1"); } catch { /* the hub just shows no note */ }
+      navigate("diagnostic-test");
+      return;
     } catch (err) {
       setError(readable(getErrorMessage(err, "Your intake could not be saved. Please try again.")));
     } finally { setSaving(false); }
@@ -77,12 +81,12 @@ export function ParticipantIntake({ navigate, user, onLogout }) {
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="participant-intake">
       <div className="w-full max-w-[90rem] px-6 lg:px-8 py-10">
         <button onClick={() => navigate("diagnostic-test")} className={`inline-flex items-center gap-2 min-h-11 -ml-1 px-1 rounded-lg text-[0.9375rem] font-bold tracking-[0.01em] text-[#00538A] hover:text-[#004270] hover:underline underline-offset-4 ${focusRing}`}>
-          <ArrowLeft className="w-5 h-5" aria-hidden="true" /> Back to pre-test
+          <ArrowLeft className="w-5 h-5" aria-hidden="true" /> Back to Readiness Profiling
         </button>
 
         <h2 className="mt-4 text-[3rem] leading-[1.1] text-[#1B1D26]" style={display}>Participant intake</h2>
         <p className="mt-3 max-w-[40rem] text-lg leading-relaxed text-[#4A4F5C]" style={reading}>
-          Part I of the pre-test. Answer these questions once before the Learner Readiness Inventory and diagnostic exams. All fields are required, and you can come back and update your answers at any time.
+          Part I of Readiness Profiling. Answer these questions once before the Learner Readiness Inventory and diagnostic exams. All fields are required, and you can come back and update your answers at any time.
         </p>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">

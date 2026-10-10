@@ -101,7 +101,7 @@ function Countdown({ secondsLeft, expired }: { secondsLeft: number; expired: boo
 }
 
 /**
- * Focused test mode frame. `title` names the stage in the header ("Pre-test");
+ * Focused test mode frame. `title` names the stage in the header ("Readiness Profiling");
  * the exit button closes the attempt - answers are already saved as a draft on
  * every change, so leaving keeps them. `exitHint` says what leaving does, as
  * visible text (a tooltip would never open on touch): inline just before the
@@ -312,12 +312,13 @@ function stemStyle(text: string): { className: string; style: typeof display | t
 }
 
 /** What a strand test is called in this stage, for the success screen: "English post-test", "English diagnostic exam". */
-const strandName = (test: StrandTestListItem, stage: string) => `${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name} ${stage === "Pre-test" ? "diagnostic exam" : stage.toLowerCase()}`;
+const PROFILING = "Readiness Profiling";
+const strandName = (test: StrandTestListItem, stage: string) => `${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name} ${stage === PROFILING ? "diagnostic exam" : stage.toLowerCase()}`;
 const strandTitle = (test: StrandTestListItem) => `${STRAND_SHORT_LABEL[test.strand_code] ?? test.strand_name} diagnostic exam`;
 
 // ── Strand: take the test ────────────────────────────────────────────────────
 
-export function StrandAttempt({ test, learnerId, onClose, stage = "Pre-test", backLabel = `Back to ${stage.toLowerCase()}`, next }: { test: StrandTestListItem; learnerId: string | number; onClose: () => void; stage?: string; backLabel?: string; next?: NextStep | null }) {
+export function StrandAttempt({ test, learnerId, onClose, stage = PROFILING, backLabel = stage === PROFILING ? `Back to ${PROFILING}` : `Back to ${stage.toLowerCase()}`, next }: { test: StrandTestListItem; learnerId: string | number; onClose: () => void; stage?: string; backLabel?: string; next?: NextStep | null }) {
   const [detail, retry] = useLoad(() => getStrandTestWithItems(test.test_id), "This test could not be opened.");
   // A saved draft means this is a resumed attempt: skip the overview, restore answers and position.
   const { draft, start, setAnswer, setCurrent, clear } = useAttemptDraft<number>("strand", learnerId, test.test_id);
@@ -507,13 +508,13 @@ export function LriAttempt({ test, learnerId, onClose, next }: { test: LriTestLi
 
   if (finished) {
     return (
-      <AttemptShell title="Pre-test" onClose={onClose} exitLabel="Exit">
+      <AttemptShell title={PROFILING} onClose={onClose} exitLabel="Exit">
         <AttemptSuccess
           title="Learner Readiness Inventory submitted"
           message={finished.alreadySubmitted ? ALREADY_SUBMITTED_MESSAGE : SUBMIT_SUCCESS_MESSAGE}
           detail={!finished.alreadySubmitted && finished.counts ? answeredLine(finished.counts.answered, finished.counts.total) : undefined}
           next={next}
-          closeLabel="Back to pre-test"
+          closeLabel={`Back to ${PROFILING}`}
           onClose={onClose}
         />
       </AttemptShell>
@@ -522,7 +523,7 @@ export function LriAttempt({ test, learnerId, onClose, next }: { test: LriTestLi
 
   if (phase === "overview") {
     return (
-      <AttemptShell title="Pre-test" onClose={onClose} exitLabel="Exit">
+      <AttemptShell title={PROFILING} onClose={onClose} exitLabel="Exit">
       <TestOverviewModal
         title={test.title}
         description={test.description}
@@ -551,7 +552,7 @@ export function LriAttempt({ test, learnerId, onClose, next }: { test: LriTestLi
 
   return (
     <AttemptShell
-      title="Pre-test"
+      title={PROFILING}
       wide
       onClose={onClose}
       exitHint={LRI_TEST_TIME_LIMIT_SECONDS === null ? "Your answers are saved." : "Your answers are saved. The timer keeps running."}
