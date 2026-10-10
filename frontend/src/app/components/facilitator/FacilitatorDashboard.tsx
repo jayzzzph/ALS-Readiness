@@ -45,6 +45,7 @@ import {
   StatTile,
   type DataTableColumn,
 } from "./shared";
+import { DISPLAY_FONT } from "./shared/tokens";
 
 /**
  * Readiness distribution tile body. The API returns null until readiness
@@ -61,13 +62,13 @@ function StrandCard({ strand, learnerCount }: { strand: DashboardStrand; learner
   return (
     <Card
       title={strandCardTitle(strand)}
-      action={<span className="text-gray-400 text-xs flex-shrink-0">{learnerCountLabel(learnerCount)}</span>}
+      action={<span className="text-[#4A4F5C] text-[0.9375rem] flex-shrink-0">{learnerCountLabel(learnerCount)}</span>}
     >
       {progress.barValue !== null && (
         <ProgressBar value={progress.barValue} size="md" showValue={false} label={`${strand.strand_name} average completion`} />
       )}
-      <div className="text-gray-500 text-sm mt-2">{progress.caption}</div>
-      <div className="text-gray-400 text-xs mt-3 pt-3 border-t border-gray-100">
+      <div className="text-[#4A4F5C] text-[0.9375rem] mt-2">{progress.caption}</div>
+      <div className="text-[#4A4F5C] text-[0.9375rem] mt-3 pt-3 border-t border-[#E2E0DA]">
         Pretest average MPS {mpsAverageText(strand.pretest)} · Posttest average MPS {mpsAverageText(strand.posttest)} · {masteryText(strand.posttest.mastery_count)}
       </div>
     </Card>
@@ -91,11 +92,11 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
           <button
             type="button"
             onClick={() => onOpenLearner(learner.learner_id)}
-            className="text-gray-800 text-sm font-medium hover:text-orange-600 hover:underline text-left"
+            className="text-[#1B1D26] text-[0.9375rem] font-medium hover:text-[#004270] hover:underline text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A] rounded-md"
           >
             {personName(learner, "Unnamed learner")}
           </button>
-          <div className="text-gray-400 text-xs font-mono">{orDash(learner.id_no)}</div>
+          <div className="text-[#4A4F5C] text-[0.9375rem] tabular-nums">{orDash(learner.id_no)}</div>
         </div>
       ),
     },
@@ -127,7 +128,7 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
     {
       key: "last-active",
       header: "Last Active",
-      className: "text-gray-500 text-xs",
+      className: "text-[#4A4F5C] text-[0.9375rem]",
       render: (learner) => formatLastActive(learner.last_active_at),
     },
     {
@@ -138,8 +139,8 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
   ];
 
   return (
-    <section className="space-y-3">
-      <h3 className="text-gray-800 font-semibold text-sm">At-Risk Learners</h3>
+    <section className="space-y-4">
+      <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>At-Risk Learners</h3>
 
       {!cohortIsActive && <Notice>Flags are only updated for active cohorts.</Notice>}
 
@@ -196,7 +197,7 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
 
     body = (
       <>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-4">
           <StatTile
             label="Readiness distribution"
             icon={Activity}
@@ -208,12 +209,12 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
           <StatTile label="Content evaluation coverage" icon={CheckCircle} tone="green" value={contentTile.value} hint={contentTile.hint} />
         </div>
 
-        <section className="space-y-3">
-          <h3 className="text-gray-800 font-semibold text-sm">Progress by Learning Strand</h3>
+        <section className="space-y-4">
+          <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>Progress by Learning Strand</h3>
           {data.progress_by_strand.length === 0 ? (
             <Card padding="none"><EmptyState title="No active learning strands" /></Card>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               {data.progress_by_strand.map((strand) => (
                 <StrandCard key={strand.strand_id} strand={strand} learnerCount={data.learner_count} />
               ))}
@@ -242,7 +243,7 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
         />
       )}
 
-      <div className="p-5 space-y-5">
+      <div className="p-6 space-y-6">
         <PageHeader
           eyebrow="Facilitator Dashboard"
           title="Cohort Overview"

@@ -33,6 +33,7 @@ import {
   type DataTableColumn,
   type PillTone,
 } from "./shared";
+import { DISPLAY_FONT } from "./shared/tokens";
 
 /** The query parameter that keeps the selected cohort across a reload. */
 const COHORT_PARAM = "cohort";
@@ -48,14 +49,14 @@ const STATUS_TONE: Record<FacilitatorCohortItem["status"], PillTone> = {
 };
 
 const ROSTER_COLUMNS: DataTableColumn<FacilitatorRosterRow>[] = [
-  { key: "learner", header: "Learner", render: (row) => <span className="text-gray-800 font-medium">{personName(row, "Unnamed learner")}</span> },
-  { key: "id-no", header: "ID number", className: "text-gray-500 text-xs font-mono", render: (row) => orDash(row.id_no) },
+  { key: "learner", header: "Learner", render: (row) => <span className="text-[#1B1D26] font-medium">{personName(row, "Unnamed learner")}</span> },
+  { key: "id-no", header: "ID number", className: "text-[#4A4F5C] text-[0.9375rem] tabular-nums", render: (row) => orDash(row.id_no) },
   {
     key: "status",
     header: "Membership",
     render: (row) => <Pill tone={row.status === "active" ? "success" : "muted"}>{memberStatusLabel(row.status)}</Pill>,
   },
-  { key: "assigned", header: "Date assigned", className: "text-gray-500 text-xs", render: (row) => formatDate(row.assigned_at) ?? DASH },
+  { key: "assigned", header: "Date assigned", className: "text-[#4A4F5C] text-[0.9375rem]", render: (row) => formatDate(row.assigned_at) ?? DASH },
 ];
 
 interface CohortCardProps {
@@ -71,18 +72,18 @@ function CohortCard({ cohort, selected, onSelect }: CohortCardProps) {
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`w-full text-left bg-white rounded-2xl border p-4 transition-all duration-200 hover:shadow-md ${selected ? "border-orange-400 ring-1 ring-orange-200" : "border-gray-100"}`}
+      className={`w-full text-left bg-white rounded-2xl border-2 p-5 transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A] ${selected ? "border-[#00538A] bg-[#CFE4FF]" : "border-[#E2E0DA] hover:border-[#00538A]"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-gray-800 text-sm font-semibold truncate">{cohort.name}</div>
-          {cohort.code && <div className="text-gray-400 text-xs font-mono truncate">{cohort.code}</div>}
+          <div className="text-[#1B1D26] text-base font-bold truncate">{cohort.name}</div>
+          {cohort.code && <div className="text-[#4A4F5C] text-[0.9375rem] tabular-nums truncate">{cohort.code}</div>}
         </div>
         <Pill tone={STATUS_TONE[cohort.status] ?? "muted"}>{cohortStatusLabel(cohort.status)}</Pill>
       </div>
-      <div className="flex items-center gap-3 flex-wrap text-gray-500 text-xs mt-3">
-        <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" aria-hidden="true" /> {learnerCountLabel(cohort.learner_count)}</span>
-        {dates && <span className="inline-flex items-center gap-1"><CalendarDays className="w-3 h-3" aria-hidden="true" /> {dates}</span>}
+      <div className="flex items-center gap-3 flex-wrap text-[#4A4F5C] text-[0.9375rem] mt-3">
+        <span className="inline-flex items-center gap-1"><Users className="w-4 h-4" aria-hidden="true" /> {learnerCountLabel(cohort.learner_count)}</span>
+        {dates && <span className="inline-flex items-center gap-1"><CalendarDays className="w-4 h-4" aria-hidden="true" /> {dates}</span>}
       </div>
     </button>
   );
@@ -135,10 +136,10 @@ export function FacilitatorMyCohorts({ navigate, user, onLogout }: PageProps) {
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-gray-800 font-semibold">{data.name}</h3>
+                <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>{data.name}</h3>
                 <Pill tone={STATUS_TONE[data.status] ?? "muted"}>{cohortStatusLabel(data.status)}</Pill>
               </div>
-              <div className="text-gray-500 text-xs mt-1">
+              <div className="text-[#4A4F5C] text-[0.9375rem] mt-1">
                 SY {data.school_year} · {rosterCountsText(rosterCounts(data.roster))}
               </div>
             </div>
@@ -205,7 +206,7 @@ export function FacilitatorMyCohorts({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-cohorts">
-      <div className="p-5 space-y-5">
+      <div className="p-6 space-y-6">
         <PageHeader
           eyebrow="My Cohorts"
           title="My Cohorts"

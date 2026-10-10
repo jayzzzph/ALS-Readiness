@@ -52,16 +52,16 @@ function LearnerCell({ row }: { row: FacilitatorLearnerRow }) {
   return (
     <div>
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-gray-800 text-sm font-medium">{personName(row, "Unnamed learner")}</span>
+        <span className="text-[#1B1D26] text-[0.9375rem] font-medium">{personName(row, "Unnamed learner")}</span>
         {row.at_risk_reasons.length > 0 && (
-          <span className="inline-flex items-center text-red-600" title={`At risk: ${reasons}`}>
-            <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+          <span className="inline-flex items-center text-[#BA1A1A]" title={`At risk: ${reasons}`}>
+            <AlertCircle className="w-4 h-4" aria-hidden="true" />
             <span className="sr-only">At risk: {reasons}</span>
           </span>
         )}
         {row.membership_status === "ended" && <Pill tone="muted">{memberStatusLabel(row.membership_status)}</Pill>}
       </div>
-      <div className="text-gray-400 text-xs font-mono">{orDash(row.id_no)}</div>
+      <div className="text-[#4A4F5C] text-[0.9375rem] tabular-nums">{orDash(row.id_no)}</div>
     </div>
   );
 }
@@ -99,7 +99,7 @@ export function FacilitatorCohort({ navigate, user, onLogout }: PageProps) {
 
   const columns: DataTableColumn<FacilitatorLearnerRow>[] = [
     { key: "learner", header: "Learner", render: (row) => <LearnerCell row={row} /> },
-    { key: "cohort", header: "Cohort", className: "text-gray-500", render: (row) => row.cohort_name },
+    { key: "cohort", header: "Cohort", className: "text-[#4A4F5C]", render: (row) => row.cohort_name },
     { key: "readiness", header: "Readiness", render: (row) => <ReadinessPill readiness={row.readiness} /> },
     ...strandCols.map((strand): DataTableColumn<FacilitatorLearnerRow> => ({
       key: `strand-${strand.strand_id}`,
@@ -110,7 +110,7 @@ export function FacilitatorCohort({ navigate, user, onLogout }: PageProps) {
         return <ProgressBar value={cell.barValue} widthClass="w-16" label={`${strand.strand_code} progress`} />;
       },
     })),
-    { key: "last-active", header: "Last Active", className: "text-gray-500 text-xs", render: (row) => formatLastActive(row.last_active_at) },
+    { key: "last-active", header: "Last Active", className: "text-[#4A4F5C] text-[0.9375rem]", render: (row) => formatLastActive(row.last_active_at) },
   ];
 
   let body;
@@ -165,7 +165,7 @@ export function FacilitatorCohort({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-learners" allowAllCohorts>
-      <div className="p-5 space-y-5">
+      <div className="p-6 space-y-6">
         <PageHeader
           eyebrow="Learners"
           title="Learners"

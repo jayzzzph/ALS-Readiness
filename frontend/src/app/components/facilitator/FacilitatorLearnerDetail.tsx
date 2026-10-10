@@ -44,6 +44,7 @@ import {
   type DataTableColumn,
   type PillTone,
 } from "./shared";
+import { DISPLAY_FONT } from "./shared/tokens";
 
 const LEARNERS_PAGE = "facilitator-learners";
 
@@ -56,11 +57,11 @@ const FLAG_STATUS_TONE: Record<AtRiskFlagStatus, PillTone> = {
 
 function TestResultCell({ result }: { result: StrandTestResult | null }) {
   const cell = testCell(result);
-  if (result === null) return <span className="text-gray-400">{cell.main}</span>;
+  if (result === null) return <span className="text-[#4A4F5C]">{cell.main}</span>;
   return (
     <div>
-      <div className="text-gray-800 font-medium">{cell.main}</div>
-      <div className="text-gray-400 text-xs">{cell.score}{cell.date ? ` · ${cell.date}` : ""}</div>
+      <div className="text-[#1B1D26] font-medium">{cell.main}</div>
+      <div className="text-[#4A4F5C] text-[0.9375rem]">{cell.score}{cell.date ? ` · ${cell.date}` : ""}</div>
     </div>
   );
 }
@@ -71,8 +72,8 @@ const STRAND_COLUMNS: DataTableColumn<LearnerStrandDetail>[] = [
     header: "Strand",
     render: (strand) => (
       <div>
-        <div className="text-gray-800 font-medium">{strand.strand_code}</div>
-        <div className="text-gray-400 text-xs">{strand.strand_name}</div>
+        <div className="text-[#1B1D26] font-medium">{strand.strand_code}</div>
+        <div className="text-[#4A4F5C] text-[0.9375rem]">{strand.strand_name}</div>
       </div>
     ),
   },
@@ -86,7 +87,7 @@ const STRAND_COLUMNS: DataTableColumn<LearnerStrandDetail>[] = [
       return (
         <div>
           <ProgressBar value={cell.barValue} widthClass="w-24" label={`${strand.strand_code} progress`} />
-          {cell.detail && <div className="text-gray-400 text-xs mt-0.5">{cell.detail}</div>}
+          {cell.detail && <div className="text-[#4A4F5C] text-[0.9375rem] mt-0.5">{cell.detail}</div>}
         </div>
       );
     },
@@ -117,10 +118,10 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
   const flagColumns: DataTableColumn<AtRiskFlagSummary>[] = [
     { key: "reason", header: "Reason", render: (flag) => flagReasonText(flag) },
     { key: "status", header: "Status", render: (flag) => <Pill tone={FLAG_STATUS_TONE[flag.status]}>{flagStatusLabel(flag.status)}</Pill> },
-    { key: "detected", header: "Detected", className: "text-gray-500 text-xs", render: (flag) => formatDate(flag.detected_at) ?? DASH },
-    { key: "resolved", header: "Resolved", className: "text-gray-500 text-xs", render: (flag) => formatDate(flag.resolved_at) ?? DASH },
-    { key: "reviewed-by", header: "Reviewed by", className: "text-gray-500 text-xs", render: (flag) => orDash(flag.reviewed_by_name) },
-    { key: "note", header: "Note", className: "text-gray-500 text-xs max-w-xs whitespace-pre-wrap", render: (flag) => orDash(flag.note) },
+    { key: "detected", header: "Detected", className: "text-[#4A4F5C] text-[0.9375rem]", render: (flag) => formatDate(flag.detected_at) ?? DASH },
+    { key: "resolved", header: "Resolved", className: "text-[#4A4F5C] text-[0.9375rem]", render: (flag) => formatDate(flag.resolved_at) ?? DASH },
+    { key: "reviewed-by", header: "Reviewed by", className: "text-[#4A4F5C] text-[0.9375rem]", render: (flag) => orDash(flag.reviewed_by_name) },
+    { key: "note", header: "Note", className: "text-[#4A4F5C] text-[0.9375rem] max-w-xs whitespace-pre-wrap", render: (flag) => orDash(flag.note) },
     {
       key: "review",
       header: "Review",
@@ -141,7 +142,7 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-4">
         <StatTile
           label="Readiness"
           icon={Activity}
@@ -159,8 +160,8 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
         <StatTile label="LRI score" icon={ClipboardList} tone="purple" value={lri.value} hint={lri.hint ?? undefined} />
       </div>
 
-      <section className="space-y-3">
-        <h3 className="text-gray-800 font-semibold text-sm">Performance by strand</h3>
+      <section className="space-y-4">
+        <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>Performance by strand</h3>
         <DataTable
           columns={STRAND_COLUMNS}
           rows={data.strands}
@@ -171,21 +172,21 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
 
       <Card title="Intake summary">
         {data.intake === null ? (
-          <p className="text-gray-400 text-sm">No intake form submitted yet</p>
+          <p className="text-[#4A4F5C] text-[0.9375rem]">No intake form submitted yet</p>
         ) : (
           <dl className="grid grid-cols-3 gap-x-6 gap-y-4">
             {intakeRows(data.intake).map((row) => (
               <div key={row.label}>
-                <dt className="text-gray-500 text-xs">{row.label}</dt>
-                <dd className="text-gray-800 text-sm font-medium mt-0.5">{row.value}</dd>
+                <dt className="text-[#4A4F5C] text-[0.9375rem]">{row.label}</dt>
+                <dd className="text-[#1B1D26] text-[0.9375rem] font-medium mt-0.5">{row.value}</dd>
               </div>
             ))}
           </dl>
         )}
       </Card>
 
-      <section className="space-y-3">
-        <h3 className="text-gray-800 font-semibold text-sm">At-risk history</h3>
+      <section className="space-y-4">
+        <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>At-risk history</h3>
         {data.cohort.status !== "active" && <Notice>{FLAGS_NOT_UPDATED_TEXT}</Notice>}
         <DataTable
           columns={flagColumns}
@@ -197,12 +198,12 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
 
       {data.memberships.length > 0 && (
         <Card title="Other cohorts">
-          <ul className="divide-y divide-gray-50">
+          <ul className="divide-y divide-[#E2E0DA]">
             {data.memberships.map((membership) => (
               <li key={membership.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-gray-800 text-sm font-medium">{membership.name}</span>
-                  <span className="text-gray-400 text-xs">SY {membership.school_year}</span>
+                  <span className="text-[#1B1D26] text-[0.9375rem] font-medium">{membership.name}</span>
+                  <span className="text-[#4A4F5C] text-[0.9375rem]">SY {membership.school_year}</span>
                   <Pill tone={membership.membership_status === "active" ? "success" : "muted"}>
                     {memberStatusLabel(membership.membership_status)}
                   </Pill>
@@ -290,7 +291,7 @@ export function FacilitatorLearnerDetail({ navigate, user, onLogout }: PageProps
         />
       )}
 
-      <div className="p-5 space-y-5">
+      <div className="p-6 space-y-6">
         <PageHeader
           backLabel="Back to Learners"
           onBack={() => navigate(LEARNERS_PAGE)}
