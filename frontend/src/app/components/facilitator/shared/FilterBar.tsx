@@ -14,7 +14,7 @@ interface FilterBarProps {
  */
 export function FilterBar({ label, children }: FilterBarProps) {
   return (
-    <div role="group" aria-label={label} className="flex items-center gap-x-3 gap-y-3 flex-wrap bg-white rounded-2xl border border-[#E2E0DA] px-4 py-3">
+    <div role="group" aria-label={label} className="flex items-center gap-x-3 gap-y-3 flex-wrap min-h-[4.5rem] bg-white rounded-2xl border border-[#E2E0DA] px-4 py-3">
       {children}
     </div>
   );

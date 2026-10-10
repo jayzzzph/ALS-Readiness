@@ -18,23 +18,22 @@ import {
   testsFailureText,
   testsSubtitle,
 } from "../../../lib/testsText";
-import { Button, ChipGroup, DataTable, ErrorState, PageHeader, type DataTableColumn } from "./shared";
-import { MUTED } from "./shared/tokens";
+import { Button, ChipGroup, DataTable, ErrorState, FilterBar, FilterDivider, PageHeader, StatusText, type DataTableColumn } from "./shared";
+import { MUTED, PAGE_BODY } from "./shared/tokens";
 
 const ALL = "all";
 
 type TypeFilter = StrandTestType | typeof ALL;
 
 /**
- * Locked or not, as words. Locked carries the lock icon and its explanation on
- * hover; "No attempts yet" is the quiet default, so it is muted text, not a badge.
+ * Locked or not, on the shared status vocabulary: Locked with its lock icon and
+ * its explanation on hover; "No attempts yet" as the quiet not-started status.
  */
 export function TestStatusText({ isLocked }: { isLocked: boolean }) {
-  if (!isLocked) return <span className="text-[#4A4F5C] whitespace-nowrap">{testStatusLabel(false)}</span>;
-  return (
-    <span title={LOCKED_EXPLANATION} className="inline-flex items-center gap-1.5 whitespace-nowrap font-bold text-[#1B1D26]">
-      <Lock className="w-4 h-4 text-[#835500]" aria-hidden="true" /> {testStatusLabel(true)}
-    </span>
+  return isLocked ? (
+    <StatusText tone="locked" title={LOCKED_EXPLANATION}>{testStatusLabel(true)}</StatusText>
+  ) : (
+    <StatusText tone="pending">{testStatusLabel(false)}</StatusText>
   );
 }
 
@@ -44,7 +43,7 @@ const TYPE_OPTIONS: readonly { value: TypeFilter; label: string }[] = [
 ];
 
 const COLUMNS: DataTableColumn<StrandTestViewerItem>[] = [
-  { key: "test", header: "Test", render: (test) => <span className="text-[#1B1D26] font-bold">{test.title}</span> },
+  { key: "test", header: "Test", render: (test) => <span className="text-[#1B1D26] font-bold whitespace-nowrap">{test.title}</span> },
   {
     key: "strand",
     header: "Strand",
@@ -110,32 +109,26 @@ export function FacilitatorTests({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-tests">
-      <div className="p-6 space-y-6">
+      <div className={PAGE_BODY}>
         <PageHeader
           title="Strand Tests"
-          subtitle={
-            // That the tests are shared and view only is context, not an alert: a quiet line.
-            <span className="block space-y-1">
-              {data && <span className="block">{testsSubtitle(data.total)}</span>}
-              <span className="block">{TESTS_SHARED_TEXT}</span>
-            </span>
-          }
+          subtitle={data ? testsSubtitle(data.total) : undefined}
+          // That the tests are shared and view only is context, not an alert: the quiet note line.
+          note={TESTS_SHARED_TEXT}
         />
 
-        {/* The filters sit directly above the table they filter, without a card of their own. */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-x-6 gap-y-3 flex-wrap">
-            <ChipGroup label="Strand" options={strandOptions} value={strandFilter} onChange={setStrandFilter} />
-            <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
-            {strands.error && (
-              <span className="text-[#7A1A12] text-[0.9375rem] flex items-center gap-2" role="alert">
-                The strand filter could not be loaded. <Button variant="link" onClick={strands.reload}>Try again</Button>
-              </span>
-            )}
-          </div>
+        <FilterBar label="Filter strand tests">
+          <ChipGroup label="Strand" options={strandOptions} value={strandFilter} onChange={setStrandFilter} />
+          <FilterDivider />
+          <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
+          {strands.error && (
+            <span className="text-[#7A1A12] text-[0.9375rem] flex items-center gap-2" role="alert">
+              The strand filter could not be loaded. <Button variant="link" onClick={strands.reload}>Try again</Button>
+            </span>
+          )}
+        </FilterBar>
 
-          {body}
-        </div>
+        {body}
       </div>
     </AppLayout>
   );

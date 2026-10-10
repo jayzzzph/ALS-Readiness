@@ -21,8 +21,8 @@ import {
   type ItemProblem,
 } from "../../../lib/testsText";
 import { TestStatusText } from "./FacilitatorTests";
-import { Button, Card, EmptyState, ErrorState, LoadingState, Notice, PageHeader, Pill } from "./shared";
-import { MUTED } from "./shared/tokens";
+import { Button, Card, EmptyState, ErrorState, LoadingState, Notice, PageHeader, StatusText } from "./shared";
+import { MUTED, PAGE_BODY } from "./shared/tokens";
 
 // Passed as currentPage too, so the sidebar entry stays highlighted on the detail.
 const TESTS_PAGE = "facilitator-tests";
@@ -98,11 +98,7 @@ function ItemCard({ item, number, problem, onReload }: ItemCardProps) {
           {number}
         </span>
         <div className="min-w-0 flex-1 space-y-4">
-          {problem && (
-            <Pill tone="warning">
-              <AlertCircle className="w-3 h-3" aria-hidden="true" /> {itemProblemLabel(problem)}
-            </Pill>
-          )}
+          {problem && <StatusText tone="attention">{itemProblemLabel(problem)}</StatusText>}
           <p className="text-[#1B1D26] text-base font-medium leading-relaxed whitespace-pre-line max-w-[70ch]">{item.question_text}</p>
           {item.asset_url && <ItemAsset url={item.asset_url} onReload={onReload} />}
 
@@ -190,26 +186,21 @@ export function FacilitatorTestDetail({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage={TESTS_PAGE} hideCohortControls>
-      <div className="p-6 space-y-6">
+      <div className={PAGE_BODY}>
         <PageHeader
           backLabel="Back to Strand Tests"
           onBack={() => navigate(TESTS_PAGE)}
           title={data ? data.title : "Strand Test"}
-          subtitle={
-            data ? (
-              <span className="block space-y-1">
-                <span className="flex items-center gap-x-2 gap-y-1 flex-wrap tabular-nums">
-                  <span>{data.strand_code} · {data.strand_name} · {testTypeLabel(data.type)} · {testCountsText(data.item_count, data.attempt_count)}</span>
-                  <span aria-hidden="true">·</span>
-                  <TestStatusText isLocked={data.is_locked} />
-                </span>
-                {/* A caution about who may see this page: one line in ink, not a banner. */}
-                <span className="flex items-start gap-2 text-[#1B1D26]">
-                  <Lock className="w-4 h-4 mt-1 flex-shrink-0 text-[#4A4F5C]" aria-hidden="true" />
-                  {ANSWER_KEY_NOTICE}
-                </span>
+          subtitle={data ? `${data.strand_code} · ${data.strand_name} · ${testTypeLabel(data.type)} · ${testCountsText(data.item_count, data.attempt_count)}` : undefined}
+          status={data && <TestStatusText isLocked={data.is_locked} />}
+          // A caution about who may see this page: the note line, not a banner.
+          note={
+            data && (
+              <span className="inline-flex items-start gap-2">
+                <Lock className="w-4 h-4 mt-1 flex-shrink-0" aria-hidden="true" />
+                {ANSWER_KEY_NOTICE}
               </span>
-            ) : undefined
+            )
           }
         />
         {body}
