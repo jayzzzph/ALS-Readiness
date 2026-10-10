@@ -19,7 +19,7 @@ import { toast } from "../../../../lib/toast";
 import { Button } from "./Button";
 import { FIELD_CLASS } from "./Field";
 import { Modal } from "./Modal";
-import { Pill } from "./Pill";
+import { FLAG_STATUS_TONE, StatusText } from "./StatusText";
 import { EmptyState, ErrorState, LoadingState } from "./States";
 import { LABEL } from "./tokens";
 
@@ -105,7 +105,7 @@ export function AtRiskReviewDialog({ learner, cohortId, onClose, onChanged }: At
               <li key={flag.id} className="p-4 bg-[#F2F1ED] border border-[#E2E0DA] rounded-xl">
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-[#1B1D26] text-base font-bold">{flagReasonText(flag)}</div>
-                  <Pill tone={flag.status === "open" ? "warning" : "neutral"}>{flagStatusLabel(flag.status)}</Pill>
+                  <StatusText tone={FLAG_STATUS_TONE[flag.status] ?? "quiet"}>{flagStatusLabel(flag.status)}</StatusText>
                 </div>
                 <div className="text-[#4A4F5C] text-[0.9375rem] mt-1">
                   Detected {formatDate(flag.detected_at) ?? DASH}

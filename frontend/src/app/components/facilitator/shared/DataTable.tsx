@@ -1,5 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
-import { OVERLINE } from "./tokens";
+import { OVERLINE, SECTION_TITLE } from "./tokens";
 
 export interface DataTableColumn<T> {
   /** Unique within the table; used as the React key. */
@@ -34,6 +34,16 @@ interface DataTableProps<T> {
   emptyMessage?: ReactNode;
   /** Rendered under the table inside the same panel - normally a <Pagination />. */
   footer?: ReactNode;
+  /**
+   * The section's title, drawn inside the panel above the table exactly as a
+   * Card draws its title, so the table and its heading are one region.
+   */
+  title?: ReactNode;
+  /** The id for the title, for a surrounding section's aria-labelledby. */
+  titleId?: string;
+  /** Beside the title: quiet supporting lines under it, or actions on the right. */
+  titleNote?: ReactNode;
+  titleAction?: ReactNode;
   /** The tint of the row hover: "orange" on facilitator pages (the default; now a paper tint), "purple" in the admin area. */
   accent?: "orange" | "purple";
 }
@@ -61,6 +71,10 @@ export function DataTable<T>({
   error = null,
   emptyMessage = "Nothing to show.",
   footer,
+  title,
+  titleId,
+  titleNote,
+  titleAction,
   accent = "orange",
 }: DataTableProps<T>) {
   const message = (text: ReactNode, tone: string) => (
@@ -91,6 +105,15 @@ export function DataTable<T>({
 
   return (
     <div className="bg-white rounded-2xl border border-[#E2E0DA] overflow-hidden">
+      {(title || titleAction) && (
+        <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4">
+          <div className="min-w-0">
+            {title && <h3 id={titleId} className={SECTION_TITLE}>{title}</h3>}
+            {titleNote && <div className="mt-1 space-y-1 text-[0.9375rem] text-[#4A4F5C]">{titleNote}</div>}
+          </div>
+          {titleAction && <div className="flex items-center gap-2 flex-shrink-0">{titleAction}</div>}
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-[#F2F1ED] border-b border-[#E2E0DA]">
