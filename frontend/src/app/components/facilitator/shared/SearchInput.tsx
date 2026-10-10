@@ -10,7 +10,7 @@ interface SearchInputProps {
 /** The search box of the filter rows: a magnifier inside a sunken field with no border until focused. */
 export function SearchInput({ value, onChange, placeholder }: SearchInputProps) {
   return (
-    <div className="relative flex-1 min-w-48">
+    <div className="relative flex-1 min-w-40">
       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#4A4F5C]" aria-hidden="true" />
       <input
         type="search"

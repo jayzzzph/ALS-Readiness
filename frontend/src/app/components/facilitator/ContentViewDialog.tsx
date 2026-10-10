@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Check, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { getErrorCode, getErrorMessage, getErrorStatus } from "../../../lib/api/errors";
 import { getContent, updateContent } from "../../../lib/api/facilitatorContent";
 import type { ContentLibraryItem, ContentUpdate, ContentVisibility } from "../../../lib/api/types";
@@ -16,6 +16,7 @@ import {
   fileUnavailableText,
   lessonContextText,
   shouldReloadLibrary,
+  stimulusLevelLabel,
   visibilityLabel,
 } from "../../../lib/contentText";
 import { isMissing, requiredError } from "../../../lib/formText";
@@ -23,7 +24,7 @@ import { formatDateTime } from "../../../lib/dates";
 import { useFetch } from "../../../lib/hooks/useFetch";
 import { contentTypeLabel, orDash } from "../../../lib/labels";
 import { toast } from "../../../lib/toast";
-import { Button, FIELD_CLASS, Field, LessonPicker, Modal, Notice, Pill } from "./shared";
+import { Button, FIELD_CLASS, Field, LessonPicker, LevelMeter, Modal, Notice, StatusText } from "./shared";
 
 interface ContentViewDialogProps {
   /** The row that was opened. Shown at once; the detail request then adds the file link and refreshes the rest. */
@@ -215,11 +216,10 @@ export function ContentViewDialog({ item: listItem, onClose, onChanged, onOpenCu
     const uploadedAt = formatDateTime(item.uploaded_at);
     body = (
       <div className="space-y-5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Pill tone="neutral">{contentTypeLabel(item.type)}</Pill>
-          <Pill tone="muted">{visibilityLabel(item.visibility)}</Pill>
-          {item.is_own && <Pill tone="success">Mine</Pill>}
-          {item.status === "archived" && <Pill tone="warning">Archived</Pill>}
+        {/* The same facts the library row shows, in the same form: one quiet line, the archived state as a status. */}
+        <div className="flex items-center gap-3 flex-wrap text-[0.9375rem] text-[#4A4F5C]">
+          <span>{[contentTypeLabel(item.type), visibilityLabel(item.visibility), item.is_own ? "Mine" : null].filter(Boolean).join(" · ")}</span>
+          {item.status === "archived" && <StatusText tone="quiet">Archived</StatusText>}
         </div>
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
@@ -233,10 +233,10 @@ export function ContentViewDialog({ item: listItem, onClose, onChanged, onOpenCu
           </DetailRow>
           <DetailRow label="Evaluation">
             {item.evaluation === null ? (
-              <Pill tone="muted">{evaluationPillText(null)}</Pill>
+              <span className="text-[#4A4F5C]">{evaluationPillText(null)}</span>
             ) : (
               <>
-                <Pill tone="success"><Check className="w-3.5 h-3.5" aria-hidden="true" />{evaluationPillText(item.evaluation)}</Pill>
+                <LevelMeter level={item.evaluation.stimulus_level} label={stimulusLevelLabel(item.evaluation.stimulus_level)} srPrefix="Evaluated ·" />
                 <span className="block text-[#4A4F5C] text-[0.9375rem] mt-1">
                   Cognitive sustainability rating: {item.evaluation.cognitive_sustainability_rating}
                 </span>

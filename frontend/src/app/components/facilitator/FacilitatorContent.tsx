@@ -3,7 +3,7 @@ import { Archive, BookOpen, Headphones, Upload, User, Video } from "lucide-react
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
 import { getContents } from "../../../lib/api/facilitatorContent";
-import type { ContentEvaluationSummary, ContentLibraryItem, ContentType, StimulusLevel } from "../../../lib/api/types";
+import type { ContentEvaluationSummary, ContentLibraryItem, ContentType } from "../../../lib/api/types";
 import {
   CONTENT_TYPES,
   EVALUATION_UNAVAILABLE_HINT,
@@ -34,12 +34,13 @@ import {
   HeaderButton,
   PageHeader,
   Pagination,
-  Pill,
+  LevelMeter,
   SearchInput,
+  FilterBar,
+  FilterDivider,
   type DataTableColumn,
-  type PillTone,
 } from "./shared";
-import { MUTED } from "./shared/tokens";
+import { MUTED, PAGE_BODY } from "./shared/tokens";
 
 const CURRICULUM_PAGE = "facilitator-learning-contents";
 
@@ -49,10 +50,6 @@ const TYPE_ICON: Record<ContentType, ComponentType<{ className?: string }>> = {
   audio: Headphones,
   reading: BookOpen,
 };
-
-// The evaluation chip leads with the stimulus level, on the readiness colour pairs.
-const LEVEL_TONE: Record<StimulusLevel, PillTone> = { high: "success", medium: "warning", low: "danger" };
-
 type TypeFilter = ContentType | "all";
 
 const TYPE_OPTIONS: readonly { value: TypeFilter; label: string }[] = [
@@ -81,15 +78,13 @@ function TypeCell({ type }: { type: ContentType }) {
   );
 }
 
-/** The stimulus level on its colour pair; "Not evaluated" is a quiet line, not a chip. */
+/**
+ * The stimulus level on a neutral three-step meter with its word: a low level
+ * is not a problem, so it is not red. "Not evaluated" is a quiet line.
+ */
 function EvaluationCell({ evaluation }: { evaluation: ContentEvaluationSummary | null }) {
   if (evaluation === null) return <span className={MUTED}>{evaluationPillText(null)}</span>;
-  return (
-    <Pill tone={LEVEL_TONE[evaluation.stimulus_level] ?? "neutral"}>
-      <span className="sr-only">Evaluated · </span>
-      {stimulusLevelLabel(evaluation.stimulus_level)}
-    </Pill>
-  );
+  return <LevelMeter level={evaluation.stimulus_level} label={stimulusLevelLabel(evaluation.stimulus_level)} srPrefix="Evaluated ·" />;
 }
 
 export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
@@ -230,7 +225,7 @@ export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
         />
       )}
 
-      <div className="p-6 space-y-6">
+      <div className={PAGE_BODY}>
         <PageHeader
           title="Content Library"
           subtitle={data ? librarySubtitle(data.counts) : undefined}
@@ -241,25 +236,23 @@ export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
           }
         />
 
-        {/* The filters sit directly above the table they filter, without a card of their own. */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-x-4 gap-y-3 flex-wrap">
-            <div className="w-72 max-w-full flex">
-              <SearchInput value={searchText} onChange={setSearchText} placeholder="Search by title" />
-            </div>
-            <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
-            <div className="flex items-center gap-2">
-              <Chip selected={mineOnly} onClick={() => setMineOnly((value) => !value)}>
-                <User className="w-4 h-4" aria-hidden="true" /> Mine only
-              </Chip>
-              <Chip selected={archived} onClick={() => setArchived((value) => !value)}>
-                <Archive className="w-4 h-4" aria-hidden="true" /> Archived
-              </Chip>
-            </div>
+        {/* One bar, one line at 1280px: search, then type, then the two toggles, split by quiet rules. */}
+        <FilterBar label="Filter content">
+          <SearchInput value={searchText} onChange={setSearchText} placeholder="Search by title" />
+          <FilterDivider />
+          <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
+          <FilterDivider />
+          <div className="flex items-center gap-2">
+            <Chip selected={mineOnly} onClick={() => setMineOnly((value) => !value)}>
+              <User className="w-4 h-4" aria-hidden="true" /> Mine only
+            </Chip>
+            <Chip selected={archived} onClick={() => setArchived((value) => !value)}>
+              <Archive className="w-4 h-4" aria-hidden="true" /> Archived
+            </Chip>
           </div>
+        </FilterBar>
 
-          {body}
-        </div>
+        {body}
       </div>
     </AppLayout>
   );

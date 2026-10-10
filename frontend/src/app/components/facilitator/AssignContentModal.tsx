@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Check, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { getErrorCode, getErrorMessage, getErrorStatus } from "../../../lib/api/errors";
 import { assignContent } from "../../../lib/api/facilitatorCurriculum";
 import type { FacilitatorCohortItem, FacilitatorContentNode, FacilitatorLessonNode } from "../../../lib/api/types";
 import { curriculumErrorMessage, pickerFailureEffect } from "../../../lib/curriculumText";
 import { contentTypeLabel } from "../../../lib/labels";
 import { toast } from "../../../lib/toast";
-import { Button, EmptyState, Modal, Pill } from "./shared";
+import { Button, EmptyState, Modal, StatusText } from "./shared";
 
 interface AssignContentModalProps {
   /** The lesson whose content is being assigned. */
@@ -80,11 +80,10 @@ export function AssignContentModal({ lesson, cohort, availableContents, onClose,
           {contents.map((content) => (
             <li key={content.content_id} className="flex items-center gap-3 p-3 rounded-xl border-2 border-[#E2E0DA]">
               <div className="flex-1 min-w-0">
-                <div className="text-[#1B1D26] text-[0.9375rem] font-medium truncate">{content.title}</div>
-                <div className="flex items-center gap-2 flex-wrap text-[0.9375rem] text-[#4A4F5C] mt-0.5">
-                  <span>{contentTypeLabel(content.content_type)}</span>
-                  <Pill tone={content.has_evaluation ? "success" : "muted"}>{content.has_evaluation && <Check className="w-3.5 h-3.5" aria-hidden="true" />}{content.has_evaluation ? "Evaluated" : "Not evaluated"}</Pill>
-                  {!content.is_own && <Pill tone="neutral">Shared</Pill>}
+                <div className="text-[#1B1D26] font-bold truncate">{content.title}</div>
+                <div className="flex items-center gap-3 flex-wrap text-[0.9375rem] text-[#4A4F5C] mt-0.5">
+                  <span>{[contentTypeLabel(content.content_type), content.is_own ? null : "Shared"].filter(Boolean).join(" · ")}</span>
+                  <StatusText tone={content.has_evaluation ? "done" : "pending"}>{content.has_evaluation ? "Evaluated" : "Not evaluated"}</StatusText>
                 </div>
               </div>
               <Button variant="accent" size="sm" onClick={() => void assign(content)} disabled={assigning} className="flex-shrink-0">
