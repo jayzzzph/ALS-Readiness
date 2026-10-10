@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { UserX } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
@@ -6,7 +6,6 @@ import type { PageProps } from "../../routes/ProtectedPage";
 import { getErrorMessage, getErrorStatus } from "../../../lib/api/errors";
 import { getLearner, updateAtRiskFlag } from "../../../lib/api/facilitator";
 import type {
-  AtRiskFlagStatus,
   AtRiskFlagSummary,
   FacilitatorLearnerDetailResponse,
   LearnerMembership,
@@ -23,12 +22,17 @@ import {
 } from "../../../lib/atRisk";
 import { formatDate, formatDateTime, formatLastActive } from "../../../lib/dates";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { DASH, cohortStatusLabel, memberStatusLabel, orDash, personName } from "../../../lib/labels";
+import { DASH, memberStatusLabel, orDash, personName } from "../../../lib/labels";
 import { detailFailureText, intakeRows, lriTile, parseIdParam, progressCell, testCell } from "../../../lib/learnersText";
 import { LEARNER_COHORT_PARAM, learnerDetailPage } from "../../../lib/navigation";
 import { toast } from "../../../lib/toast";
 import {
   AtRiskReviewDialog,
+  CohortStatus,
+  FLAG_STATUS_TONE,
+  MemberStatus,
+  Section,
+  StatusText,
   Button,
   Card,
   DataTable,
@@ -37,7 +41,6 @@ import {
   LoadingState,
   NOT_YET_PROFILED,
   PageHeader,
-  Pill,
   ProgressBar,
   ReadinessPill,
   SUMMARY_NUMBER,
@@ -45,18 +48,10 @@ import {
   SummaryEmpty,
   SummaryStrip,
   type DataTableColumn,
-  type PillTone,
 } from "./shared";
-import { MUTED, SECTION_TITLE } from "./shared/tokens";
+import { MUTED, PAGE_BODY } from "./shared/tokens";
 
 const LEARNERS_PAGE = "facilitator-learners";
-
-const FLAG_STATUS_TONE: Record<AtRiskFlagStatus, PillTone> = {
-  open: "warning",
-  reviewed: "neutral",
-  dismissed: "muted",
-  resolved: "success",
-};
 
 /** An MPS with its raw score and date under it, right-aligned as a number; "Not taken" quietly. */
 function TestResultCell({ result }: { result: StrandTestResult | null }) {
@@ -115,21 +110,14 @@ function ReadinessValue({ readiness }: { readiness: FacilitatorLearnerDetailResp
   return <ReadinessPill readiness={readiness} />;
 }
 
-/** A section heading with its quiet supporting lines under it. */
-function SectionHead({ id, title, children }: { id: string; title: string; children?: ReactNode }) {
-  return (
-    <div className="mb-4">
-      <h3 id={id} className={SECTION_TITLE}>{title}</h3>
-      {children && <div className="mt-1 space-y-1">{children}</div>}
-    </div>
-  );
-}
-
-function MembershipPills({ membership }: { membership: Pick<LearnerMembership, "status" | "membership_status"> }) {
+/** The header status: the cohort's, as on every page, and an ended membership as a quiet word. */
+function MembershipStatus({ membership }: { membership: Pick<LearnerMembership, "status" | "membership_status"> }) {
   return (
     <>
-      {membership.membership_status === "ended" && <Pill tone="muted">Membership {memberStatusLabel(membership.membership_status).toLowerCase()}</Pill>}
-      {membership.status !== "active" && <Pill tone="muted">Cohort {cohortStatusLabel(membership.status).toLowerCase()}</Pill>}
+      <CohortStatus status={membership.status} />
+      {membership.membership_status === "ended" && (
+        <StatusText tone="quiet">Membership {memberStatusLabel(membership.membership_status).toLowerCase()}</StatusText>
+      )}
     </>
   );
 }
@@ -148,11 +136,11 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
 
   const flagColumns: DataTableColumn<AtRiskFlagSummary>[] = [
     { key: "reason", header: "Reason", render: (flag) => flagReasonText(flag) },
-    { key: "status", header: "Status", render: (flag) => <Pill tone={FLAG_STATUS_TONE[flag.status]}>{flagStatusLabel(flag.status)}</Pill> },
-    { key: "detected", header: "Detected", className: "text-[#4A4F5C] text-[0.9375rem]", render: (flag) => formatDate(flag.detected_at) ?? DASH },
-    { key: "resolved", header: "Resolved", className: "text-[#4A4F5C] text-[0.9375rem]", render: (flag) => formatDate(flag.resolved_at) ?? DASH },
-    { key: "reviewed-by", header: "Reviewed by", className: "text-[#4A4F5C] text-[0.9375rem]", render: (flag) => orDash(flag.reviewed_by_name) },
-    { key: "note", header: "Note", className: "text-[#4A4F5C] text-[0.9375rem] max-w-xs whitespace-pre-wrap", render: (flag) => orDash(flag.note) },
+    { key: "status", header: "Status", render: (flag) => <StatusText tone={FLAG_STATUS_TONE[flag.status] ?? "quiet"}>{flagStatusLabel(flag.status)}</StatusText> },
+    { key: "detected", header: "Detected", className: "text-[#4A4F5C] whitespace-nowrap", render: (flag) => formatDate(flag.detected_at) ?? DASH },
+    { key: "resolved", header: "Resolved", className: "text-[#4A4F5C] whitespace-nowrap", render: (flag) => formatDate(flag.resolved_at) ?? DASH },
+    { key: "reviewed-by", header: "Reviewed by", className: "text-[#4A4F5C]", render: (flag) => orDash(flag.reviewed_by_name) },
+    { key: "note", header: "Note", className: "text-[#4A4F5C] max-w-xs whitespace-pre-wrap", render: (flag) => orDash(flag.note) },
     {
       key: "review",
       header: "Review",
@@ -187,9 +175,11 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
         </SummaryCell>
       </SummaryStrip>
 
+      {/* Every section is one region with its title inside, as on the learner pages. */}
       <section aria-labelledby="strands-title">
-        <SectionHead id="strands-title" title="Performance by strand" />
         <DataTable
+          title="Performance by strand"
+          titleId="strands-title"
           columns={STRAND_COLUMNS}
           rows={data.strands}
           rowKey={(strand) => strand.strand_id}
@@ -198,19 +188,32 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
       </section>
 
       <section aria-labelledby="flags-title">
-        <SectionHead id="flags-title" title="At-risk history">
-          {!hasFlags && <p className={MUTED}>No flags for this learner</p>}
-          {data.cohort.status !== "active" && <p className={MUTED}>{FLAGS_NOT_UPDATED_TEXT}</p>}
-        </SectionHead>
-        {hasFlags && <DataTable columns={flagColumns} rows={data.at_risk_flags} rowKey={(flag) => flag.id} />}
+        {hasFlags ? (
+          <DataTable
+            title="At-risk history"
+            titleId="flags-title"
+            titleNote={data.cohort.status !== "active" && <p>{FLAGS_NOT_UPDATED_TEXT}</p>}
+            columns={flagColumns}
+            rows={data.at_risk_flags}
+            rowKey={(flag) => flag.id}
+          />
+        ) : (
+          <Section
+            titleId="flags-title"
+            title="At-risk history"
+            note={
+              <>
+                <p>No flags for this learner</p>
+                {data.cohort.status !== "active" && <p>{FLAGS_NOT_UPDATED_TEXT}</p>}
+              </>
+            }
+          />
+        )}
       </section>
 
-      <section aria-labelledby="intake-title">
-        <SectionHead id="intake-title" title="Intake summary">
-          {data.intake === null && <p className={MUTED}>No intake form submitted yet</p>}
-        </SectionHead>
+      <Section titleId="intake-title" title="Intake summary" note={data.intake === null && <p>No intake form submitted yet</p>}>
         {data.intake !== null && (
-          <dl className="grid grid-cols-3 gap-x-6 gap-y-5 bg-white rounded-2xl border border-[#E2E0DA] p-6">
+          <dl className="grid grid-cols-3 gap-x-6 gap-y-5">
             {intakeRows(data.intake).map((row) => (
               <div key={row.label} className="min-w-0">
                 <dt className={MUTED}>{row.label}</dt>
@@ -219,26 +222,23 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
             ))}
           </dl>
         )}
-      </section>
+      </Section>
 
       {data.memberships.length > 0 && (
-        <section aria-labelledby="other-cohorts-title">
-          <SectionHead id="other-cohorts-title" title="Other cohorts" />
-          <ul className="bg-white rounded-2xl border border-[#E2E0DA] divide-y divide-[#E2E0DA]">
+        <Section titleId="other-cohorts-title" title="Other cohorts">
+          <ul className="divide-y divide-[#E2E0DA] -my-3">
             {data.memberships.map((membership) => (
-              <li key={membership.id} className="flex items-center justify-between gap-3 px-6 py-3">
-                <div className="flex items-center gap-2 flex-wrap">
+              <li key={membership.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-[#1B1D26] font-bold">{membership.name}</span>
                   {!membership.name.includes(membership.school_year) && <span className={MUTED}>SY {membership.school_year}</span>}
-                  <Pill tone={membership.membership_status === "active" ? "success" : "muted"}>
-                    {memberStatusLabel(membership.membership_status)}
-                  </Pill>
+                  <MemberStatus status={membership.membership_status} />
                 </div>
                 <Button variant="link" onClick={() => onOpenCohort(membership.id)}>View in this cohort</Button>
               </li>
             ))}
           </ul>
-        </section>
+        </Section>
       )}
     </>
   );
@@ -317,23 +317,18 @@ export function FacilitatorLearnerDetail({ navigate, user, onLogout }: PageProps
         />
       )}
 
-      <div className="p-6 space-y-8">
+      <div className={PAGE_BODY}>
         <PageHeader
           backLabel="Back to Learners"
           onBack={() => navigate(LEARNERS_PAGE)}
           title={data ? personName(data.learner, "Unnamed learner") : "Learner"}
           subtitle={
-            data ? (
-              <span className="flex items-center gap-2 flex-wrap">
-                <span className="tabular-nums">
-                  {orDash(data.learner.id_no)} · {data.cohort.name}
-                  {/* Cohort names often carry the school year already; say it once. */}
-                  {!data.cohort.name.includes(data.cohort.school_year) && ` · SY ${data.cohort.school_year}`}
-                </span>
-                <MembershipPills membership={data.cohort} />
-              </span>
-            ) : undefined
+            data
+              ? // Cohort names often carry the school year already; say it once.
+                `${orDash(data.learner.id_no)} · ${data.cohort.name}${data.cohort.name.includes(data.cohort.school_year) ? "" : ` · SY ${data.cohort.school_year}`}`
+              : undefined
           }
+          status={data && <MembershipStatus membership={data.cohort} />}
         />
         {body}
       </div>

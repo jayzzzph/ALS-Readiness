@@ -40,6 +40,7 @@ import {
   ReadinessPill,
   CohortStatus,
   FLAG_STATUS_TONE,
+  Section,
   StatusText,
   SUMMARY_NUMBER,
   SummaryCell,
@@ -47,7 +48,7 @@ import {
   SummaryStrip,
   type DataTableColumn,
 } from "./shared";
-import { FOCUS_RING, MUTED, PAGE_BODY, SECTION_TITLE } from "./shared/tokens";
+import { FOCUS_RING, MUTED, PAGE_BODY } from "./shared/tokens";
 
 // A facilitator's working view: one summary strip, then the learners who need
 // attention, then the per-strand numbers as a table. The serif is kept for the
@@ -213,15 +214,7 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
 
   // One region either way, its title inside, as every learner-page section is.
   if (!flagged) {
-    return (
-      <section aria-labelledby="at-risk-title" className="bg-white rounded-2xl border border-[#E2E0DA] px-6 py-5">
-        <h3 id="at-risk-title" className={SECTION_TITLE}>At-Risk Learners</h3>
-        <div className={`mt-1 space-y-1 ${MUTED}`}>
-          <p>No learners flagged</p>
-          {inactiveNote}
-        </div>
-      </section>
-    );
+    return <Section titleId="at-risk-title" title="At-Risk Learners" note={<><p>No learners flagged</p>{inactiveNote}</>} />;
   }
 
   return (
