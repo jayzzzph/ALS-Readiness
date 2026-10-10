@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClipboardList, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
 import { getStrands } from "../../../lib/api/facilitatorCurriculum";
@@ -18,13 +18,24 @@ import {
   testsFailureText,
   testsSubtitle,
 } from "../../../lib/testsText";
-import { Button, Card, ChipGroup, DataTable, EmptyState, ErrorState, Notice, PageHeader, Pill, type DataTableColumn, type PillTone } from "./shared";
+import { Button, ChipGroup, DataTable, ErrorState, FilterBar, FilterDivider, PageHeader, StatusText, type DataTableColumn } from "./shared";
+import { MUTED, PAGE_BODY } from "./shared/tokens";
 
 const ALL = "all";
 
-const TYPE_TONE: Record<StrandTestType, PillTone> = { pretest: "neutral", posttest: "success" };
-
 type TypeFilter = StrandTestType | typeof ALL;
+
+/**
+ * Locked or not, on the shared status vocabulary: Locked with its lock icon and
+ * its explanation on hover; "No attempts yet" as the quiet not-started status.
+ */
+export function TestStatusText({ isLocked }: { isLocked: boolean }) {
+  return isLocked ? (
+    <StatusText tone="locked" title={LOCKED_EXPLANATION}>{testStatusLabel(true)}</StatusText>
+  ) : (
+    <StatusText tone="pending">{testStatusLabel(false)}</StatusText>
+  );
+}
 
 const TYPE_OPTIONS: readonly { value: TypeFilter; label: string }[] = [
   { value: ALL, label: "All" },
@@ -32,32 +43,22 @@ const TYPE_OPTIONS: readonly { value: TypeFilter; label: string }[] = [
 ];
 
 const COLUMNS: DataTableColumn<StrandTestViewerItem>[] = [
-  { key: "test", header: "Test", render: (test) => <span className="text-gray-800 font-medium">{test.title}</span> },
+  { key: "test", header: "Test", render: (test) => <span className="text-[#1B1D26] font-bold whitespace-nowrap">{test.title}</span> },
   {
     key: "strand",
     header: "Strand",
     render: (test) => (
-      <div>
-        <div className="text-gray-800 font-medium">{test.strand_code}</div>
-        <div className="text-gray-400 text-xs">{test.strand_name}</div>
+      <div className="min-w-0">
+        <div className="text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#4D35BD]">{test.strand_code}</div>
+        <div className="text-[#1B1D26]">{test.strand_name}</div>
       </div>
     ),
   },
-  { key: "type", header: "Type", render: (test) => <Pill tone={TYPE_TONE[test.type] ?? "muted"}>{testTypeLabel(test.type)}</Pill> },
-  { key: "items", header: "Items", render: (test) => test.item_count },
-  { key: "attempts", header: "Attempts", render: (test) => test.attempt_count },
-  {
-    key: "status",
-    header: "Status",
-    render: (test) =>
-      test.is_locked ? (
-        <span title={LOCKED_EXPLANATION}>
-          <Pill tone="warning"><Lock className="w-3 h-3" aria-hidden="true" /> {testStatusLabel(true)}</Pill>
-        </span>
-      ) : (
-        <Pill tone="muted">{testStatusLabel(false)}</Pill>
-      ),
-  },
+  // Plain words: a coloured pill here read as a status (blue means done elsewhere).
+  { key: "type", header: "Type", className: "whitespace-nowrap", render: (test) => testTypeLabel(test.type) },
+  { key: "items", header: "Items", align: "right", render: (test) => <span className="font-bold tabular-nums">{test.item_count}</span> },
+  { key: "attempts", header: "Attempts", align: "right", render: (test) => <span className="font-bold tabular-nums">{test.attempt_count}</span> },
+  { key: "status", header: "Status", render: (test) => <TestStatusText isLocked={test.is_locked} /> },
 ];
 
 export function FacilitatorTests({ navigate, user, onLogout }: PageProps) {
@@ -86,7 +87,7 @@ export function FacilitatorTests({ navigate, user, onLogout }: PageProps) {
     const failure = testsFailureText(tests.errorStatus, tests.error);
     body = <ErrorState title={failure.title} message={failure.message} onRetry={failure.canRetry ? tests.reload : undefined} />;
   } else if (data && data.items.length === 0 && !filtered) {
-    body = <Card padding="none"><EmptyState icon={ClipboardList} title={emptyTestsText(filters)} /></Card>;
+    body = <p className={MUTED}>{emptyTestsText(filters)}</p>;
   } else {
     body = (
       <>
@@ -99,8 +100,8 @@ export function FacilitatorTests({ navigate, user, onLogout }: PageProps) {
           loadingLabel="Loading strand tests…"
           emptyMessage={emptyTestsText(filters)}
         />
-        <p className="text-gray-400 text-xs flex items-center gap-1.5">
-          <Lock className="w-3 h-3 flex-shrink-0" aria-hidden="true" /> Locked: {LOCKED_EXPLANATION}
+        <p className={`${MUTED} flex items-center gap-2`}>
+          <Lock className="w-4 h-4 flex-shrink-0" aria-hidden="true" /> Locked: {LOCKED_EXPLANATION}
         </p>
       </>
     );
@@ -108,19 +109,24 @@ export function FacilitatorTests({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-tests">
-      <div className="p-5 space-y-5">
-        <PageHeader eyebrow="Strand Tests" title="Strand Tests" subtitle={data ? testsSubtitle(data.total) : undefined} />
-        <Notice>{TESTS_SHARED_TEXT}</Notice>
+      <div className={PAGE_BODY}>
+        <PageHeader
+          title="Strand Tests"
+          subtitle={data ? testsSubtitle(data.total) : undefined}
+          // That the tests are shared and view only is context, not an alert: the quiet note line.
+          note={TESTS_SHARED_TEXT}
+        />
 
-        <Card padding="sm" className="flex items-center gap-x-5 gap-y-3 flex-wrap">
+        <FilterBar label="Filter strand tests">
           <ChipGroup label="Strand" options={strandOptions} value={strandFilter} onChange={setStrandFilter} />
+          <FilterDivider />
           <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
           {strands.error && (
-            <span className="text-red-600 text-xs flex items-center gap-2" role="alert">
+            <span className="text-[#7A1A12] text-[0.9375rem] flex items-center gap-2" role="alert">
               The strand filter could not be loaded. <Button variant="link" onClick={strands.reload}>Try again</Button>
             </span>
           )}
-        </Card>
+        </FilterBar>
 
         {body}
       </div>

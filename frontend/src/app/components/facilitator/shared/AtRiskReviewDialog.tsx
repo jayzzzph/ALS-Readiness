@@ -17,9 +17,11 @@ import { DASH, orDash, personName } from "../../../../lib/labels";
 import { useFetch } from "../../../../lib/hooks/useFetch";
 import { toast } from "../../../../lib/toast";
 import { Button } from "./Button";
+import { FIELD_CLASS } from "./Field";
 import { Modal } from "./Modal";
-import { Pill } from "./Pill";
+import { FLAG_STATUS_TONE, StatusText } from "./StatusText";
 import { EmptyState, ErrorState, LoadingState } from "./States";
+import { LABEL } from "./tokens";
 
 interface AtRiskReviewDialogProps {
   /** The learner whose flags are reviewed. */
@@ -100,20 +102,20 @@ export function AtRiskReviewDialog({ learner, cohortId, onClose, onChanged }: At
             const noteId = `flag-note-${flag.id}`;
             const note = notes[flag.id] ?? "";
             return (
-              <li key={flag.id} className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+              <li key={flag.id} className="p-4 bg-[#F2F1ED] border border-[#E2E0DA] rounded-xl">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="text-gray-800 text-sm font-medium">{flagReasonText(flag)}</div>
-                  <Pill tone={flag.status === "open" ? "warning" : "neutral"}>{flagStatusLabel(flag.status)}</Pill>
+                  <div className="text-[#1B1D26] text-base font-bold">{flagReasonText(flag)}</div>
+                  <StatusText tone={FLAG_STATUS_TONE[flag.status] ?? "quiet"}>{flagStatusLabel(flag.status)}</StatusText>
                 </div>
-                <div className="text-gray-500 text-xs mt-1">
+                <div className="text-[#4A4F5C] text-[0.9375rem] mt-1">
                   Detected {formatDate(flag.detected_at) ?? DASH}
                   {flag.status === "reviewed" && (
                     <> · Reviewed by {orDash(flag.reviewed_by_name)} on {formatDate(flag.reviewed_at) ?? DASH}</>
                   )}
                 </div>
-                {flag.note && <p className="text-gray-600 text-sm mt-2 whitespace-pre-wrap">Note: {flag.note}</p>}
+                {flag.note && <p className="text-[#1B1D26] text-[0.9375rem] mt-2 whitespace-pre-wrap">Note: {flag.note}</p>}
 
-                <label htmlFor={noteId} className="text-gray-600 text-xs font-medium mt-3 mb-1.5 block">
+                <label htmlFor={noteId} className={`text-[#1B1D26] ${LABEL} mt-3 mb-2 block`}>
                   Note (optional)
                 </label>
                 <textarea
@@ -124,11 +126,11 @@ export function AtRiskReviewDialog({ learner, cohortId, onClose, onChanged }: At
                   rows={2}
                   disabled={saving}
                   placeholder="What you found or did about it"
-                  className="w-full border border-gray-200 rounded-xl py-2 px-3 text-gray-700 focus:outline-none focus:border-orange-400 text-sm bg-white disabled:opacity-60"
+                  className={FIELD_CLASS}
                 />
-                <div className="text-gray-400 text-xs text-right">{note.length} / {FLAG_NOTE_MAX_LENGTH}</div>
+                <div className="text-[#4A4F5C] text-[0.9375rem] text-right tabular-nums mt-1">{note.length} / {FLAG_NOTE_MAX_LENGTH}</div>
 
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-3">
                   {flagActions(flag.status, flag.resolved_at).map((action) => (
                     <Button
                       key={action.status}

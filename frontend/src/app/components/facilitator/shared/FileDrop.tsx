@@ -41,10 +41,10 @@ export function FileDrop({ file, onChange, accept, hint, fileDetail, disabled = 
   };
 
   const tone = disabled
-    ? "border-gray-200 bg-gray-50 opacity-60"
+    ? "border-[#E2E0DA] bg-[#F2F1ED] opacity-60"
     : dragging
-      ? "border-[#3535C5] bg-indigo-50"
-      : "border-gray-200 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50/40";
+      ? "border-[#00538A] bg-[#CFE4FF]"
+      : "border-[#8A8F9C] bg-[#F2F1ED] hover:border-[#00538A] hover:bg-[#CFE4FF]/40";
 
   return (
     <div
@@ -54,7 +54,7 @@ export function FileDrop({ file, onChange, accept, hint, fileDetail, disabled = 
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
-      className={`border-2 border-dashed rounded-2xl text-center transition-all duration-200 focus-within:border-[#3535C5] ${tone}`}
+      className={`border-2 border-dashed rounded-2xl text-center transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-within:border-[#00538A] focus-within:ring-2 focus-within:ring-[#00538A]/30 ${tone}`}
     >
       <input ref={inputRef} type="file" className="hidden" accept={accept} onChange={onInputChange} disabled={disabled} tabIndex={-1} />
       <button
@@ -64,24 +64,24 @@ export function FileDrop({ file, onChange, accept, hint, fileDetail, disabled = 
         aria-label={file ? `Chosen file: ${file.name}. Choose another file` : "Choose a file"}
         className={`w-full px-6 pt-6 ${file ? "pb-2" : "pb-6"} rounded-2xl focus:outline-none disabled:cursor-not-allowed`}
       >
-        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" aria-hidden="true" />
-        <span className="block text-gray-700 text-sm font-medium mb-0.5">Drop your file here or browse</span>
-        {hint && <span className="block text-gray-400 text-xs">{hint}</span>}
+        <Upload className="w-8 h-8 text-[#4A4F5C] mx-auto mb-2" aria-hidden="true" />
+        <span className="block text-[#1B1D26] text-base font-bold mb-1">Drop your file here or browse</span>
+        {hint && <span className="block text-[#4A4F5C] text-[0.9375rem]">{hint}</span>}
       </button>
       {file && (
         <div className="px-6 pb-5">
-          <div className="inline-flex items-center gap-2 max-w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 shadow-sm">
-            <FileText className="w-3.5 h-3.5 text-[#3535C5] flex-shrink-0" aria-hidden="true" />
-            <span className="text-gray-700 text-xs font-medium truncate">{file.name}</span>
-            {fileDetail && <span className="text-gray-400 text-xs whitespace-nowrap">{fileDetail}</span>}
+          <div className="inline-flex items-center gap-2 max-w-full bg-white border border-[#E2E0DA] rounded-lg px-3 py-2">
+            <FileText className="w-4 h-4 text-[#00538A] flex-shrink-0" aria-hidden="true" />
+            <span className="text-[#1B1D26] text-[0.9375rem] font-bold truncate">{file.name}</span>
+            {fileDetail && <span className="text-[#4A4F5C] text-[0.9375rem] whitespace-nowrap">{fileDetail}</span>}
             <button
               type="button"
               onClick={() => onChange(null)}
               disabled={disabled}
               aria-label="Remove the file"
-              className="text-gray-300 hover:text-red-400 ml-1 transition-colors disabled:hover:text-gray-300 flex-shrink-0"
+              className="grid place-items-center w-7 h-7 -mr-1 rounded-md text-[#4A4F5C] hover:text-[#B42318] hover:bg-[#FDECEA] transition-colors duration-150 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#4A4F5C] flex-shrink-0"
             >
-              <X className="w-3 h-3" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>

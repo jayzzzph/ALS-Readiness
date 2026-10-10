@@ -6,7 +6,7 @@ import type { FacilitatorCohortItem, FacilitatorContentNode, FacilitatorLessonNo
 import { curriculumErrorMessage, pickerFailureEffect } from "../../../lib/curriculumText";
 import { contentTypeLabel } from "../../../lib/labels";
 import { toast } from "../../../lib/toast";
-import { Button, EmptyState, Modal, Pill } from "./shared";
+import { Button, EmptyState, Modal, StatusText } from "./shared";
 
 interface AssignContentModalProps {
   /** The lesson whose content is being assigned. */
@@ -64,7 +64,7 @@ export function AssignContentModal({ lesson, cohort, availableContents, onClose,
   return (
     <Modal
       title="Assign Content"
-      subtitle={<>Assigning to: <span className="font-medium text-gray-700">{cohort.name}</span> · {lesson.title}</>}
+      subtitle={<>Assigning to: <span className="font-medium text-[#1B1D26]">{cohort.name}</span> · {lesson.title}</>}
       onClose={() => onClose(changed)}
       busy={assigning}
       footer={<Button onClick={() => onClose(changed)} disabled={assigning} className="flex-1">Done</Button>}
@@ -78,13 +78,12 @@ export function AssignContentModal({ lesson, cohort, availableContents, onClose,
       ) : (
         <ul className="space-y-2">
           {contents.map((content) => (
-            <li key={content.content_id} className="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-200">
+            <li key={content.content_id} className="flex items-center gap-3 p-3 rounded-xl border-2 border-[#E2E0DA]">
               <div className="flex-1 min-w-0">
-                <div className="text-gray-700 text-sm font-medium truncate">{content.title}</div>
-                <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400 mt-0.5">
-                  <span>{contentTypeLabel(content.content_type)}</span>
-                  <Pill tone={content.has_evaluation ? "success" : "muted"}>{content.has_evaluation ? "Evaluated" : "Not evaluated"}</Pill>
-                  {!content.is_own && <Pill tone="neutral">Shared</Pill>}
+                <div className="text-[#1B1D26] font-bold truncate">{content.title}</div>
+                <div className="flex items-center gap-3 flex-wrap text-[0.9375rem] text-[#4A4F5C] mt-0.5">
+                  <span>{[contentTypeLabel(content.content_type), content.is_own ? null : "Shared"].filter(Boolean).join(" · ")}</span>
+                  <StatusText tone={content.has_evaluation ? "done" : "pending"}>{content.has_evaluation ? "Evaluated" : "Not evaluated"}</StatusText>
                 </div>
               </div>
               <Button variant="accent" size="sm" onClick={() => void assign(content)} disabled={assigning} className="flex-shrink-0">

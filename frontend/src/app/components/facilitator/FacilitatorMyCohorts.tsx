@@ -7,7 +7,7 @@ import type { FacilitatorCohortItem, FacilitatorRosterRow } from "../../../lib/a
 import { formatDate } from "../../../lib/dates";
 import { learnerCountLabel } from "../../../lib/dashboardText";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { DASH, cohortStatusLabel, memberStatusLabel, orDash, personName } from "../../../lib/labels";
+import { DASH, orDash, personName } from "../../../lib/labels";
 import { parseIdParam } from "../../../lib/learnersText";
 import { learnerDetailPage } from "../../../lib/navigation";
 import {
@@ -23,16 +23,16 @@ import { useCohortSelection } from "../../../lib/store/cohortStore";
 import {
   Button,
   Card,
+  CohortStatus,
   DataTable,
   EmptyState,
   ErrorState,
   LoadingState,
-  Notice,
+  MemberStatus,
   PageHeader,
-  Pill,
   type DataTableColumn,
-  type PillTone,
 } from "./shared";
+import { PAGE_BODY } from "./shared/tokens";
 
 /** The query parameter that keeps the selected cohort across a reload. */
 const COHORT_PARAM = "cohort";
@@ -40,22 +40,15 @@ const COHORT_PARAM = "cohort";
 const DASHBOARD_PAGE = "facilitator-dashboard";
 const LEARNERS_PAGE = "facilitator-learners";
 
-const STATUS_TONE: Record<FacilitatorCohortItem["status"], PillTone> = {
-  active: "success",
-  upcoming: "neutral",
-  completed: "muted",
-  archived: "muted",
-};
-
 const ROSTER_COLUMNS: DataTableColumn<FacilitatorRosterRow>[] = [
-  { key: "learner", header: "Learner", render: (row) => <span className="text-gray-800 font-medium">{personName(row, "Unnamed learner")}</span> },
-  { key: "id-no", header: "ID number", className: "text-gray-500 text-xs font-mono", render: (row) => orDash(row.id_no) },
+  { key: "learner", header: "Learner", render: (row) => <span className="text-[#1B1D26] font-bold whitespace-nowrap">{personName(row, "Unnamed learner")}</span> },
+  { key: "id-no", header: "ID number", className: "text-[#4A4F5C] tabular-nums", render: (row) => orDash(row.id_no) },
   {
     key: "status",
     header: "Membership",
-    render: (row) => <Pill tone={row.status === "active" ? "success" : "muted"}>{memberStatusLabel(row.status)}</Pill>,
+    render: (row) => <MemberStatus status={row.status} />,
   },
-  { key: "assigned", header: "Date assigned", className: "text-gray-500 text-xs", render: (row) => formatDate(row.assigned_at) ?? DASH },
+  { key: "assigned", header: "Date assigned", className: "text-[#4A4F5C] text-[0.9375rem]", render: (row) => formatDate(row.assigned_at) ?? DASH },
 ];
 
 interface CohortCardProps {
@@ -71,18 +64,19 @@ function CohortCard({ cohort, selected, onSelect }: CohortCardProps) {
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`w-full text-left bg-white rounded-2xl border p-4 transition-all duration-200 hover:shadow-md ${selected ? "border-orange-400 ring-1 ring-orange-200" : "border-gray-100"}`}
+      // One background class per state: two competing bg classes left the selected card white.
+      className={`w-full text-left rounded-2xl border-2 p-5 transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A] ${selected ? "border-[#00538A] bg-[#CFE4FF]" : "bg-white border-[#E2E0DA] hover:border-[#00538A]"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-gray-800 text-sm font-semibold truncate">{cohort.name}</div>
-          {cohort.code && <div className="text-gray-400 text-xs font-mono truncate">{cohort.code}</div>}
+          <div className="text-[#1B1D26] text-base font-bold">{cohort.name}</div>
+          {cohort.code && <div className="text-[#4A4F5C] text-[0.9375rem] tabular-nums truncate">{cohort.code}</div>}
         </div>
-        <Pill tone={STATUS_TONE[cohort.status] ?? "muted"}>{cohortStatusLabel(cohort.status)}</Pill>
+        <CohortStatus status={cohort.status} />
       </div>
-      <div className="flex items-center gap-3 flex-wrap text-gray-500 text-xs mt-3">
-        <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" aria-hidden="true" /> {learnerCountLabel(cohort.learner_count)}</span>
-        {dates && <span className="inline-flex items-center gap-1"><CalendarDays className="w-3 h-3" aria-hidden="true" /> {dates}</span>}
+      <div className="flex items-center gap-3 flex-wrap text-[#4A4F5C] text-[0.9375rem] mt-3">
+        <span className="inline-flex items-center gap-1"><Users className="w-4 h-4" aria-hidden="true" /> {learnerCountLabel(cohort.learner_count)}</span>
+        {dates && <span className="inline-flex items-center gap-1"><CalendarDays className="w-4 h-4" aria-hidden="true" /> {dates}</span>}
       </div>
     </button>
   );
@@ -130,43 +124,45 @@ export function FacilitatorMyCohorts({ navigate, user, onLogout }: PageProps) {
     roster = <LoadingState label="Loading the roster…" />;
   } else {
     roster = (
-      <div className="space-y-3">
-        <Card>
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-gray-800 font-semibold">{data.name}</h3>
-                <Pill tone={STATUS_TONE[data.status] ?? "muted"}>{cohortStatusLabel(data.status)}</Pill>
-              </div>
-              <div className="text-gray-500 text-xs mt-1">
-                SY {data.school_year} · {rosterCountsText(rosterCounts(data.roster))}
-              </div>
-            </div>
-            {listedCohort && (
-              <div className="flex items-center gap-2 flex-shrink-0">
+      // The selected cohort and its roster are one region, the same white panel as the cohort cards on the left.
+      <section aria-labelledby="cohort-detail-title">
+        <DataTable
+          title={data.name}
+          titleId="cohort-detail-title"
+          titleNote={
+            <>
+              <p className="flex items-center gap-3 flex-wrap tabular-nums">
+                <span>
+                  {/* Cohort names often carry the school year already; say it once. */}
+                  {data.name.includes(data.school_year) ? "" : `SY ${data.school_year} · `}
+                  {rosterCountsText(rosterCounts(data.roster))}
+                </span>
+                <CohortStatus status={data.status} />
+              </p>
+              {cohortsReady && !listedCohort && (
+                <p>This cohort is in school year {data.school_year}, not the school year selected in the top bar.</p>
+              )}
+            </>
+          }
+          titleAction={
+            listedCohort && (
+              <>
                 <Button size="sm" onClick={() => openWithCohort(DASHBOARD_PAGE)}>
-                  <LayoutDashboard className="w-3.5 h-3.5" /> Open dashboard
+                  <LayoutDashboard className="w-4 h-4" aria-hidden="true" /> Open dashboard
                 </Button>
                 <Button size="sm" onClick={() => openWithCohort(LEARNERS_PAGE)}>
-                  <Users className="w-3.5 h-3.5" /> View learners
+                  <Users className="w-4 h-4" aria-hidden="true" /> View learners
                 </Button>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {cohortsReady && !listedCohort && (
-          <Notice>This cohort is in school year {data.school_year}, not the school year selected in the top bar.</Notice>
-        )}
-
-        <DataTable
+              </>
+            )
+          }
           columns={ROSTER_COLUMNS}
           rows={data.roster}
           rowKey={(row) => row.learner_id}
           onRowClick={(row) => navigate(learnerDetailPage(row.learner_id, data.id))}
           emptyMessage="No learners have been assigned to this cohort yet."
         />
-      </div>
+      </section>
     );
   }
 
@@ -205,13 +201,13 @@ export function FacilitatorMyCohorts({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-cohorts">
-      <div className="p-5 space-y-5">
+      <div className={PAGE_BODY}>
         <PageHeader
-          eyebrow="My Cohorts"
           title="My Cohorts"
           subtitle={cohortsReady ? cohortsSubtitle(cohorts.length, selection.schoolYear) : undefined}
+          // Who assigns cohorts is worth knowing but asks nothing of you: the quiet note line, not a notice bar.
+          note={COHORTS_ASSIGNED_TEXT}
         />
-        <Notice>{COHORTS_ASSIGNED_TEXT}</Notice>
         {body}
       </div>
     </AppLayout>

@@ -2,26 +2,30 @@ import type { ReactNode } from "react";
 
 export type PillTone = "neutral" | "success" | "warning" | "danger" | "muted";
 
-// The colour pairs the existing pages use for their status pills.
+// For a small tag that is not a status (a status uses StatusText: icon plus word).
+// "success" is blue, not green: done is blue on the learner side too.
 const TONE: Record<PillTone, string> = {
-  neutral: "text-blue-600 bg-blue-50",
-  success: "text-green-600 bg-green-50",
-  warning: "text-yellow-600 bg-yellow-50",
-  danger: "text-red-600 bg-red-50",
-  muted: "text-gray-500 bg-gray-100",
+  neutral: "text-[#1B1D26] bg-white border border-[#E2E0DA]",
+  success: "text-[#00538A] bg-[#CFE4FF]",
+  warning: "text-[#835500] bg-[#FFDEB5]",
+  danger: "text-[#BA1A1A] bg-[#FFDAD7]",
+  muted: "text-[#4A4F5C] bg-[#F2F1ED]",
 };
 
 interface PillProps {
   children: ReactNode;
-  /** Default: "neutral". Use "muted" for "nothing yet" states such as "Not yet profiled" (FD8). */
+  /** Default: "neutral". */
   tone?: PillTone;
   className?: string;
 }
 
-/** A small rounded status label. */
+/**
+ * A small rounded tag in sentence case. The learner side keeps all-caps for
+ * strand codes only, so tags are not shouted either.
+ */
 export function Pill({ children, tone = "neutral", className = "" }: PillProps) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded-full ${TONE[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[0.875rem] font-semibold leading-snug px-2.5 py-0.5 rounded-full ${TONE[tone]} ${className}`}>
       {children}
     </span>
   );

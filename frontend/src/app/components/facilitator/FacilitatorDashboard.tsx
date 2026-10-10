@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, CheckCircle, TrendingUp, Users } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
 import { getDashboard } from "../../../lib/api/facilitator";
@@ -8,6 +8,8 @@ import type {
   DashboardAtRiskLearner,
   DashboardResponse,
   DashboardStrand,
+  EvaluationCoverage,
+  MpsAverage,
 } from "../../../lib/api/types";
 import { flagReasonText } from "../../../lib/atRisk";
 import {
@@ -17,14 +19,11 @@ import {
   evaluationTile,
   learnerCountLabel,
   loadFailureText,
-  masteryText,
-  mpsAverageText,
-  strandCardTitle,
   strandProgress,
 } from "../../../lib/dashboardText";
 import { formatLastActive } from "../../../lib/dates";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { cohortStatusLabel, orDash, personName } from "../../../lib/labels";
+import { formatMps, formatPercent, orDash, personName } from "../../../lib/labels";
 import { learnerDetailPage } from "../../../lib/navigation";
 import { useCohortSelection } from "../../../lib/store/cohortStore";
 import {
@@ -32,47 +31,120 @@ import {
   Button,
   Card,
   DataTable,
-  EmptyState,
   ErrorState,
   LoadingState,
   NoCohortsState,
-  Notice,
   NOT_YET_PROFILED,
   PageHeader,
-  Pill,
   ProgressBar,
   ReadinessPill,
-  StatTile,
+  CohortStatus,
+  FLAG_STATUS_TONE,
+  Section,
+  StatusText,
+  SUMMARY_NUMBER,
+  SummaryCell,
+  SummaryEmpty,
+  SummaryStrip,
   type DataTableColumn,
 } from "./shared";
+import { FOCUS_RING, MUTED, PAGE_BODY } from "./shared/tokens";
+
+// A facilitator's working view: one summary strip, then the learners who need
+// attention, then the per-strand numbers as a table. The serif is kept for the
+// page title; every heading and number below it is DM Sans, and numbers are
+// tabular so columns and figures line up.
 
 /**
- * Readiness distribution tile body. The API returns null until readiness
- * profiling exists, and that is the only state built here; when it returns
- * counts, render them in place of the early return.
+ * Readiness distribution value. The API returns null until readiness profiling
+ * exists, and that is the only state built here; when it returns counts,
+ * render them in place of the early return. The empty state is a quiet line,
+ * not a badge: it must not be the loudest thing on the page.
  */
 function ReadinessDistribution({ distribution }: { distribution: DashboardResponse["readiness_distribution"] }) {
-  if (distribution === null) return <Pill tone="muted">{NOT_YET_PROFILED}</Pill>;
+  if (distribution === null) return <SummaryEmpty>{NOT_YET_PROFILED}</SummaryEmpty>;
   return null;
 }
 
-function StrandCard({ strand, learnerCount }: { strand: DashboardStrand; learnerCount: number }) {
-  const progress = strandProgress(strand);
+/** "3 / 10" with the evaluated count leading; a dash when no content is assigned. */
+function EvaluationValue({ coverage }: { coverage: EvaluationCoverage }) {
+  if (coverage.total === 0) return <span className={SUMMARY_NUMBER}>{evaluationTile(coverage).value}</span>;
   return (
-    <Card
-      title={strandCardTitle(strand)}
-      action={<span className="text-gray-400 text-xs flex-shrink-0">{learnerCountLabel(learnerCount)}</span>}
-    >
-      {progress.barValue !== null && (
-        <ProgressBar value={progress.barValue} size="md" showValue={false} label={`${strand.strand_name} average completion`} />
-      )}
-      <div className="text-gray-500 text-sm mt-2">{progress.caption}</div>
-      <div className="text-gray-400 text-xs mt-3 pt-3 border-t border-gray-100">
-        Pretest average MPS {mpsAverageText(strand.pretest)} · Posttest average MPS {mpsAverageText(strand.posttest)} · {masteryText(strand.posttest.mastery_count)}
-      </div>
-    </Card>
+    <span className="tabular-nums">
+      <span className={SUMMARY_NUMBER}>{coverage.evaluated}</span>
+      <span className="text-[1.25rem] font-bold text-[#4A4F5C]"> / {coverage.total}</span>
+    </span>
   );
 }
+
+function DashboardSummary({ data }: { data: DashboardResponse }) {
+  const progressTile = averageProgressTile(data.average_progress);
+  const contentTile = evaluationTile(data.evaluation_coverage);
+  return (
+    <SummaryStrip>
+      <SummaryCell label="Average progress" hint={progressTile.hint}>
+        <span className={SUMMARY_NUMBER}>{progressTile.value}</span>
+      </SummaryCell>
+      <SummaryCell label="Content evaluation coverage" hint={contentTile.hint}>
+        <EvaluationValue coverage={data.evaluation_coverage} />
+      </SummaryCell>
+      <SummaryCell label="Readiness distribution" hint="Readiness appears once EEG profiling is available.">
+        <ReadinessDistribution distribution={data.readiness_distribution} />
+      </SummaryCell>
+    </SummaryStrip>
+  );
+}
+
+/** An MPS average with how many learners it covers, e.g. "30" over "1 learner". */
+function MpsCell({ average }: { average: MpsAverage }) {
+  // Nobody has taken it: one quiet dash, as on Reports, not a dash over "0 learners".
+  if (average.count === 0) return <span className="text-[#4A4F5C]">{formatMps(null)}</span>;
+  return (
+    <div className="tabular-nums">
+      <div className="font-bold text-[#1B1D26]">{formatMps(average.average_mps)}</div>
+      <div className={MUTED}>{learnerCountLabel(average.count)}</div>
+    </div>
+  );
+}
+
+const STRAND_COLUMNS: DataTableColumn<DashboardStrand>[] = [
+  {
+    key: "strand",
+    header: "Strand",
+    render: (strand) => (
+      <div className="min-w-0">
+        <div className="text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#4D35BD]">{strand.strand_code}</div>
+        <div className="text-[#1B1D26] font-medium">{strand.strand_name}</div>
+      </div>
+    ),
+  },
+  {
+    key: "completion",
+    header: "Average completion",
+    className: "w-[26%]",
+    render: (strand) => {
+      const progress = strandProgress(strand);
+      if (progress.barValue === null) return <span className={MUTED}>{progress.caption}</span>;
+      // The percentage gets a fixed slot so every track is the same length and the bars compare.
+      return (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <ProgressBar value={progress.barValue} showValue={false} label={`${strand.strand_name} average completion`} />
+          </div>
+          <span className="w-12 text-right font-bold tabular-nums text-[#1B1D26]">{formatPercent(progress.barValue)}</span>
+        </div>
+      );
+    },
+  },
+  { key: "pretest", header: "Pretest average MPS", align: "right", render: (strand) => <MpsCell average={strand.pretest} /> },
+  { key: "posttest", header: "Posttest average MPS", align: "right", render: (strand) => <MpsCell average={strand.posttest} /> },
+  {
+    key: "mastery",
+    header: "At mastery",
+    align: "right",
+    render: (strand) => <span className="font-bold tabular-nums text-[#1B1D26]">{strand.posttest.mastery_count}</span>,
+  },
+];
 
 interface AtRiskSectionProps {
   atRisk: DashboardAtRisk;
@@ -91,11 +163,11 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
           <button
             type="button"
             onClick={() => onOpenLearner(learner.learner_id)}
-            className="text-gray-800 text-sm font-medium hover:text-orange-600 hover:underline text-left"
+            className={`text-[#1B1D26] font-bold hover:text-[#004270] hover:underline underline-offset-2 text-left rounded-md ${FOCUS_RING}`}
           >
             {personName(learner, "Unnamed learner")}
           </button>
-          <div className="text-gray-400 text-xs font-mono">{orDash(learner.id_no)}</div>
+          <div className={`${MUTED} tabular-nums`}>{orDash(learner.id_no)}</div>
         </div>
       ),
     },
@@ -107,7 +179,7 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
           {learner.flags.map((flag) => (
             <div key={flag.id} className="flex items-center gap-2 flex-wrap">
               <span>{flagReasonText(flag)}</span>
-              {flag.status === "reviewed" && <Pill tone="neutral">Reviewed</Pill>}
+              {flag.status === "reviewed" && <StatusText tone={FLAG_STATUS_TONE.reviewed}>Reviewed</StatusText>}
             </div>
           ))}
         </div>
@@ -127,7 +199,7 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
     {
       key: "last-active",
       header: "Last Active",
-      className: "text-gray-500 text-xs",
+      className: "text-[#4A4F5C] whitespace-nowrap",
       render: (learner) => formatLastActive(learner.last_active_at),
     },
     {
@@ -137,24 +209,35 @@ function AtRiskSection({ atRisk, cohortIsActive, onOpenLearner, onReview }: AtRi
     },
   ];
 
+  const flagged = atRisk.learners.length > 0;
+  const inactiveNote = !cohortIsActive && <p>Flags are only updated for active cohorts.</p>;
+
+  // One region either way, its title inside, as every learner-page section is.
+  if (!flagged) {
+    return <Section titleId="at-risk-title" title="At-Risk Learners" note={<><p>No learners flagged</p>{inactiveNote}</>} />;
+  }
+
   return (
-    <section className="space-y-3">
-      <h3 className="text-gray-800 font-semibold text-sm">At-Risk Learners</h3>
-
-      {!cohortIsActive && <Notice>Flags are only updated for active cohorts.</Notice>}
-
-      {atRisk.learners.length === 0 ? (
-        <Card padding="none">
-          <EmptyState title="No learners flagged" icon={Users} />
-        </Card>
-      ) : (
-        <>
-          <Notice tone="warning" title={atRiskNoticeTitle(atRisk.learner_count)}>
-            — {AT_RISK_RULE_TEXT}
-          </Notice>
-          <DataTable columns={columns} rows={atRisk.learners} rowKey={(learner) => learner.learner_id} />
-        </>
-      )}
+    <section aria-labelledby="at-risk-title">
+      <DataTable
+        title="At-Risk Learners"
+        titleId="at-risk-title"
+        titleNote={
+          <>
+            <p className="flex items-start gap-2 text-[#1B1D26]" role="status">
+              <AlertCircle className="w-4 h-4 mt-[3px] flex-shrink-0 text-[#835500]" aria-hidden="true" />
+              <span>
+                <strong className="font-bold">{atRiskNoticeTitle(atRisk.learner_count)}</strong>
+                <span className="text-[#4A4F5C]"> — {AT_RISK_RULE_TEXT}</span>
+              </span>
+            </p>
+            {inactiveNote}
+          </>
+        }
+        columns={columns}
+        rows={atRisk.learners}
+        rowKey={(learner) => learner.learner_id}
+      />
     </section>
   );
 }
@@ -191,35 +274,9 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
   } else if (!data) {
     body = <LoadingState label="Loading the dashboard…" />;
   } else {
-    const progressTile = averageProgressTile(data.average_progress);
-    const contentTile = evaluationTile(data.evaluation_coverage);
-
     body = (
       <>
-        <div className="grid grid-cols-3 gap-3">
-          <StatTile
-            label="Readiness distribution"
-            icon={Activity}
-            tone="teal"
-            value={<ReadinessDistribution distribution={data.readiness_distribution} />}
-            hint="Readiness appears once EEG profiling is available."
-          />
-          <StatTile label="Average progress" icon={TrendingUp} tone="blue" value={progressTile.value} hint={progressTile.hint} />
-          <StatTile label="Content evaluation coverage" icon={CheckCircle} tone="green" value={contentTile.value} hint={contentTile.hint} />
-        </div>
-
-        <section className="space-y-3">
-          <h3 className="text-gray-800 font-semibold text-sm">Progress by Learning Strand</h3>
-          {data.progress_by_strand.length === 0 ? (
-            <Card padding="none"><EmptyState title="No active learning strands" /></Card>
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {data.progress_by_strand.map((strand) => (
-                <StrandCard key={strand.strand_id} strand={strand} learnerCount={data.learner_count} />
-              ))}
-            </div>
-          )}
-        </section>
+        <DashboardSummary data={data} />
 
         <AtRiskSection
           atRisk={data.at_risk}
@@ -227,6 +284,17 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
           onOpenLearner={(learnerId) => navigate(learnerDetailPage(learnerId, data.cohort.id))}
           onReview={setReviewLearner}
         />
+
+        <section aria-labelledby="strand-progress-title">
+          <DataTable
+            title="Progress by Learning Strand"
+            titleId="strand-progress-title"
+            columns={STRAND_COLUMNS}
+            rows={data.progress_by_strand}
+            rowKey={(strand) => strand.strand_id}
+            emptyMessage="No active learning strands"
+          />
+        </section>
       </>
     );
   }
@@ -242,21 +310,11 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
         />
       )}
 
-      <div className="p-5 space-y-5">
+      <div className={PAGE_BODY}>
         <PageHeader
-          eyebrow="Facilitator Dashboard"
           title="Cohort Overview"
-          subtitle={
-            headerCohort ? (
-              <span className="flex items-center gap-2 flex-wrap">
-                <span>
-                  {headerCohort.name}
-                  {data ? ` · ${learnerCountLabel(data.learner_count)}` : ""}
-                </span>
-                {headerCohort.status !== "active" && <Pill tone="muted">{cohortStatusLabel(headerCohort.status)}</Pill>}
-              </span>
-            ) : undefined
-          }
+          subtitle={headerCohort ? `${headerCohort.name}${data ? ` · ${learnerCountLabel(data.learner_count)}` : ""}` : undefined}
+          status={headerCohort && <CohortStatus status={headerCohort.status} />}
         />
         {body}
       </div>

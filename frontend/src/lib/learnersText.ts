@@ -66,13 +66,15 @@ export function scopeLabel(cohortName: string | null, schoolYear: string | null)
 }
 
 /**
- * The header subtitle: "12 learners · Cohort A", "1 learner · all cohorts,
- * 2026-2027". While the total is not known yet (null), just the scope.
+ * The header subtitle, scope first as on every facilitator page: "Cohort A ·
+ * 12 learners", "All cohorts, 2026-2027 · 1 learner". While the total is not
+ * known yet (null), just the scope.
  */
 export function learnersSubtitle(total: number | null, cohortName: string | null, schoolYear: string | null): string {
   const scope = scopeLabel(cohortName, schoolYear);
-  if (total === null) return scope.charAt(0).toUpperCase() + scope.slice(1);
-  return `${total} ${total === 1 ? "learner" : "learners"} · ${scope}`;
+  const capitalised = scope.charAt(0).toUpperCase() + scope.slice(1);
+  if (total === null) return capitalised;
+  return `${capitalised} · ${total} ${total === 1 ? "learner" : "learners"}`;
 }
 
 /** The empty-table line: different for "nobody here" and "nobody matches". */

@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { countLabel } from "../../../../lib/labels";
 import { showingRange } from "../../../../lib/learnersText";
+import { EASE_OUT, FOCUS_RING } from "./tokens";
 
 interface PaginationProps {
   /** 1-based, as the API sends it. */
@@ -18,6 +19,8 @@ interface PaginationProps {
   summary?: "pages" | "range";
 }
 
+const STEP_BUTTON = `w-10 h-10 grid place-items-center rounded-lg bg-white border border-[#8A8F9C] text-[#1B1D26] hover:bg-[#F2F1ED] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150 ${EASE_OUT} ${FOCUS_RING}`;
+
 /** The footer under a paginated table: "Page 2 of 5 — 93 learners" and previous / next buttons. */
 export function Pagination({ page, pageSize, total, onPageChange, noun = "item", nounPlural, disabled = false, summary = "pages" }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
@@ -25,8 +28,8 @@ export function Pagination({ page, pageSize, total, onPageChange, noun = "item",
   const pagesText = total === 0 ? counted : `Page ${page} of ${totalPages} — ${counted}`;
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-      <span className="text-gray-400 text-xs">
+    <div className="flex items-center justify-between px-4 py-3 border-t border-[#E2E0DA]">
+      <span className="text-[#4A4F5C] text-[0.9375rem] tabular-nums">
         {summary === "range" ? showingRange(page, pageSize, total) : pagesText}
       </span>
       <div className="flex items-center gap-2">
@@ -35,18 +38,18 @@ export function Pagination({ page, pageSize, total, onPageChange, noun = "item",
           aria-label="Previous page"
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={page <= 1 || disabled}
-          className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-40 transition-colors"
+          className={STEP_BUTTON}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" aria-hidden="true" />
         </button>
         <button
           type="button"
           aria-label="Next page"
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
           disabled={page >= totalPages || disabled}
-          className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-40 transition-colors"
+          className={STEP_BUTTON}
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
     </div>

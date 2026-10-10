@@ -4,6 +4,7 @@ import { useAuthStore } from "../../../../lib/store/authStore";
 import { cohortUserKey, useCohortSelection, useCohortStore } from "../../../../lib/store/cohortStore";
 import { cohortStatusLabel } from "../../../../lib/labels";
 import type { FacilitatorCohortItem } from "../../../../lib/api/types";
+import { EASE_OUT, FOCUS_RING } from "./tokens";
 
 interface CohortControlsProps {
   /** Whether the current page can show "All cohorts". Default: false. */
@@ -44,11 +45,11 @@ function TopBarSelect({
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
         title={label}
-        className="appearance-none max-w-48 truncate pl-3 pr-8 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 text-sm font-medium transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-60 disabled:cursor-not-allowed"
+        className={`appearance-none max-w-48 truncate min-h-10 pl-3 pr-9 py-2 bg-[#F2F1ED] hover:bg-[#E2E0DA] rounded-xl text-[#1B1D26] text-[0.9375rem] font-bold transition-colors duration-150 ${EASE_OUT} cursor-pointer ${FOCUS_RING} disabled:opacity-60 disabled:cursor-not-allowed`}
       >
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 w-3 h-3 text-gray-400" />
+      <ChevronDown className="pointer-events-none absolute right-3 w-4 h-4 text-[#4A4F5C]" aria-hidden="true" />
     </label>
   );
 }
@@ -75,27 +76,27 @@ export function CohortControls({ allowAll = false, hidden = false }: CohortContr
 
   if (selection.error) {
     return (
-      <div className="flex items-center gap-2 mr-1.5 text-xs text-red-600" role="alert">
+      <div className="flex items-center gap-2 mr-1.5 text-[0.9375rem] text-[#7A1A12]" role="alert">
         <span className="max-w-56 truncate" title={selection.error}>{selection.error}</span>
         <button
           type="button"
           onClick={selection.reload}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+          className={`flex items-center gap-2 min-h-10 px-3 py-2 bg-[#F2F1ED] hover:bg-[#E2E0DA] text-[#1B1D26] rounded-xl font-bold transition-colors duration-150 ${EASE_OUT} ${FOCUS_RING}`}
         >
-          <RefreshCw className="w-3 h-3" /> Retry
+          <RefreshCw className="w-4 h-4" aria-hidden="true" /> Retry
         </button>
       </div>
     );
   }
 
   if (!selection.ready) {
-    return <span className="mr-1.5 px-3 py-1.5 text-gray-400 text-sm" role="status">Loading cohorts…</span>;
+    return <span className="mr-1.5 px-3 py-1.5 text-[#4A4F5C] text-[0.9375rem]" role="status">Loading cohorts…</span>;
   }
 
   // Not assigned to any cohort in any year: a plain statement, not an error.
   if (selection.schoolYears.length === 0) {
     return (
-      <span className="mr-1.5 px-3 py-1.5 bg-gray-100 rounded-xl text-gray-500 text-sm" title="An administrator assigns facilitators to cohorts.">
+      <span className="mr-1.5 px-3 py-2 bg-[#F2F1ED] rounded-xl text-[#4A4F5C] text-[0.9375rem]" title="An administrator assigns facilitators to cohorts.">
         No cohorts assigned
       </span>
     );

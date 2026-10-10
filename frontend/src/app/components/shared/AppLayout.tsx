@@ -62,18 +62,22 @@ const iconButton = `relative w-11 h-11 flex items-center justify-center rounded-
 // Menus scale from the corner they open out of; exit is instant (unmount).
 const popover = `absolute right-0 top-[calc(100%+8px)] z-50 origin-top-right overflow-hidden rounded-2xl border border-[#E2E0DA] bg-white shadow-[0_8px_24px_rgba(27,29,38,0.08)] transition-[opacity,scale] duration-150 ${easeOut} starting:opacity-0 starting:scale-[0.97] motion-reduce:starting:scale-100`;
 
-function NavItem({ item, active, open, onClick }) {
+// The active item is amber because amber means "you are here" (DESIGN.md). Learners get the solid
+// highlighter; facilitator pages are dense working views, so there the same job is done by the amber
+// wash with an amber-ink icon, which still marks the place without outshouting the page content.
+function NavItem({ item, active, open, onClick, quiet = false }) {
   const Icon = item.icon;
+  const activeClass = quiet ? "bg-[#FFDEB5] text-[#1B1D26]" : "bg-[#FFAB2E] text-[#1B1D26]";
   return (
     <button
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       title={!open ? item.label : undefined}
       className={`w-full h-11 flex items-center gap-3 rounded-lg ${open ? "px-3.5" : "justify-center"} text-[0.9375rem] font-bold tracking-[0.01em] text-left transition-[background-color,scale] duration-150 ${easeOut} active:scale-[0.98] motion-reduce:active:scale-100 ${focus} ${
-        active ? "bg-[#FFAB2E] text-[#1B1D26]" : "text-[#1B1D26] hover:bg-white"
+        active ? activeClass : "text-[#1B1D26] hover:bg-white"
       }`}
     >
-      <Icon className="w-5 h-5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+      <Icon className={`w-5 h-5 shrink-0 ${active && quiet ? "text-[#835500]" : ""}`} strokeWidth={1.75} aria-hidden="true" />
       {open ? <span className="truncate">{item.label}</span> : <span className="sr-only">{item.label}</span>}
     </button>
   );
@@ -152,7 +156,7 @@ export function AppLayout({ children, navigate, user, onLogout, currentPage, all
             <ul key={gi} className={`space-y-1 ${gi > 0 ? "mt-4 pt-4 border-t border-[#E2E0DA]" : ""}`}>
               {group.map(item => (
                 <li key={item.page}>
-                  <NavItem item={item} active={activePage === item.page} open={sidebarOpen} onClick={() => navigate(item.page)} />
+                  <NavItem item={item} active={activePage === item.page} open={sidebarOpen} quiet={role === "facilitator"} onClick={() => navigate(item.page)} />
                 </li>
               ))}
             </ul>

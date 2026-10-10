@@ -19,9 +19,13 @@ import { DASH, atRiskReasonLabel, formatMps } from "./labels";
 
 // ── Reports: header and controls ─────────────────────────────────────────────
 
-/** "Cohort summary · Cohort A, 2026-2027". */
+/**
+ * Scope first, as on every facilitator page: "Cohort A, 2026-2027 · Cohort
+ * summary". The year is left out when the cohort's name already carries it.
+ */
 export function reportSubtitle(cohortName: string, schoolYear: string): string {
-  return `Cohort summary · ${cohortName}, ${schoolYear}`;
+  const scope = cohortName.includes(schoolYear) ? cohortName : `${cohortName}, ${schoolYear}`;
+  return `${scope} · Cohort summary`;
 }
 
 /** The membership chips, default first. The values are the API's `membership_status`. */
@@ -160,10 +164,10 @@ export function csvFailureText(httpStatus: number | null): string {
 
 // ── My Cohorts ───────────────────────────────────────────────────────────────
 
-/** "3 cohorts · 2026-2027", "1 cohort · 2026-2027"; without a year, just the count. */
+/** Scope first, as on every facilitator page: "SY 2026-2027 · 3 cohorts"; without a year, just the count. */
 export function cohortsSubtitle(count: number, schoolYear: string | null): string {
   const cohorts = `${count} ${count === 1 ? "cohort" : "cohorts"}`;
-  return schoolYear ? `${cohorts} · ${schoolYear}` : cohorts;
+  return schoolYear ? `SY ${schoolYear} · ${cohorts}` : cohorts;
 }
 
 /**

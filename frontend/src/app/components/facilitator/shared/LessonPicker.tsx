@@ -3,6 +3,7 @@ import { getCurriculum, getStrands } from "../../../../lib/api/facilitatorCurric
 import { useFetch } from "../../../../lib/hooks/useFetch";
 import { Button } from "./Button";
 import { FIELD_CLASS } from "./Field";
+import { LABEL } from "./tokens";
 
 interface LessonPickerProps {
   /** The chosen lesson, or null while none is. */
@@ -81,7 +82,7 @@ export function LessonPicker({ lessonId, onChange, initial, disabled = false, on
     <div className="space-y-2">
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label htmlFor={`${id}-strand`} className="text-gray-500 text-xs mb-1 block">Strand</label>
+          <label htmlFor={`${id}-strand`} className={`text-[#1B1D26] ${LABEL} mb-2 block`}>Strand</label>
           <select
             id={`${id}-strand`}
             value={strandId ?? ""}
@@ -96,7 +97,7 @@ export function LessonPicker({ lessonId, onChange, initial, disabled = false, on
           </select>
         </div>
         <div>
-          <label htmlFor={`${id}-module`} className="text-gray-500 text-xs mb-1 block">Module</label>
+          <label htmlFor={`${id}-module`} className={`text-[#1B1D26] ${LABEL} mb-2 block`}>Module</label>
           <select
             id={`${id}-module`}
             value={selectedModule ? selectedModule.module_id : ""}
@@ -111,7 +112,7 @@ export function LessonPicker({ lessonId, onChange, initial, disabled = false, on
           </select>
         </div>
         <div>
-          <label htmlFor={`${id}-lesson`} className="text-gray-500 text-xs mb-1 block">Lesson</label>
+          <label htmlFor={`${id}-lesson`} className={`text-[#1B1D26] ${LABEL} mb-2 block`}>Lesson</label>
           <select
             id={`${id}-lesson`}
             value={lessons.some((lesson) => lesson.lesson_id === lessonId) ? (lessonId as number) : ""}
@@ -128,18 +129,18 @@ export function LessonPicker({ lessonId, onChange, initial, disabled = false, on
       </div>
 
       {strands.error && (
-        <p className="text-red-600 text-xs flex items-center gap-2" role="alert">
+        <p className="text-[#7A1A12] text-[0.9375rem] flex items-center gap-2" role="alert">
           {strands.error} <Button variant="link" onClick={strands.reload}>Try again</Button>
         </p>
       )}
-      {strands.data && strandItems.length === 0 && <p className="text-gray-500 text-xs">There are no active learning strands.</p>}
+      {strands.data && strandItems.length === 0 && <p className="text-[#4A4F5C] text-[0.9375rem]">There are no active learning strands.</p>}
       {tree.error && (
-        <p className="text-red-600 text-xs flex items-center gap-2" role="alert">
+        <p className="text-[#7A1A12] text-[0.9375rem] flex items-center gap-2" role="alert">
           {tree.error} <Button variant="link" onClick={tree.reload}>Try again</Button>
         </p>
       )}
       {strandHasNoLessons && (
-        <p className="text-gray-500 text-xs flex items-center gap-2 flex-wrap">
+        <p className="text-[#4A4F5C] text-[0.9375rem] flex items-center gap-2 flex-wrap">
           This strand has no lessons yet. Modules and lessons are added in Learning Contents.
           <Button variant="link" onClick={onOpenCurriculum} disabled={disabled}>Go to Learning Contents</Button>
         </p>

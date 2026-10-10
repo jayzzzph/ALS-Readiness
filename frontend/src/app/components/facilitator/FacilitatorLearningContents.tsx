@@ -1,5 +1,5 @@
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Archive, BookOpen, Calendar, ChevronDown, ChevronLeft, ChevronRight, FileCheck2, FileX2, Plus } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
+import { Archive, BookOpen, ChevronDown, ChevronRight, FileCheck2, FileX2, Plus } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
 import type { PageProps } from "../../routes/ProtectedPage";
@@ -47,7 +47,7 @@ import {
 import { formatCalendarDate } from "../../../lib/dates";
 import { requiredError } from "../../../lib/formText";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { cohortStatusLabel, contentTypeLabel, orDash } from "../../../lib/labels";
+import { contentTypeLabel, orDash } from "../../../lib/labels";
 import { useCohortSelection } from "../../../lib/store/cohortStore";
 import { toast, type ToastAction } from "../../../lib/toast";
 import { AssignContentModal } from "./AssignContentModal";
@@ -55,6 +55,7 @@ import {
   ActionMenu,
   Button,
   Chip,
+  CohortStatus,
   ConfirmDialog,
   EmptyState,
   ErrorState,
@@ -63,12 +64,14 @@ import {
   LoadingState,
   Modal,
   NoCohortsState,
-  Notice,
   PageHeader,
+  Section,
+  StatusText,
   Pill,
   Tabs,
   type ActionMenuItem,
 } from "./shared";
+import { MUTED, PAGE_BODY, SECTION_TITLE } from "./shared/tokens";
 
 // Learning Contents: the selected cohort's details, the learning strands, and
 // each strand's curriculum (modules, lessons, and the content assigned to the
@@ -163,7 +166,7 @@ function StructureFormDialog({ heading, subtitle, initialTitle, initialDescripti
     <Modal title={heading} subtitle={subtitle} onClose={onClose} busy={saving} initialFocusRef={titleRef}>
       <form onSubmit={submit} className="space-y-4" noValidate>
         <div>
-          <label htmlFor="structure-title" className="text-gray-600 text-xs font-medium mb-1.5 block">Title</label>
+          <label htmlFor="structure-title" className="text-[#1B1D26] text-[0.9375rem] font-bold mb-2 block">Title</label>
           <input
             id="structure-title"
             ref={titleRef}
@@ -177,10 +180,10 @@ function StructureFormDialog({ heading, subtitle, initialTitle, initialDescripti
             disabled={saving}
             className={FIELD_CLASS}
           />
-          {titleError && <p className="text-red-600 text-xs mt-1.5" role="alert">{titleError}</p>}
+          {titleError && <p className="text-[#7A1A12] text-[0.9375rem] mt-2" role="alert">{titleError}</p>}
         </div>
         <div>
-          <label htmlFor="structure-description" className="text-gray-600 text-xs font-medium mb-1.5 block">Description (optional)</label>
+          <label htmlFor="structure-description" className="text-[#1B1D26] text-[0.9375rem] font-bold mb-2 block">Description (optional)</label>
           <textarea
             id="structure-description"
             value={description}
@@ -203,54 +206,29 @@ function StructureFormDialog({ heading, subtitle, initialTitle, initialDescripti
 
 // ── Cohort info and strand cards (the page's first view) ─────────────────────
 
-function InfoField({ label, children }: { label: ReactNode; children: ReactNode }) {
-  return (
-    <div>
-      <div className="text-gray-400 text-xs flex items-center gap-1">{label}</div>
-      <div className="text-gray-800 text-sm font-medium">{children}</div>
-    </div>
-  );
+/**
+ * The selected cohort as the header's meta line: name, code and dates. Every
+ * value comes from GET /api/facilitator/cohorts; the status goes beside it as
+ * on every page.
+ */
+function cohortMetaLine(cohort: FacilitatorCohortItem): string {
+  return `${cohort.name} · ${orDash(cohort.code)} · ${orDash(formatCalendarDate(cohort.start_date))} – ${orDash(formatCalendarDate(cohort.end_date))}`;
 }
 
-/** The selected cohort, as the top bar has it. Every value comes from GET /api/facilitator/cohorts. */
-function CohortInfoCard({ cohort }: { cohort: FacilitatorCohortItem }) {
+/** One strand in the list: its code and name, and the row action that opens its curriculum. */
+function StrandRow({ strand, onOpen }: { strand: StrandItem; onOpen: () => void }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <h3 className="text-gray-800 font-semibold text-sm mb-3">Cohort Info</h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <InfoField label="Cohort Name">{cohort.name}</InfoField>
-        <InfoField label="Cohort Code"><span className="font-mono">{orDash(cohort.code)}</span></InfoField>
-        <InfoField label="School Year">{cohort.school_year}</InfoField>
-        <InfoField label={<><Calendar className="w-3 h-3" /> Start / End Date</>}>
-          {orDash(formatCalendarDate(cohort.start_date))} – {orDash(formatCalendarDate(cohort.end_date))}
-        </InfoField>
-        <InfoField label="Status">
-          <Pill tone={cohort.status === "active" ? "success" : "muted"}>{cohortStatusLabel(cohort.status)}</Pill>
-        </InfoField>
+    <li className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
+      <div className="min-w-0 flex-1">
+        <div className="text-[#4D35BD] text-[0.8125rem] font-bold uppercase tracking-[0.06em]">{strand.code}</div>
+        <div className="text-[#1B1D26] text-base font-bold">{strand.name}</div>
       </div>
-    </div>
-  );
-}
-
-function LearningStrandCard({ strand, onOpen }: { strand: StrandItem; onOpen: () => void }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition-all duration-200">
-      <div className="flex items-start justify-between mb-2">
-        <div className="w-11 h-11 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
-          <BookOpen className="w-5 h-5 text-orange-500" />
-        </div>
-      </div>
-      <div className="text-gray-400 text-xs font-mono">{strand.code}</div>
-      <h4 className="text-gray-800 font-semibold text-sm mb-3">{strand.name}</h4>
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Open ${strand.name}`}
-        className="w-full py-2 text-xs bg-gray-50 hover:bg-orange-50 hover:text-orange-600 text-gray-600 rounded-xl transition-colors font-medium"
-      >
-        Open
-      </button>
-    </div>
+      <Button variant="secondary" size="sm" onClick={onOpen} className="flex-shrink-0">
+        <span aria-hidden="true">Open</span>
+        <span className="sr-only">Open {strand.name}</span>
+        <ChevronRight className="w-4 h-4" aria-hidden="true" />
+      </Button>
+    </li>
   );
 }
 
@@ -299,11 +277,11 @@ interface ContentRowProps {
 function ContentRow({ content, canUnassign, busy, onUnassign }: ContentRowProps) {
   const Icon = content.has_evaluation ? FileCheck2 : FileX2;
   return (
-    <li className="flex items-center gap-2 flex-wrap text-xs">
-      <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${content.has_evaluation ? "text-green-500" : "text-gray-400"}`} aria-hidden="true" />
-      <span className="text-gray-500">{content.has_evaluation ? "File (Evaluated):" : "File (Not Evaluated):"}</span>
-      <span className="text-gray-700 font-medium min-w-0 truncate">{content.title}</span>
-      <span className="text-gray-400">{contentTypeLabel(content.content_type)}</span>
+    <li className="flex items-center gap-2 flex-wrap text-[0.9375rem]">
+      <Icon className={`w-4 h-4 flex-shrink-0 ${content.has_evaluation ? "text-[#00538A]" : "text-[#4A4F5C]"}`} aria-hidden="true" />
+      <span className="text-[#4A4F5C]">{content.has_evaluation ? "File (Evaluated):" : "File (Not Evaluated):"}</span>
+      <span className="text-[#1B1D26] font-medium min-w-0 truncate">{content.title}</span>
+      <span className="text-[#4A4F5C]">{contentTypeLabel(content.content_type)}</span>
       {!content.is_own && <Pill tone="neutral">Shared</Pill>}
       {canUnassign && (
         <Button variant="outline" size="sm" onClick={onUnassign} disabled={busy} className="ml-auto">
@@ -333,16 +311,20 @@ function LessonItem({ module, lesson, controls, busy, actions }: LessonItemProps
       {/* The buttons sit beside the trigger, not inside it: a button cannot hold another. */}
       <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0">
-          <AccordionTrigger className="text-gray-700 text-sm">
+          {/* The chevron leads the row, in the same column and direction as the module's: right when closed, down when open. */}
+          <AccordionTrigger className="flex-row-reverse justify-end gap-2 text-[#1B1D26] text-[0.9375rem] [&>svg]:size-5 [&>svg]:translate-y-0 [&>svg]:text-[#4A4F5C] [&>svg]:-rotate-90 [&[data-state=open]>svg]:rotate-0">
             <span className={`min-w-0 ${offers.muted ? "opacity-60" : ""}`}>
               <span className="block">{lesson.title}</span>
-              {lesson.description && <span className="block text-gray-400 text-xs font-normal">{lesson.description}</span>}
-              {offers.note && <span className="block text-gray-500 text-xs font-normal">{offers.note}</span>}
+              {lesson.description && <span className="block text-[#4A4F5C] text-[0.9375rem] font-normal">{lesson.description}</span>}
+              {offers.note && <span className="block text-[#4A4F5C] text-[0.9375rem] font-normal">{offers.note}</span>}
             </span>
           </AccordionTrigger>
         </div>
-        {offers.archived && <Pill tone="muted">Archived</Pill>}
-        <Pill tone={count > 0 && !offers.muted ? "success" : "muted"}>{lessonPillText(count, controls.hasCohort)}</Pill>
+        {offers.archived && <StatusText tone="quiet">Archived</StatusText>}
+        {/* A count, not a badge: "No content assigned" stays quiet. */}
+        <span className={`flex-shrink-0 whitespace-nowrap text-[0.9375rem] ${count > 0 && !offers.muted ? "text-[#1B1D26] font-bold" : "text-[#4A4F5C]"}`}>
+          {lessonPillText(count, controls.hasCohort)}
+        </span>
         {offers.canAssign && (
           <Button variant="outline" size="sm" onClick={() => actions.assign(lesson)} disabled={busy} className="flex-shrink-0">
             <Plus className="w-3 h-3" /> Assign
@@ -367,11 +349,11 @@ function LessonItem({ module, lesson, controls, busy, actions }: LessonItemProps
       </div>
       <AccordionContent>
         {count === 0 ? (
-          <p className="pl-1 text-gray-400 text-xs">
+          <p className="pl-7 text-[#4A4F5C] text-[0.9375rem]">
             {controls.hasCohort ? "No content is assigned to this cohort for this lesson." : "No content to show for this lesson."}
           </p>
         ) : (
-          <ul className={`space-y-2 pl-1 ${offers.muted ? "opacity-60" : ""}`}>
+          <ul className={`space-y-2 pl-7 ${offers.muted ? "opacity-60" : ""}`}>
             {lesson.contents.map((content) => (
               <ContentRow
                 key={content.content_id}
@@ -408,16 +390,16 @@ function ModuleCard({ module, activeModuleIds, collapsed, onToggle, openLessons,
 
   return (
     // No overflow-hidden here: the action menus open past the card's edge.
-    <div className="bg-white rounded-2xl border border-gray-100">
-      <div className={`flex items-center gap-2 px-5 py-4 ${collapsed ? "" : "border-b border-gray-50"}`}>
-        <button type="button" onClick={onToggle} aria-expanded={!collapsed} className="flex items-center gap-2 min-w-0 flex-1 text-left">
-          <Chevron className="w-4 h-4 text-gray-400 flex-shrink-0" />
+    <div className="bg-white rounded-2xl border border-[#E2E0DA]">
+      <div className={`flex items-center gap-2 px-5 py-4 ${collapsed ? "" : "border-b border-[#E2E0DA]"}`}>
+        <button type="button" onClick={onToggle} aria-expanded={!collapsed} className="flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A]">
+          <Chevron className="w-5 h-5 text-[#4A4F5C] flex-shrink-0" aria-hidden="true" />
           <span className={`min-w-0 ${offers.archived ? "opacity-60" : ""}`}>
-            <span className="block text-gray-800 font-semibold text-sm truncate">{module.title}</span>
-            {module.description && <span className="block text-gray-400 text-xs truncate">{module.description}</span>}
+            <span className="block text-[#1B1D26] font-bold text-base truncate">{module.title}</span>
+            {module.description && <span className="block text-[#4A4F5C] text-[0.9375rem] truncate">{module.description}</span>}
           </span>
         </button>
-        {offers.archived && <Pill tone="muted">Archived</Pill>}
+        {offers.archived && <StatusText tone="quiet">Archived</StatusText>}
         {offers.canRestore && (
           <Button variant="outline" size="sm" onClick={() => actions.restoreModule(module)} disabled={busy} className="flex-shrink-0">
             Restore
@@ -439,7 +421,7 @@ function ModuleCard({ module, activeModuleIds, collapsed, onToggle, openLessons,
       {!collapsed && (
         <>
           {module.lessons.length === 0 ? (
-            <p className="px-5 py-3 text-gray-400 text-sm">No lessons yet</p>
+            <p className="px-5 py-3 text-[#4A4F5C] text-[0.9375rem]">No lessons yet</p>
           ) : (
             <Accordion type="multiple" value={openLessons} onValueChange={onOpenLessonsChange} className="px-5">
               {module.lessons.map((lesson) => (
@@ -448,7 +430,7 @@ function ModuleCard({ module, activeModuleIds, collapsed, onToggle, openLessons,
             </Accordion>
           )}
           {offers.canAddLesson && (
-            <div className="border-t border-gray-50 px-5 py-2.5">
+            <div className="border-t border-[#E2E0DA] px-5 py-2.5">
               <Button variant="link" onClick={() => actions.addLesson(module)} disabled={busy}>
                 <Plus className="w-3 h-3" /> Add Lesson
               </Button>
@@ -645,7 +627,7 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
     treeBody = <LoadingState label="Loading the curriculum…" />;
   } else if (data.modules.length === 0) {
     treeBody = (
-      <div className="bg-white rounded-2xl border border-gray-100">
+      <div className="bg-white rounded-2xl border border-[#E2E0DA]">
         <EmptyState
           icon={BookOpen}
           title="No modules yet"
@@ -689,36 +671,28 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
     // One strand's curriculum.
     body = (
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => openStrand(null)}
-            aria-label="Back to the learning strands"
-            className="p-2 rounded-xl bg-white border border-gray-100 hover:bg-gray-50 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4 text-gray-500" />
-          </button>
-          <div className="min-w-0">
-            <div className="text-gray-400 text-xs font-mono flex items-center gap-2 flex-wrap">
-              <span>{cohort ? `${cohort.code ?? cohort.name} - ` : ""}{selectedStrand.code} - {selectedStrand.name}</span>
-              {cohort && cohort.status !== "active" && <Pill tone="muted">{cohortStatusLabel(cohort.status)}</Pill>}
-            </div>
-            <h2 className="text-gray-800 font-bold text-lg">Learning Curriculum</h2>
-          </div>
-        </div>
+        {/* Short codes keep every strand visible without scrolling; the full name is the tab's accessible name and the heading below. */}
         <Tabs
           label="Learning strands"
-          tabs={strandItems.map((strand) => ({ value: strand.id, label: strandTabLabel(strand) }))}
+          tabs={strandItems.map((strand) => ({ value: strand.id, label: strand.code, title: strandTabLabel(strand) }))}
           value={strandId}
           onChange={openStrand}
         />
+        <div>
+          <h2 className={SECTION_TITLE}>Learning Curriculum</h2>
+          <div className="mt-1 space-y-1">
+            {/* The cohort and its status are in the page header; this line names the open strand. */}
+            <p className={MUTED}>{strandTabLabel(selectedStrand)}</p>
+            {/* Why some actions are missing: worth knowing, nothing to act on, so a quiet line. */}
+            {cohortsSettled && controls.note && <p className={MUTED}>{controls.note}</p>}
+          </div>
+        </div>
         <div className="flex items-center gap-3 flex-wrap">
           <Chip selected={showArchived} onClick={toggleShowArchived}>
-            <Archive className="w-3 h-3" aria-hidden="true" /> Show archived
+            <Archive className="w-4 h-4" aria-hidden="true" /> Show archived
           </Chip>
-          {showArchived && <span className="text-gray-400 text-xs">Archived modules and lessons are shown greyed, with Restore.</span>}
+          {showArchived && <span className={MUTED}>Archived modules and lessons are shown greyed, with Restore.</span>}
         </div>
-        {cohortsSettled && controls.note && <Notice>{controls.note}</Notice>}
         {treeBody}
       </div>
     );
@@ -730,25 +704,23 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
     } else if (!cohortsSettled) {
       cohortBlock = <LoadingState label="Loading your cohorts…" />;
     } else if (cohort) {
-      cohortBlock = <CohortInfoCard cohort={cohort} />;
+      // The cohort itself is in the header's subtitle line.
+      cohortBlock = null;
     } else {
-      cohortBlock = <div className="bg-white rounded-2xl border border-gray-100"><NoCohortsState /></div>;
+      cohortBlock = <div className="bg-white rounded-2xl border border-[#E2E0DA]"><NoCohortsState /></div>;
     }
     body = (
       <>
         {cohortBlock}
-        <div>
-          <h3 className="text-gray-800 font-semibold text-sm mb-3">Learning Strands</h3>
-          {strandItems.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100"><EmptyState icon={BookOpen} title="No active learning strands" /></div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Section titleId="strand-list-title" title="Learning Strands" note={strandItems.length === 0 && <p>No active learning strands</p>}>
+          {strandItems.length > 0 && (
+            <ul className="divide-y divide-[#E2E0DA]">
               {strandItems.map((strand) => (
-                <LearningStrandCard key={strand.id} strand={strand} onOpen={() => openStrand(strand.id)} />
+                <StrandRow key={strand.id} strand={strand} onOpen={() => openStrand(strand.id)} />
               ))}
-            </div>
+            </ul>
           )}
-        </div>
+        </Section>
       </>
     );
   }
@@ -788,7 +760,7 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
           onClose={() => setDialog(null)}
         >
           <p>{archiveModuleText(dialog.module.lessons.length)}</p>
-          <p className="text-gray-500 text-xs">{ARCHIVE_UNDO_HINT}</p>
+          <p className="text-[#4A4F5C] text-[0.9375rem]">{ARCHIVE_UNDO_HINT}</p>
         </ConfirmDialog>
       )}
       {dialog?.kind === "archive-lesson" && (
@@ -802,7 +774,7 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
           onClose={() => setDialog(null)}
         >
           <p>{archiveLessonText()}</p>
-          <p className="text-gray-500 text-xs">{ARCHIVE_UNDO_HINT}</p>
+          <p className="text-[#4A4F5C] text-[0.9375rem]">{ARCHIVE_UNDO_HINT}</p>
         </ConfirmDialog>
       )}
       {dialog?.kind === "unassign" && cohort && (
@@ -833,15 +805,18 @@ export function FacilitatorLearningContents({ navigate, user, onLogout }: PagePr
         />
       )}
 
-      <div className="p-5 space-y-5">
+      <div className={PAGE_BODY}>
         <PageHeader
-          eyebrow="Learning Curriculum"
           title="Learning Contents"
-          subtitle="Cohort info and per-strand learning curriculum, module by module."
+          backLabel={selectedStrand ? "Back to the learning strands" : undefined}
+          onBack={selectedStrand ? () => openStrand(null) : undefined}
+          subtitle={cohortsSettled && cohort ? cohortMetaLine(cohort) : undefined}
+          status={cohortsSettled && cohort && <CohortStatus status={cohort.status} />}
+          note="Cohort info and per-strand learning curriculum, module by module."
           action={
             selectedStrand && (
               <HeaderButton onClick={openAddModule} disabled={busy}>
-                <Plus className="w-4 h-4" /> Add Module
+                <Plus className="w-4 h-4" aria-hidden="true" /> Add Module
               </HeaderButton>
             )
           }

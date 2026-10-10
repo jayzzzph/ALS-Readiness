@@ -1,14 +1,18 @@
 import type { ComponentType, ReactNode } from "react";
+import { DISPLAY_FONT, EASE_OUT, FOCUS_RING } from "./tokens";
 
 export type StatTone = "blue" | "teal" | "green" | "red" | "orange" | "purple";
 
+// An icon chip takes the colour of the job it does (DESIGN.md, One Job Rule): blue wash for
+// progress and done, amber wash for attention, low tint for a problem, sunken for the rest.
+// The old tone names are kept so callers do not change.
 const TONE: Record<StatTone, string> = {
-  blue: "text-blue-600 bg-blue-50",
-  teal: "text-teal-600 bg-teal-50",
-  green: "text-green-600 bg-green-50",
-  red: "text-red-600 bg-red-50",
-  orange: "text-orange-600 bg-orange-50",
-  purple: "text-purple-600 bg-purple-50",
+  blue: "text-[#00538A] bg-[#CFE4FF]",
+  green: "text-[#00538A] bg-[#CFE4FF]",
+  orange: "text-[#835500] bg-[#FFDEB5]",
+  red: "text-[#BA1A1A] bg-[#FFDAD7]",
+  teal: "text-[#4A4F5C] bg-[#F2F1ED]",
+  purple: "text-[#4A4F5C] bg-[#F2F1ED]",
 };
 
 interface StatTileProps {
@@ -20,7 +24,7 @@ interface StatTileProps {
   tone?: StatTone;
   /** A quiet line under the label, e.g. "across 3 strands". */
   hint?: ReactNode;
-  /** Makes the whole tile a button, with the hover lift the Dashboard tiles have. */
+  /** Makes the whole tile a button. */
   onClick?: () => void;
 }
 
@@ -29,13 +33,13 @@ export function StatTile({ label, value, icon: Icon, tone = "blue", hint, onClic
   const body = (
     <>
       {Icon && (
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${TONE[tone]}`}>
-          <Icon className="w-4 h-4" />
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${TONE[tone]}`}>
+          <Icon className="w-5 h-5" aria-hidden="true" />
         </div>
       )}
-      <div className="text-gray-800 text-xl font-bold">{value}</div>
-      <div className="text-gray-500 text-xs">{label}</div>
-      {hint && <div className="text-gray-400 text-xs mt-1">{hint}</div>}
+      <div className="text-[1.5rem] leading-[1.25] text-[#1B1D26] tabular-nums" style={DISPLAY_FONT}>{value}</div>
+      <div className="text-[#4A4F5C] text-[0.9375rem] mt-1">{label}</div>
+      {hint && <div className="text-[#4A4F5C] text-[0.9375rem] mt-1">{hint}</div>}
     </>
   );
 
@@ -44,12 +48,12 @@ export function StatTile({ label, value, icon: Icon, tone = "blue", hint, onClic
       <button
         type="button"
         onClick={onClick}
-        className="bg-white rounded-2xl border border-gray-100 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+        className={`bg-white rounded-2xl border border-[#E2E0DA] p-5 text-left hover:border-[#00538A] transition-colors duration-150 ${EASE_OUT} ${FOCUS_RING}`}
       >
         {body}
       </button>
     );
   }
 
-  return <div className="bg-white rounded-2xl border border-gray-100 p-4">{body}</div>;
+  return <div className="bg-white rounded-2xl border border-[#E2E0DA] p-5">{body}</div>;
 }

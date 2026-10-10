@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { Activity, ClipboardList, Clock, UserX } from "lucide-react";
+import { UserX } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
 import { getErrorMessage, getErrorStatus } from "../../../lib/api/errors";
 import { getLearner, updateAtRiskFlag } from "../../../lib/api/facilitator";
 import type {
-  AtRiskFlagStatus,
   AtRiskFlagSummary,
   FacilitatorLearnerDetailResponse,
   LearnerMembership,
@@ -23,44 +22,45 @@ import {
 } from "../../../lib/atRisk";
 import { formatDate, formatDateTime, formatLastActive } from "../../../lib/dates";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { DASH, cohortStatusLabel, memberStatusLabel, orDash, personName } from "../../../lib/labels";
+import { DASH, memberStatusLabel, orDash, personName } from "../../../lib/labels";
 import { detailFailureText, intakeRows, lriTile, parseIdParam, progressCell, testCell } from "../../../lib/learnersText";
 import { LEARNER_COHORT_PARAM, learnerDetailPage } from "../../../lib/navigation";
 import { toast } from "../../../lib/toast";
 import {
   AtRiskReviewDialog,
+  CohortStatus,
+  FLAG_STATUS_TONE,
+  MemberStatus,
+  Section,
+  StatusText,
   Button,
   Card,
   DataTable,
   EmptyState,
   ErrorState,
   LoadingState,
-  Notice,
+  NOT_YET_PROFILED,
   PageHeader,
-  Pill,
   ProgressBar,
   ReadinessPill,
-  StatTile,
+  SUMMARY_NUMBER,
+  SummaryCell,
+  SummaryEmpty,
+  SummaryStrip,
   type DataTableColumn,
-  type PillTone,
 } from "./shared";
+import { MUTED, PAGE_BODY } from "./shared/tokens";
 
 const LEARNERS_PAGE = "facilitator-learners";
 
-const FLAG_STATUS_TONE: Record<AtRiskFlagStatus, PillTone> = {
-  open: "warning",
-  reviewed: "neutral",
-  dismissed: "muted",
-  resolved: "success",
-};
-
+/** An MPS with its raw score and date under it, right-aligned as a number; "Not taken" quietly. */
 function TestResultCell({ result }: { result: StrandTestResult | null }) {
   const cell = testCell(result);
-  if (result === null) return <span className="text-gray-400">{cell.main}</span>;
+  if (result === null) return <span className={MUTED}>{cell.main}</span>;
   return (
-    <div>
-      <div className="text-gray-800 font-medium">{cell.main}</div>
-      <div className="text-gray-400 text-xs">{cell.score}{cell.date ? ` · ${cell.date}` : ""}</div>
+    <div className="tabular-nums">
+      <div className="text-[#1B1D26] font-bold">{cell.main}</div>
+      <div className={`${MUTED} whitespace-nowrap`}>{cell.score}{cell.date ? ` · ${cell.date}` : ""}</div>
     </div>
   );
 }
@@ -70,34 +70,54 @@ const STRAND_COLUMNS: DataTableColumn<LearnerStrandDetail>[] = [
     key: "strand",
     header: "Strand",
     render: (strand) => (
-      <div>
-        <div className="text-gray-800 font-medium">{strand.strand_code}</div>
-        <div className="text-gray-400 text-xs">{strand.strand_name}</div>
+      <div className="min-w-0">
+        <div className="text-[0.8125rem] font-bold uppercase tracking-[0.06em] text-[#4D35BD]">{strand.strand_code}</div>
+        <div className="text-[#1B1D26] font-medium">{strand.strand_name}</div>
       </div>
     ),
   },
-  { key: "pretest", header: "Pretest MPS", render: (strand) => <TestResultCell result={strand.pretest} /> },
-  { key: "posttest", header: "Posttest MPS", render: (strand) => <TestResultCell result={strand.posttest} /> },
+  { key: "pretest", header: "Pretest MPS", align: "right", className: "w-[19%]", render: (strand) => <TestResultCell result={strand.pretest} /> },
+  { key: "posttest", header: "Posttest MPS", align: "right", className: "w-[19%]", render: (strand) => <TestResultCell result={strand.posttest} /> },
   {
     key: "progress",
     header: "Progress",
+    className: "w-[24%]",
     render: (strand) => {
       const cell = progressCell(strand.progress);
+      if (cell.barValue === null) return <span className={MUTED}>{cell.text}</span>;
+      // The percentage gets a fixed slot so every track is the same length and the bars compare.
       return (
         <div>
-          <ProgressBar value={cell.barValue} widthClass="w-24" label={`${strand.strand_code} progress`} />
-          {cell.detail && <div className="text-gray-400 text-xs mt-0.5">{cell.detail}</div>}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <ProgressBar value={cell.barValue} showValue={false} label={`${strand.strand_code} progress`} />
+            </div>
+            <span className="w-12 text-right font-bold tabular-nums text-[#1B1D26]">{cell.text}</span>
+          </div>
+          {cell.detail && <div className={`${MUTED} mt-0.5`}>{cell.detail}</div>}
         </div>
       );
     },
   },
 ];
 
-function MembershipPills({ membership }: { membership: Pick<LearnerMembership, "status" | "membership_status"> }) {
+/**
+ * The readiness figure. The API types it as null until EEG profiling exists,
+ * and that is the only state built here: a quiet line, not a badge.
+ */
+function ReadinessValue({ readiness }: { readiness: FacilitatorLearnerDetailResponse["readiness"] }) {
+  if (readiness === null) return <SummaryEmpty>{NOT_YET_PROFILED}</SummaryEmpty>;
+  return <ReadinessPill readiness={readiness} />;
+}
+
+/** The header status: the cohort's, as on every page, and an ended membership as a quiet word. */
+function MembershipStatus({ membership }: { membership: Pick<LearnerMembership, "status" | "membership_status"> }) {
   return (
     <>
-      {membership.membership_status === "ended" && <Pill tone="muted">Membership {memberStatusLabel(membership.membership_status).toLowerCase()}</Pill>}
-      {membership.status !== "active" && <Pill tone="muted">Cohort {cohortStatusLabel(membership.status).toLowerCase()}</Pill>}
+      <CohortStatus status={membership.status} />
+      {membership.membership_status === "ended" && (
+        <StatusText tone="quiet">Membership {memberStatusLabel(membership.membership_status).toLowerCase()}</StatusText>
+      )}
     </>
   );
 }
@@ -116,11 +136,11 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
 
   const flagColumns: DataTableColumn<AtRiskFlagSummary>[] = [
     { key: "reason", header: "Reason", render: (flag) => flagReasonText(flag) },
-    { key: "status", header: "Status", render: (flag) => <Pill tone={FLAG_STATUS_TONE[flag.status]}>{flagStatusLabel(flag.status)}</Pill> },
-    { key: "detected", header: "Detected", className: "text-gray-500 text-xs", render: (flag) => formatDate(flag.detected_at) ?? DASH },
-    { key: "resolved", header: "Resolved", className: "text-gray-500 text-xs", render: (flag) => formatDate(flag.resolved_at) ?? DASH },
-    { key: "reviewed-by", header: "Reviewed by", className: "text-gray-500 text-xs", render: (flag) => orDash(flag.reviewed_by_name) },
-    { key: "note", header: "Note", className: "text-gray-500 text-xs max-w-xs whitespace-pre-wrap", render: (flag) => orDash(flag.note) },
+    { key: "status", header: "Status", render: (flag) => <StatusText tone={FLAG_STATUS_TONE[flag.status] ?? "quiet"}>{flagStatusLabel(flag.status)}</StatusText> },
+    { key: "detected", header: "Detected", className: "text-[#4A4F5C] whitespace-nowrap", render: (flag) => formatDate(flag.detected_at) ?? DASH },
+    { key: "resolved", header: "Resolved", className: "text-[#4A4F5C] whitespace-nowrap", render: (flag) => formatDate(flag.resolved_at) ?? DASH },
+    { key: "reviewed-by", header: "Reviewed by", className: "text-[#4A4F5C]", render: (flag) => orDash(flag.reviewed_by_name) },
+    { key: "note", header: "Note", className: "text-[#4A4F5C] max-w-xs whitespace-pre-wrap", render: (flag) => orDash(flag.note) },
     {
       key: "review",
       header: "Review",
@@ -139,29 +159,27 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
     },
   ];
 
+  const hasFlags = data.at_risk_flags.length > 0;
+
   return (
     <>
-      <div className="grid grid-cols-3 gap-3">
-        <StatTile
-          label="Readiness"
-          icon={Activity}
-          tone="teal"
-          value={<ReadinessPill readiness={data.readiness} />}
-          hint="Readiness appears once EEG profiling is available."
-        />
-        <StatTile
-          label="Last active"
-          icon={Clock}
-          tone="blue"
-          value={formatLastActive(data.last_active_at)}
-          hint={formatDateTime(data.last_active_at) ?? undefined}
-        />
-        <StatTile label="LRI score" icon={ClipboardList} tone="purple" value={lri.value} hint={lri.hint ?? undefined} />
-      </div>
+      <SummaryStrip>
+        <SummaryCell label="Last active" hint={formatDateTime(data.last_active_at) ?? undefined}>
+          <span className={SUMMARY_NUMBER}>{formatLastActive(data.last_active_at)}</span>
+        </SummaryCell>
+        <SummaryCell label="LRI score" hint={lri.hint ?? undefined}>
+          <span className={SUMMARY_NUMBER}>{lri.value}</span>
+        </SummaryCell>
+        <SummaryCell label="Readiness" hint="Readiness appears once EEG profiling is available.">
+          <ReadinessValue readiness={data.readiness} />
+        </SummaryCell>
+      </SummaryStrip>
 
-      <section className="space-y-3">
-        <h3 className="text-gray-800 font-semibold text-sm">Performance by strand</h3>
+      {/* Every section is one region with its title inside, as on the learner pages. */}
+      <section aria-labelledby="strands-title">
         <DataTable
+          title="Performance by strand"
+          titleId="strands-title"
           columns={STRAND_COLUMNS}
           rows={data.strands}
           rowKey={(strand) => strand.strand_id}
@@ -169,49 +187,58 @@ function LoadedDetail({ data, onReview, onReopen, reopeningFlagId, onOpenCohort 
         />
       </section>
 
-      <Card title="Intake summary">
-        {data.intake === null ? (
-          <p className="text-gray-400 text-sm">No intake form submitted yet</p>
+      <section aria-labelledby="flags-title">
+        {hasFlags ? (
+          <DataTable
+            title="At-risk history"
+            titleId="flags-title"
+            titleNote={data.cohort.status !== "active" && <p>{FLAGS_NOT_UPDATED_TEXT}</p>}
+            columns={flagColumns}
+            rows={data.at_risk_flags}
+            rowKey={(flag) => flag.id}
+          />
         ) : (
-          <dl className="grid grid-cols-3 gap-x-6 gap-y-4">
+          <Section
+            titleId="flags-title"
+            title="At-risk history"
+            note={
+              <>
+                <p>No flags for this learner</p>
+                {data.cohort.status !== "active" && <p>{FLAGS_NOT_UPDATED_TEXT}</p>}
+              </>
+            }
+          />
+        )}
+      </section>
+
+      <Section titleId="intake-title" title="Intake summary" note={data.intake === null && <p>No intake form submitted yet</p>}>
+        {data.intake !== null && (
+          <dl className="grid grid-cols-3 gap-x-6 gap-y-5">
             {intakeRows(data.intake).map((row) => (
-              <div key={row.label}>
-                <dt className="text-gray-500 text-xs">{row.label}</dt>
-                <dd className="text-gray-800 text-sm font-medium mt-0.5">{row.value}</dd>
+              <div key={row.label} className="min-w-0">
+                <dt className={MUTED}>{row.label}</dt>
+                <dd className="text-[#1B1D26] text-base font-bold mt-1">{row.value}</dd>
               </div>
             ))}
           </dl>
         )}
-      </Card>
-
-      <section className="space-y-3">
-        <h3 className="text-gray-800 font-semibold text-sm">At-risk history</h3>
-        {data.cohort.status !== "active" && <Notice>{FLAGS_NOT_UPDATED_TEXT}</Notice>}
-        <DataTable
-          columns={flagColumns}
-          rows={data.at_risk_flags}
-          rowKey={(flag) => flag.id}
-          emptyMessage="No flags for this learner"
-        />
-      </section>
+      </Section>
 
       {data.memberships.length > 0 && (
-        <Card title="Other cohorts">
-          <ul className="divide-y divide-gray-50">
+        <Section titleId="other-cohorts-title" title="Other cohorts">
+          <ul className="divide-y divide-[#E2E0DA] -my-3">
             {data.memberships.map((membership) => (
-              <li key={membership.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-gray-800 text-sm font-medium">{membership.name}</span>
-                  <span className="text-gray-400 text-xs">SY {membership.school_year}</span>
-                  <Pill tone={membership.membership_status === "active" ? "success" : "muted"}>
-                    {memberStatusLabel(membership.membership_status)}
-                  </Pill>
+              <li key={membership.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-[#1B1D26] font-bold">{membership.name}</span>
+                  {!membership.name.includes(membership.school_year) && <span className={MUTED}>SY {membership.school_year}</span>}
+                  <MemberStatus status={membership.membership_status} />
                 </div>
                 <Button variant="link" onClick={() => onOpenCohort(membership.id)}>View in this cohort</Button>
               </li>
             ))}
           </ul>
-        </Card>
+        </Section>
       )}
     </>
   );
@@ -290,20 +317,18 @@ export function FacilitatorLearnerDetail({ navigate, user, onLogout }: PageProps
         />
       )}
 
-      <div className="p-5 space-y-5">
+      <div className={PAGE_BODY}>
         <PageHeader
           backLabel="Back to Learners"
           onBack={() => navigate(LEARNERS_PAGE)}
-          eyebrow="Learner Detail"
           title={data ? personName(data.learner, "Unnamed learner") : "Learner"}
           subtitle={
-            data ? (
-              <span className="flex items-center gap-2 flex-wrap">
-                <span>{orDash(data.learner.id_no)} · {data.cohort.name} · SY {data.cohort.school_year}</span>
-                <MembershipPills membership={data.cohort} />
-              </span>
-            ) : undefined
+            data
+              ? // Cohort names often carry the school year already; say it once.
+                `${orDash(data.learner.id_no)} · ${data.cohort.name}${data.cohort.name.includes(data.cohort.school_year) ? "" : ` · SY ${data.cohort.school_year}`}`
+              : undefined
           }
+          status={data && <MembershipStatus membership={data.cohort} />}
         />
         {body}
       </div>
