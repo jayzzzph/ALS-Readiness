@@ -13,5 +13,11 @@ export const EASE_OUT = "ease-[cubic-bezier(0.23,1,0.32,1)]";
 /** Column headers: Overline, 13px bold uppercase. */
 export const OVERLINE = "text-[0.8125rem] font-bold uppercase tracking-[0.06em] leading-snug";
 
+/** Section headings under the page title. The serif is kept for the page title only. */
+export const SECTION_TITLE = "text-[1.125rem] leading-snug font-bold text-[#1B1D26]";
+
+/** Supporting text: meta lines, hints, quiet empty states. */
+export const MUTED = "text-[0.9375rem] text-[#4A4F5C]";
+
 /** Label: buttons, nav items, form labels. */
 export const LABEL = "text-[0.9375rem] font-bold tracking-[0.01em] leading-snug";

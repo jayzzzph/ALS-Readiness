@@ -25,3 +25,4 @@ export { Field, FIELD_CLASS } from "./Field";
 export { FileDrop } from "./FileDrop";
 export { Steps } from "./Steps";
 export { LessonPicker } from "./LessonPicker";
+export { SummaryStrip, SummaryCell, SummaryEmpty, SUMMARY_NUMBER } from "./SummaryStrip";

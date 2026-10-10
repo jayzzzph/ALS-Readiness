@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
@@ -39,31 +39,18 @@ import {
   Pill,
   ProgressBar,
   ReadinessPill,
+  SUMMARY_NUMBER,
+  SummaryCell,
+  SummaryEmpty,
+  SummaryStrip,
   type DataTableColumn,
 } from "./shared";
-import { FOCUS_RING } from "./shared/tokens";
+import { FOCUS_RING, MUTED, SECTION_TITLE } from "./shared/tokens";
 
 // A facilitator's working view: one summary strip, then the learners who need
 // attention, then the per-strand numbers as a table. The serif is kept for the
 // page title; every heading and number below it is DM Sans, and numbers are
 // tabular so columns and figures line up.
-
-const SECTION_TITLE = "text-[1.125rem] leading-snug font-bold text-[#1B1D26]";
-const BIG_NUMBER = "text-[2rem] leading-none font-bold tracking-[-0.02em] tabular-nums text-[#1B1D26]";
-const MUTED = "text-[0.9375rem] text-[#4A4F5C]";
-
-/** One cell of the summary strip: label, value, and the line that explains it. */
-function SummaryCell({ label, children, hint }: { label: string; children: ReactNode; hint: ReactNode }) {
-  return (
-    <div className="px-6 py-5 min-w-0">
-      <dt className={MUTED}>{label}</dt>
-      <dd className="mt-2">
-        <div className="min-h-8 flex items-end">{children}</div>
-        <p className={`${MUTED} mt-2`}>{hint}</p>
-      </dd>
-    </div>
-  );
-}
 
 /**
  * Readiness distribution value. The API returns null until readiness profiling
@@ -72,28 +59,28 @@ function SummaryCell({ label, children, hint }: { label: string; children: React
  * not a badge: it must not be the loudest thing on the page.
  */
 function ReadinessDistribution({ distribution }: { distribution: DashboardResponse["readiness_distribution"] }) {
-  if (distribution === null) return <span className="text-base text-[#4A4F5C]">{NOT_YET_PROFILED}</span>;
+  if (distribution === null) return <SummaryEmpty>{NOT_YET_PROFILED}</SummaryEmpty>;
   return null;
 }
 
 /** "3 / 10" with the evaluated count leading; a dash when no content is assigned. */
 function EvaluationValue({ coverage }: { coverage: EvaluationCoverage }) {
-  if (coverage.total === 0) return <span className={BIG_NUMBER}>{evaluationTile(coverage).value}</span>;
+  if (coverage.total === 0) return <span className={SUMMARY_NUMBER}>{evaluationTile(coverage).value}</span>;
   return (
     <span className="tabular-nums">
-      <span className={BIG_NUMBER}>{coverage.evaluated}</span>
+      <span className={SUMMARY_NUMBER}>{coverage.evaluated}</span>
       <span className="text-[1.25rem] font-bold text-[#4A4F5C]"> / {coverage.total}</span>
     </span>
   );
 }
 
-function SummaryStrip({ data }: { data: DashboardResponse }) {
+function DashboardSummary({ data }: { data: DashboardResponse }) {
   const progressTile = averageProgressTile(data.average_progress);
   const contentTile = evaluationTile(data.evaluation_coverage);
   return (
-    <dl className="grid grid-cols-3 bg-white rounded-2xl border border-[#E2E0DA] divide-x divide-[#E2E0DA]">
+    <SummaryStrip>
       <SummaryCell label="Average progress" hint={progressTile.hint}>
-        <span className={BIG_NUMBER}>{progressTile.value}</span>
+        <span className={SUMMARY_NUMBER}>{progressTile.value}</span>
       </SummaryCell>
       <SummaryCell label="Content evaluation coverage" hint={contentTile.hint}>
         <EvaluationValue coverage={data.evaluation_coverage} />
@@ -101,7 +88,7 @@ function SummaryStrip({ data }: { data: DashboardResponse }) {
       <SummaryCell label="Readiness distribution" hint="Readiness appears once EEG profiling is available.">
         <ReadinessDistribution distribution={data.readiness_distribution} />
       </SummaryCell>
-    </dl>
+    </SummaryStrip>
   );
 }
 
@@ -279,7 +266,7 @@ export function FacilitatorDashboard({ navigate, user, onLogout }: PageProps) {
   } else {
     body = (
       <>
-        <SummaryStrip data={data} />
+        <DashboardSummary data={data} />
 
         <AtRiskSection
           atRisk={data.at_risk}
