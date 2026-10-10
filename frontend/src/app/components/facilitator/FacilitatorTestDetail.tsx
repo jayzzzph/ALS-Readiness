@@ -4,12 +4,11 @@ import { AlertCircle, CheckCircle, ExternalLink, FileQuestion, Lock } from "luci
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
 import { getStrandTest } from "../../../lib/api/facilitatorTests";
-import type { StrandTestType, StrandTestViewerQuestion } from "../../../lib/api/types";
+import type { StrandTestViewerQuestion } from "../../../lib/api/types";
 import { useFetch } from "../../../lib/hooks/useFetch";
 import { parseIdParam } from "../../../lib/learnersText";
 import {
   ANSWER_KEY_NOTICE,
-  LOCKED_EXPLANATION,
   TEST_NOT_FOUND_TEXT,
   assetKind,
   integrityNoticeText,
@@ -18,16 +17,15 @@ import {
   optionLetter,
   testCountsText,
   testFailureText,
-  testStatusLabel,
   testTypeLabel,
   type ItemProblem,
 } from "../../../lib/testsText";
-import { Button, Card, EmptyState, ErrorState, LoadingState, Notice, PageHeader, Pill, type PillTone } from "./shared";
+import { TestStatusText } from "./FacilitatorTests";
+import { Button, Card, EmptyState, ErrorState, LoadingState, Notice, PageHeader, Pill } from "./shared";
+import { MUTED } from "./shared/tokens";
 
 // Passed as currentPage too, so the sidebar entry stays highlighted on the detail.
 const TESTS_PAGE = "facilitator-tests";
-
-const TYPE_TONE: Record<StrandTestType, PillTone> = { pretest: "neutral", posttest: "success" };
 
 interface ItemAssetProps {
   url: string;
@@ -105,7 +103,7 @@ function ItemCard({ item, number, problem, onReload }: ItemCardProps) {
               <AlertCircle className="w-3 h-3" aria-hidden="true" /> {itemProblemLabel(problem)}
             </Pill>
           )}
-          <p className="text-[#1B1D26] text-[0.9375rem] font-medium leading-relaxed whitespace-pre-line">{item.question_text}</p>
+          <p className="text-[#1B1D26] text-base font-medium leading-relaxed whitespace-pre-line max-w-[70ch]">{item.question_text}</p>
           {item.asset_url && <ItemAsset url={item.asset_url} onReload={onReload} />}
 
           {item.options.length === 0 ? (
@@ -174,11 +172,11 @@ export function FacilitatorTestDetail({ navigate, user, onLogout }: PageProps) {
     const integrityNotice = integrityNoticeText(data.integrity);
     body = (
       <>
-        <Notice>{ANSWER_KEY_NOTICE}</Notice>
+        {/* The items that need fixing ask for action, so they keep the notice; the answer-key caution is in the header. */}
         {integrityNotice && <Notice tone="warning" title="This test has items that need fixing.">{integrityNotice}</Notice>}
 
         {data.items.length === 0 ? (
-          <Card padding="none"><EmptyState icon={FileQuestion} title="This test has no items yet" /></Card>
+          <p className={MUTED}>This test has no items yet</p>
         ) : (
           <div className="space-y-3">
             {data.items.map((item, index) => (
@@ -196,21 +194,20 @@ export function FacilitatorTestDetail({ navigate, user, onLogout }: PageProps) {
         <PageHeader
           backLabel="Back to Strand Tests"
           onBack={() => navigate(TESTS_PAGE)}
-          eyebrow="Strand Test"
           title={data ? data.title : "Strand Test"}
           subtitle={
             data ? (
-              <span className="flex items-center gap-2 flex-wrap">
-                <span>{data.strand_code} · {data.strand_name}</span>
-                <Pill tone={TYPE_TONE[data.type] ?? "muted"}>{testTypeLabel(data.type)}</Pill>
-                {data.is_locked ? (
-                  <span title={LOCKED_EXPLANATION}>
-                    <Pill tone="warning"><Lock className="w-3 h-3" aria-hidden="true" /> {testStatusLabel(true)}</Pill>
-                  </span>
-                ) : (
-                  <Pill tone="muted">{testStatusLabel(false)}</Pill>
-                )}
-                <span>{testCountsText(data.item_count, data.attempt_count)}</span>
+              <span className="block space-y-1">
+                <span className="flex items-center gap-x-2 gap-y-1 flex-wrap tabular-nums">
+                  <span>{data.strand_code} · {data.strand_name} · {testTypeLabel(data.type)} · {testCountsText(data.item_count, data.attempt_count)}</span>
+                  <span aria-hidden="true">·</span>
+                  <TestStatusText isLocked={data.is_locked} />
+                </span>
+                {/* A caution about who may see this page: one line in ink, not a banner. */}
+                <span className="flex items-start gap-2 text-[#1B1D26]">
+                  <Lock className="w-4 h-4 mt-1 flex-shrink-0 text-[#4A4F5C]" aria-hidden="true" />
+                  {ANSWER_KEY_NOTICE}
+                </span>
               </span>
             ) : undefined
           }
