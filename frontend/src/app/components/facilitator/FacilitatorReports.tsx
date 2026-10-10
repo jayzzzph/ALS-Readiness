@@ -8,7 +8,7 @@ import type { CohortSummaryResponse, MembershipStatusFilter, ReportLearner, Repo
 import { formatLastActive } from "../../../lib/dates";
 import { saveBlob } from "../../../lib/download";
 import { useFetch } from "../../../lib/hooks/useFetch";
-import { DASH, cohortStatusLabel, formatMps, formatPercent, memberStatusLabel, orDash, personName } from "../../../lib/labels";
+import { DASH, formatMps, formatPercent, orDash, personName } from "../../../lib/labels";
 import { learnerDetailPage } from "../../../lib/navigation";
 import {
   MEMBERSHIP_OPTIONS,
@@ -31,20 +31,22 @@ import { toast } from "../../../lib/toast";
 import {
   Card,
   ChipGroup,
+  CohortStatus,
   DataTable,
   ErrorState,
+  FilterBar,
   HeaderButton,
   LoadingState,
   NoCohortsState,
   PageHeader,
-  Pill,
+  MemberStatus,
   ProgressBar,
   SUMMARY_NUMBER,
   SummaryCell,
   SummaryStrip,
   type DataTableColumn,
 } from "./shared";
-import { FOCUS_RING, MUTED, SECTION_TITLE } from "./shared/tokens";
+import { FOCUS_RING, MUTED, PAGE_BODY } from "./shared/tokens";
 
 /** A figure in a table cell: bold and tabular, or a quiet dash when there is none. */
 function Figure({ text }: { text: string }) {
@@ -126,23 +128,41 @@ const STRAND_COLUMNS: DataTableColumn<ReportStrandTotals>[] = [
 /** A learner-table cell: tabular, right-aligned by its column, with dashes kept quiet. */
 const quietCell = (text: string) => (text === DASH ? <span className="text-[#4A4F5C]">{DASH}</span> : <span className="tabular-nums">{text}</span>);
 
+/**
+ * One strand for one learner: the progress, then "MPS 30 → 45" and "Gain +15 ·
+ * Mastered: Yes" under it when there is something to say. With no entry for
+ * the strand it is one quiet dash.
+ */
+function StrandCell({ strand }: { strand: ReturnType<typeof strandOfLearner> }) {
+  const progress = formatPercent(strand?.progress_percent);
+  const pre = formatMps(strand?.pretest_mps);
+  const post = formatMps(strand?.posttest_mps);
+  if (progress === DASH && pre === DASH && post === DASH) return quietCell(DASH);
+  const gain = gainText(strand?.gain);
+  const mastered = masteredText(strand?.mastered);
+  const outcome = [gain !== DASH ? `Gain ${gain}` : null, mastered !== DASH ? `Mastered: ${mastered}` : null].filter(Boolean).join(" · ");
+  return (
+    <div className="tabular-nums">
+      <div className={progress === DASH ? "text-[#4A4F5C]" : "font-bold text-[#1B1D26]"}>{progress}</div>
+      {(pre !== DASH || post !== DASH) && <div className={MUTED}>MPS {pre} → {post}</div>}
+      {outcome && <div className={MUTED}>{outcome}</div>}
+    </div>
+  );
+}
+
 /** The learners table's columns: fixed ones either side of one column group per strand in the response. */
 function learnerColumns(data: CohortSummaryResponse, onOpenLearner: (learnerId: number) => void): DataTableColumn<ReportLearner>[] {
-  const strandColumns = strandGroups(data.totals.strands, data.learners).flatMap((code): DataTableColumn<ReportLearner>[] => [
-    {
-      key: `${code}-progress`,
-      group: code,
-      header: "Progress",
-      align: "right",
-      className: "whitespace-nowrap",
-      // A learner with no entry for this strand shows a dash, as do the cells beside it.
-      render: (learner) => quietCell(formatPercent(strandOfLearner(learner, code)?.progress_percent)),
-    },
-    { key: `${code}-pretest`, group: code, header: "Pretest", align: "right", render: (learner) => quietCell(formatMps(strandOfLearner(learner, code)?.pretest_mps)) },
-    { key: `${code}-posttest`, group: code, header: "Posttest", align: "right", render: (learner) => quietCell(formatMps(strandOfLearner(learner, code)?.posttest_mps)) },
-    { key: `${code}-gain`, group: code, header: "Gain", align: "right", className: "whitespace-nowrap", render: (learner) => quietCell(gainText(strandOfLearner(learner, code)?.gain)) },
-    { key: `${code}-mastered`, group: code, header: "Mastered", render: (learner) => quietCell(masteredText(strandOfLearner(learner, code)?.mastered)) },
-  ]);
+  // One column per strand instead of five, so the table fits a laptop screen without scrolling
+  // sideways: the progress leads, with the MPS as "pretest → posttest" and the gain and mastery
+  // under it. Every figure is still on screen (and all of them are in the CSV).
+  const strandColumns = strandGroups(data.totals.strands, data.learners).map((code): DataTableColumn<ReportLearner> => ({
+    key: `${code}-strand`,
+    header: code,
+    align: "right",
+    className: "whitespace-nowrap",
+    // A learner with no entry for this strand shows a dash.
+    render: (learner) => <StrandCell strand={strandOfLearner(learner, code)} />,
+  }));
 
   return [
     {
@@ -160,9 +180,11 @@ function learnerColumns(data: CohortSummaryResponse, onOpenLearner: (learnerId: 
             >
               {personName(learner, "Unnamed learner")}
             </button>
-            {learner.membership_status === "ended" && <Pill tone="muted">{memberStatusLabel(learner.membership_status)}</Pill>}
           </div>
-          <div className="text-[#4A4F5C] text-[0.9375rem] tabular-nums">{orDash(learner.id_no)}</div>
+          <div className={`${MUTED} tabular-nums flex items-center gap-2`}>
+            {orDash(learner.id_no)}
+            {learner.membership_status === "ended" && <><span aria-hidden="true">·</span><MemberStatus status={learner.membership_status} /></>}
+          </div>
         </div>
       ),
     },
@@ -214,9 +236,6 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
   // Before the report answers, the header falls back to the cohort picked in the top bar.
   const headerCohort = data?.cohort ?? selection.cohort;
 
-  // The membership filter applies to the whole report, so it sits in the header beside the download.
-  const reportReady = !selection.error && !cohortsLoading && !selection.hasNoCohorts && cohortId !== null;
-
   let body;
   if (selection.error) {
     body = <ErrorState title="Your cohorts could not be loaded" message={selection.error} onRetry={selection.reload} />;
@@ -226,12 +245,27 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
     body = <Card padding="none"><NoCohortsState /></Card>;
   } else {
     const failure = report.error ? reportFailureText(report.errorStatus, report.error) : null;
+    // The filter applies to the whole report: it heads the content it filters, in the same bar as every
+    // page, and stays put while a new filter loads or fails.
+    const filterBar = (
+      <FilterBar label="Filter the report">
+        <ChipGroup label="Membership" options={MEMBERSHIP_OPTIONS} value={membership} onChange={setMembership} />
+      </FilterBar>
+    );
     body = failure ? (
-      <ErrorState title={failure.title} message={failure.message} onRetry={failure.canRetry ? report.reload : undefined} />
+      <>
+        {filterBar}
+        <ErrorState title={failure.title} message={failure.message} onRetry={failure.canRetry ? report.reload : undefined} />
+      </>
     ) : !data ? (
-      <LoadingState label="Loading the report…" />
+      <>
+        {filterBar}
+        <LoadingState label="Loading the report…" />
+      </>
     ) : (
       <>
+        {filterBar}
+
         <SummaryStrip>
           <SummaryCell label="Learners">
             <span className={SUMMARY_NUMBER}>{data.totals.learner_count}</span>
@@ -245,8 +279,9 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
         </SummaryStrip>
 
         <section aria-labelledby="report-strands-title">
-          <h3 id="report-strands-title" className={`${SECTION_TITLE} mb-4`}>By learning strand</h3>
           <DataTable
+            title="By learning strand"
+            titleId="report-strands-title"
             columns={STRAND_COLUMNS}
             rows={data.totals.strands}
             rowKey={(strand) => strand.strand_code}
@@ -255,8 +290,9 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
         </section>
 
         <section aria-labelledby="report-learners-title">
-          <h3 id="report-learners-title" className={`${SECTION_TITLE} mb-4`}>Learners</h3>
           <DataTable
+            title="Learners"
+            titleId="report-learners-title"
             columns={learnerColumns(data, (learnerId) => navigate(learnerDetailPage(learnerId, data.cohort.id)))}
             rows={data.learners}
             rowKey={(learner) => learner.learner_id}
@@ -279,29 +315,15 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-reports">
       {/* min-w-0 keeps the wide learners table scrolling inside its own card, not the page. */}
-      <div className="p-6 space-y-8 min-w-0">
+      <div className={`${PAGE_BODY} min-w-0`}>
         <PageHeader
           title="Reports"
-          subtitle={
-            headerCohort ? (
-              <span className="flex items-center gap-2 flex-wrap">
-                <span>
-                  {/* Cohort names often carry the school year already; say it once. */}
-                  {headerCohort.name.includes(headerCohort.school_year)
-                    ? `Cohort summary · ${headerCohort.name}`
-                    : reportSubtitle(headerCohort.name, headerCohort.school_year)}
-                </span>
-                {headerCohort.status !== "active" && <Pill tone="muted">{cohortStatusLabel(headerCohort.status)}</Pill>}
-              </span>
-            ) : undefined
-          }
+          subtitle={headerCohort ? reportSubtitle(headerCohort.name, headerCohort.school_year) : undefined}
+          status={headerCohort && <CohortStatus status={headerCohort.status} />}
           action={
-            <>
-              {reportReady && <ChipGroup label="Membership" options={MEMBERSHIP_OPTIONS} value={membership} onChange={setMembership} />}
-              <HeaderButton onClick={() => void downloadCsv()} disabled={cohortId === null || downloading}>
-                <Download className="w-4 h-4" aria-hidden="true" /> {downloading ? "Preparing CSV…" : "Download CSV"}
-              </HeaderButton>
-            </>
+            <HeaderButton onClick={() => void downloadCsv()} disabled={cohortId === null || downloading}>
+              <Download className="w-4 h-4" aria-hidden="true" /> {downloading ? "Preparing CSV…" : "Download CSV"}
+            </HeaderButton>
           }
         />
         {body}
