@@ -3,7 +3,7 @@ import { Archive, BookOpen, Headphones, Upload, User, Video } from "lucide-react
 import { AppLayout } from "../shared/AppLayout";
 import type { PageProps } from "../../routes/ProtectedPage";
 import { getContents } from "../../../lib/api/facilitatorContent";
-import type { ContentLibraryItem, ContentType } from "../../../lib/api/types";
+import type { ContentEvaluationSummary, ContentLibraryItem, ContentType, StimulusLevel } from "../../../lib/api/types";
 import {
   CONTENT_TYPES,
   EVALUATION_UNAVAILABLE_HINT,
@@ -15,6 +15,7 @@ import {
   lessonContextText,
   libraryFailureText,
   librarySubtitle,
+  stimulusLevelLabel,
   visibilityLabel,
 } from "../../../lib/contentText";
 import { useDebouncedValue } from "../../../lib/hooks/useDebouncedValue";
@@ -36,16 +37,21 @@ import {
   Pill,
   SearchInput,
   type DataTableColumn,
+  type PillTone,
 } from "./shared";
+import { MUTED } from "./shared/tokens";
 
 const CURRICULUM_PAGE = "facilitator-learning-contents";
 
-// The icon and colours the mockup's cards gave each kind of content.
-const TYPE_ICON: Record<ContentType, { Icon: ComponentType<{ className?: string }>; background: string; colour: string }> = {
-  video: { Icon: Video, background: "bg-[#F2F1ED]", colour: "text-[#4A4F5C]" },
-  audio: { Icon: Headphones, background: "bg-[#F2F1ED]", colour: "text-[#4A4F5C]" },
-  reading: { Icon: BookOpen, background: "bg-[#F2F1ED]", colour: "text-[#4A4F5C]" },
+// Each kind of content gets its icon; the label beside it carries the meaning.
+const TYPE_ICON: Record<ContentType, ComponentType<{ className?: string }>> = {
+  video: Video,
+  audio: Headphones,
+  reading: BookOpen,
 };
+
+// The evaluation chip leads with the stimulus level, on the readiness colour pairs.
+const LEVEL_TONE: Record<StimulusLevel, PillTone> = { high: "success", medium: "warning", low: "danger" };
 
 type TypeFilter = ContentType | "all";
 
@@ -54,28 +60,35 @@ const TYPE_OPTIONS: readonly { value: TypeFilter; label: string }[] = [
   ...CONTENT_TYPES.map((type) => ({ value: type, label: contentTypeLabel(type) })),
 ];
 
+/** The title, with who owns it and who can see it as one quiet line under it instead of pills. */
 function TitleCell({ item }: { item: ContentLibraryItem }) {
+  const owner = item.is_own ? "Mine" : item.uploader_name ? `Uploaded by ${item.uploader_name}` : null;
   return (
-    <div>
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[#1B1D26] text-[0.9375rem] font-medium">{item.title}</span>
-        {item.is_own && <Pill tone="success">Mine</Pill>}
-        <Pill tone="muted">{visibilityLabel(item.visibility)}</Pill>
-      </div>
-      {!item.is_own && item.uploader_name && <div className="text-[#4A4F5C] text-[0.9375rem] mt-0.5">Uploaded by {item.uploader_name}</div>}
+    <div className="min-w-0">
+      <div className="text-[#1B1D26] font-bold">{item.title}</div>
+      <div className={`${MUTED} mt-0.5`}>{[owner, visibilityLabel(item.visibility)].filter(Boolean).join(" · ")}</div>
     </div>
   );
 }
 
 function TypeCell({ type }: { type: ContentType }) {
-  const { Icon, background, colour } = TYPE_ICON[type] ?? TYPE_ICON.reading;
+  const Icon = TYPE_ICON[type] ?? TYPE_ICON.reading;
   return (
-    <div className="flex items-center gap-2 whitespace-nowrap">
-      <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${background}`}>
-        <Icon className={`w-4 h-4 ${colour}`} />
-      </span>
-      <span className="text-[#4A4F5C]">{contentTypeLabel(type)}</span>
-    </div>
+    <span className="inline-flex items-center gap-2 whitespace-nowrap text-[#4A4F5C]">
+      <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+      {contentTypeLabel(type)}
+    </span>
+  );
+}
+
+/** The stimulus level on its colour pair; "Not evaluated" is a quiet line, not a chip. */
+function EvaluationCell({ evaluation }: { evaluation: ContentEvaluationSummary | null }) {
+  if (evaluation === null) return <span className={MUTED}>{evaluationPillText(null)}</span>;
+  return (
+    <Pill tone={LEVEL_TONE[evaluation.stimulus_level] ?? "neutral"}>
+      <span className="sr-only">Evaluated · </span>
+      {stimulusLevelLabel(evaluation.stimulus_level)}
+    </Pill>
   );
 }
 
@@ -129,17 +142,13 @@ export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
       key: "lesson",
       header: "Lesson",
       render: (item) => (
-        <div>
+        <div className="min-w-0">
           <div className="text-[#1B1D26]">{item.lesson_title}</div>
-          <div className="text-[#4A4F5C] text-[0.9375rem]">{lessonContextText(item)}</div>
+          <div className={MUTED}>{lessonContextText(item)}</div>
         </div>
       ),
     },
-    {
-      key: "evaluation",
-      header: "Evaluation",
-      render: (item) => <Pill tone={item.evaluation === null ? "muted" : "success"}>{evaluationPillText(item.evaluation)}</Pill>,
-    },
+    { key: "evaluation", header: "Evaluation", render: (item) => <EvaluationCell evaluation={item.evaluation} /> },
     {
       key: "actions",
       header: "Actions",
@@ -147,11 +156,14 @@ export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
         // The row itself opens View; clicks on the buttons must not open it twice.
         <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
           <Button variant="outline" size="sm" onClick={() => setViewing(item)}>View</Button>
-          <span title={EVALUATION_UNAVAILABLE_HINT}>
-            <Button variant="outline" size="sm" disabled>
-              Evaluate<span className="sr-only">: {EVALUATION_UNAVAILABLE_HINT}</span>
-            </Button>
-          </span>
+          {/* Evaluation is not available yet; the disabled button is only shown where there is something to evaluate. */}
+          {item.evaluation === null && (
+            <span title={EVALUATION_UNAVAILABLE_HINT}>
+              <Button variant="outline" size="sm" disabled>
+                Evaluate<span className="sr-only">: {EVALUATION_UNAVAILABLE_HINT}</span>
+              </Button>
+            </span>
+          )}
         </div>
       ),
     },
@@ -220,28 +232,34 @@ export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
 
       <div className="p-6 space-y-6">
         <PageHeader
-          eyebrow="Content Management"
           title="Content Library"
           subtitle={data ? librarySubtitle(data.counts) : undefined}
           action={
             <HeaderButton onClick={() => setUploading(true)}>
-              <Upload className="w-4 h-4" /> Upload Content
+              <Upload className="w-4 h-4" aria-hidden="true" /> Upload Content
             </HeaderButton>
           }
         />
 
-        <Card padding="sm" className="flex items-center gap-3 flex-wrap">
-          <SearchInput value={searchText} onChange={setSearchText} placeholder="Search by title" />
-          <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
-          <Chip selected={mineOnly} onClick={() => setMineOnly((value) => !value)}>
-            <User className="w-3 h-3" aria-hidden="true" /> Mine only
-          </Chip>
-          <Chip selected={archived} onClick={() => setArchived((value) => !value)}>
-            <Archive className="w-3 h-3" aria-hidden="true" /> Archived
-          </Chip>
-        </Card>
+        {/* The filters sit directly above the table they filter, without a card of their own. */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-x-4 gap-y-3 flex-wrap">
+            <div className="w-72 max-w-full flex">
+              <SearchInput value={searchText} onChange={setSearchText} placeholder="Search by title" />
+            </div>
+            <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
+            <div className="flex items-center gap-2">
+              <Chip selected={mineOnly} onClick={() => setMineOnly((value) => !value)}>
+                <User className="w-4 h-4" aria-hidden="true" /> Mine only
+              </Chip>
+              <Chip selected={archived} onClick={() => setArchived((value) => !value)}>
+                <Archive className="w-4 h-4" aria-hidden="true" /> Archived
+              </Chip>
+            </div>
+          </div>
 
-        {body}
+          {body}
+        </div>
       </div>
     </AppLayout>
   );
