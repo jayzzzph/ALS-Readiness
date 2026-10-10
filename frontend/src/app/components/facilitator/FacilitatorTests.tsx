@@ -32,14 +32,14 @@ const TYPE_OPTIONS: readonly { value: TypeFilter; label: string }[] = [
 ];
 
 const COLUMNS: DataTableColumn<StrandTestViewerItem>[] = [
-  { key: "test", header: "Test", render: (test) => <span className="text-gray-800 font-medium">{test.title}</span> },
+  { key: "test", header: "Test", render: (test) => <span className="text-[#1B1D26] font-medium">{test.title}</span> },
   {
     key: "strand",
     header: "Strand",
     render: (test) => (
       <div>
-        <div className="text-gray-800 font-medium">{test.strand_code}</div>
-        <div className="text-gray-400 text-xs">{test.strand_name}</div>
+        <div className="text-[#1B1D26] font-medium">{test.strand_code}</div>
+        <div className="text-[#4A4F5C] text-[0.9375rem]">{test.strand_name}</div>
       </div>
     ),
   },
@@ -99,7 +99,7 @@ export function FacilitatorTests({ navigate, user, onLogout }: PageProps) {
           loadingLabel="Loading strand tests…"
           emptyMessage={emptyTestsText(filters)}
         />
-        <p className="text-gray-400 text-xs flex items-center gap-1.5">
+        <p className="text-[#4A4F5C] text-[0.9375rem] flex items-center gap-1.5">
           <Lock className="w-3 h-3 flex-shrink-0" aria-hidden="true" /> Locked: {LOCKED_EXPLANATION}
         </p>
       </>
@@ -108,7 +108,7 @@ export function FacilitatorTests({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-tests">
-      <div className="p-5 space-y-5">
+      <div className="p-6 space-y-6">
         <PageHeader eyebrow="Strand Tests" title="Strand Tests" subtitle={data ? testsSubtitle(data.total) : undefined} />
         <Notice>{TESTS_SHARED_TEXT}</Notice>
 
@@ -116,7 +116,7 @@ export function FacilitatorTests({ navigate, user, onLogout }: PageProps) {
           <ChipGroup label="Strand" options={strandOptions} value={strandFilter} onChange={setStrandFilter} />
           <ChipGroup label="Type" options={TYPE_OPTIONS} value={type} onChange={setType} />
           {strands.error && (
-            <span className="text-red-600 text-xs flex items-center gap-2" role="alert">
+            <span className="text-[#7A1A12] text-[0.9375rem] flex items-center gap-2" role="alert">
               The strand filter could not be loaded. <Button variant="link" onClick={strands.reload}>Try again</Button>
             </span>
           )}

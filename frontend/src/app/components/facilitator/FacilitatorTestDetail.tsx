@@ -48,8 +48,8 @@ function ItemAsset({ url, onReload }: ItemAssetProps) {
 
   if (failedUrl === url) {
     return (
-      <div className="flex items-center gap-2 flex-wrap p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-600 text-sm" role="alert">
-        <AlertCircle className="w-4 h-4 text-gray-400 flex-shrink-0" aria-hidden="true" />
+      <div className="flex items-center gap-2 flex-wrap p-3 bg-[#F2F1ED] border border-[#E2E0DA] rounded-xl text-[#4A4F5C] text-[0.9375rem]" role="alert">
+        <AlertCircle className="w-5 h-5 text-[#4A4F5C] flex-shrink-0" aria-hidden="true" />
         Attachment could not be loaded
         <Button variant="link" onClick={onReload}>Reload</Button>
       </div>
@@ -78,7 +78,7 @@ function ItemAsset({ url, onReload }: ItemAssetProps) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 text-orange-500 hover:text-orange-700 text-sm font-medium"
+      className="inline-flex items-center gap-1.5 text-[#00538A] hover:text-[#004270] text-[0.9375rem] font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A] rounded-md"
     >
       <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" /> Open attachment
     </a>
@@ -96,7 +96,7 @@ function ItemCard({ item, number, problem, onReload }: ItemCardProps) {
   return (
     <Card>
       <div className="flex items-start gap-3">
-        <span className="w-7 h-7 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold flex items-center justify-center flex-shrink-0" aria-label={`Item ${number}`}>
+        <span className="w-8 h-8 rounded-lg bg-[#F2F1ED] text-[#1B1D26] text-[0.9375rem] font-bold tabular-nums flex items-center justify-center flex-shrink-0" aria-label={`Item ${number}`}>
           {number}
         </span>
         <div className="min-w-0 flex-1 space-y-4">
@@ -105,24 +105,24 @@ function ItemCard({ item, number, problem, onReload }: ItemCardProps) {
               <AlertCircle className="w-3 h-3" aria-hidden="true" /> {itemProblemLabel(problem)}
             </Pill>
           )}
-          <p className="text-gray-800 text-sm font-medium leading-relaxed whitespace-pre-line">{item.question_text}</p>
+          <p className="text-[#1B1D26] text-[0.9375rem] font-medium leading-relaxed whitespace-pre-line">{item.question_text}</p>
           {item.asset_url && <ItemAsset url={item.asset_url} onReload={onReload} />}
 
           {item.options.length === 0 ? (
-            <p className="text-gray-400 text-sm">This item has no options.</p>
+            <p className="text-[#4A4F5C] text-[0.9375rem]">This item has no options.</p>
           ) : (
             <ol className="space-y-2">
               {item.options.map((option, index) => (
                 <li
                   key={option.id}
-                  className={`flex items-start gap-3 p-3 border rounded-xl text-sm ${option.is_correct ? "border-green-300 bg-green-50" : "border-gray-200"}`}
+                  className={`flex items-start gap-3 p-3 border rounded-xl text-[0.9375rem] ${option.is_correct ? "border-[#00538A] bg-[#CFE4FF]" : "border-[#E2E0DA]"}`}
                 >
-                  <span className="text-gray-500 font-semibold flex-shrink-0">{optionLetter(index)}.</span>
-                  <span className="text-gray-700 min-w-0 flex-1 whitespace-pre-line">{option.option_text}</span>
+                  <span className="text-[#4A4F5C] font-bold flex-shrink-0">{optionLetter(index)}.</span>
+                  <span className="text-[#1B1D26] min-w-0 flex-1 whitespace-pre-line">{option.option_text}</span>
                   {/* Marked with an icon and words, not by colour alone. */}
                   {option.is_correct && (
-                    <span className="inline-flex items-center gap-1 text-green-700 text-xs font-semibold whitespace-nowrap flex-shrink-0">
-                      <CheckCircle className="w-3.5 h-3.5" aria-hidden="true" /> Correct answer
+                    <span className="inline-flex items-center gap-1 text-[#00538A] text-[0.9375rem] font-bold whitespace-nowrap flex-shrink-0">
+                      <CheckCircle className="w-4 h-4" aria-hidden="true" /> Correct answer
                     </span>
                   )}
                 </li>
@@ -192,7 +192,7 @@ export function FacilitatorTestDetail({ navigate, user, onLogout }: PageProps) {
 
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage={TESTS_PAGE} hideCohortControls>
-      <div className="p-5 space-y-5">
+      <div className="p-6 space-y-6">
         <PageHeader
           backLabel="Back to Strand Tests"
           onBack={() => navigate(TESTS_PAGE)}
