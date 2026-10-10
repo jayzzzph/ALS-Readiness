@@ -3,10 +3,10 @@ import { AlertCircle, Info } from "lucide-react";
 
 export type NoticeTone = "warning" | "muted";
 
-const TONE: Record<NoticeTone, string> = {
-  // The amber strip the mockups use for "needs attention".
-  warning: "bg-orange-50 border-orange-200 text-orange-700",
-  muted: "bg-gray-50 border-gray-200 text-gray-500",
+const TONE: Record<NoticeTone, { box: string; icon: string }> = {
+  // The amber wash for "needs attention". Text stays ink: amber is a fill, never text on light.
+  warning: { box: "bg-[#FFDEB5] border-[#835500]/40 text-[#1B1D26]", icon: "text-[#835500]" },
+  muted: { box: "bg-[#F2F1ED] border-[#E2E0DA] text-[#4A4F5C]", icon: "text-[#4A4F5C]" },
 };
 
 interface NoticeProps {
@@ -17,14 +17,14 @@ interface NoticeProps {
   children?: ReactNode;
 }
 
-/** A one-line strip above a block: an amber alert, or a quiet explanatory note (e.g. why a page is read-only, FD12). */
+/** A strip above a block: an amber alert, or a quiet explanatory note (e.g. why a page is read-only, FD12). */
 export function Notice({ tone = "muted", title, children }: NoticeProps) {
   const Icon = tone === "warning" ? AlertCircle : Info;
   return (
-    <div className={`flex items-start gap-2 p-3 border rounded-xl text-sm ${TONE[tone]}`} role={tone === "warning" ? "status" : undefined}>
-      <Icon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+    <div className={`flex items-start gap-3 p-4 border rounded-xl text-[0.9375rem] leading-[1.55] ${TONE[tone].box}`} role={tone === "warning" ? "status" : undefined}>
+      <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${TONE[tone].icon}`} aria-hidden="true" />
       <p>
-        {title && <strong className="font-semibold">{title}</strong>}
+        {title && <strong className="font-bold">{title}</strong>}
         {title && children ? " " : null}
         {children}
       </p>

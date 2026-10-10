@@ -8,7 +8,9 @@ interface ReadinessPillProps {
    * A learner's readiness as the API sends it. The API types this as null
    * today: nothing is profiled until EEG profiling exists. When it starts
    * returning a level, widen this type and add the level's pill below - every
-   * caller already passes the API value through.
+   * caller already passes the API value through. The pairs to use:
+   * High #CFE4FF on #00538A, Moderate #FFDEB5 on #835500, Low #FFDAD7 on #BA1A1A
+   * (Pill's "success", "warning" and "danger" tones).
    */
   readiness: null;
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { DISPLAY_FONT } from "./tokens";
 
 interface CardProps {
   children: ReactNode;
@@ -10,15 +11,16 @@ interface CardProps {
   className?: string;
 }
 
-const PADDING = { none: "", sm: "p-4", md: "p-5" } as const;
+// 24px is the dense facilitator padding DESIGN.md allows (32px on learner cards).
+const PADDING = { none: "", sm: "p-4", md: "p-6" } as const;
 
-/** The white rounded panel every facilitator block sits in. */
+/** The white panel every facilitator block sits in: 16px corners, 1px hairline, no shadow. */
 export function Card({ children, title, action, padding = "md", className = "" }: CardProps) {
   return (
-    <div className={`bg-white rounded-2xl border border-gray-100 ${PADDING[padding]} ${className}`}>
+    <div className={`bg-white rounded-2xl border border-[#E2E0DA] ${PADDING[padding]} ${className}`}>
       {(title || action) && (
-        <div className={`flex items-center justify-between mb-4 ${padding === "none" ? "px-5 pt-5" : ""}`}>
-          {title && <h3 className="text-gray-800 font-semibold text-sm">{title}</h3>}
+        <div className={`flex items-center justify-between gap-3 mb-4 ${padding === "none" ? "px-6 pt-6" : ""}`}>
+          {title && <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>{title}</h3>}
           {action}
         </div>
       )}
