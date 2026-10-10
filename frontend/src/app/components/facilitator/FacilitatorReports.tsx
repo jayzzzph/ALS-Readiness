@@ -42,19 +42,20 @@ import {
   StatTile,
   type DataTableColumn,
 } from "./shared";
+import { DISPLAY_FONT } from "./shared/tokens";
 
 function AverageWithCount({ average, count }: { average: number | null; count: number }) {
   const cell = averageCell(average, count);
   return (
     <div>
-      <div className="text-gray-800 font-medium">{cell.main}</div>
-      <div className="text-gray-400 text-xs">{cell.detail}</div>
+      <div className="text-[#1B1D26] font-medium">{cell.main}</div>
+      <div className="text-[#4A4F5C] text-[0.9375rem]">{cell.detail}</div>
     </div>
   );
 }
 
 const STRAND_COLUMNS: DataTableColumn<ReportStrandTotals>[] = [
-  { key: "strand", header: "Strand", render: (strand) => <span className="text-gray-800 font-medium">{strand.strand_code}</span> },
+  { key: "strand", header: "Strand", render: (strand) => <span className="text-[#1B1D26] font-medium">{strand.strand_code}</span> },
   {
     key: "progress",
     header: "Average progress",
@@ -67,8 +68,8 @@ const STRAND_COLUMNS: DataTableColumn<ReportStrandTotals>[] = [
     header: "Average gain",
     render: (strand) => (
       <div>
-        <div className="text-gray-800 font-medium">{gainText(strand.gain.average)}</div>
-        <div className="text-gray-400 text-xs">{averageCell(null, strand.gain.count).detail}</div>
+        <div className="text-[#1B1D26] font-medium">{gainText(strand.gain.average)}</div>
+        <div className="text-[#4A4F5C] text-[0.9375rem]">{averageCell(null, strand.gain.count).detail}</div>
       </div>
     ),
   },
@@ -104,13 +105,13 @@ function learnerColumns(data: CohortSummaryResponse, onOpenLearner: (learnerId: 
             <button
               type="button"
               onClick={() => onOpenLearner(learner.learner_id)}
-              className="text-gray-800 text-sm font-medium hover:text-orange-600 hover:underline text-left"
+              className="text-[#1B1D26] text-[0.9375rem] font-medium hover:text-[#004270] hover:underline text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A] rounded-md"
             >
               {personName(learner, "Unnamed learner")}
             </button>
             {learner.membership_status === "ended" && <Pill tone="muted">{memberStatusLabel(learner.membership_status)}</Pill>}
           </div>
-          <div className="text-gray-400 text-xs font-mono">{orDash(learner.id_no)}</div>
+          <div className="text-[#4A4F5C] text-[0.9375rem] tabular-nums">{orDash(learner.id_no)}</div>
         </div>
       ),
     },
@@ -121,7 +122,7 @@ function learnerColumns(data: CohortSummaryResponse, onOpenLearner: (learnerId: 
     },
     ...strandColumns,
     { key: "lri", header: "LRI score", className: "whitespace-nowrap", render: (learner) => orDash(learner.lri_score) },
-    { key: "last-active", header: "Last active", className: "text-gray-500 text-xs whitespace-nowrap", render: (learner) => formatLastActive(learner.last_active_at) },
+    { key: "last-active", header: "Last active", className: "text-[#4A4F5C] text-[0.9375rem] whitespace-nowrap", render: (learner) => formatLastActive(learner.last_active_at) },
     { key: "at-risk", header: "At-risk", className: "whitespace-nowrap", render: (learner) => atRiskReasonsText(learner.at_risk_reasons) },
   ];
 }
@@ -183,7 +184,7 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
           <LoadingState label="Loading the report…" />
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               <StatTile label="Learners" icon={Users} tone="blue" value={data.totals.learner_count} />
               <StatTile
                 label="Average progress"
@@ -201,8 +202,8 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
               />
             </div>
 
-            <section className="space-y-3">
-              <h3 className="text-gray-800 font-semibold text-sm">By learning strand</h3>
+            <section className="space-y-4">
+              <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>By learning strand</h3>
               <DataTable
                 columns={STRAND_COLUMNS}
                 rows={data.totals.strands}
@@ -211,8 +212,8 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
               />
             </section>
 
-            <section className="space-y-3">
-              <h3 className="text-gray-800 font-semibold text-sm">Learners</h3>
+            <section className="space-y-4">
+              <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>Learners</h3>
               <DataTable
                 columns={learnerColumns(data, (learnerId) => navigate(learnerDetailPage(learnerId, data.cohort.id)))}
                 rows={data.learners}
@@ -221,10 +222,10 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
               />
             </section>
 
-            <p className="text-gray-400 text-xs">
+            <p className="text-[#4A4F5C] text-[0.9375rem]">
               {generatedText(data.generated_at)}. {thresholdsText(data.thresholds)}
             </p>
-            <p className="text-gray-400 text-xs">
+            <p className="text-[#4A4F5C] text-[0.9375rem]">
               This report contains learners' personal information. Share it only with authorized ALS personnel.
             </p>
           </>
@@ -236,7 +237,7 @@ export function FacilitatorReports({ navigate, user, onLogout }: PageProps) {
   return (
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-reports">
       {/* min-w-0 keeps the wide learners table scrolling inside its own card, not the page. */}
-      <div className="p-5 space-y-5 min-w-0">
+      <div className="p-6 space-y-6 min-w-0">
         <PageHeader
           eyebrow="Reports"
           title="Reports"

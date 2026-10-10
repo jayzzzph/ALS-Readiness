@@ -42,9 +42,9 @@ const CURRICULUM_PAGE = "facilitator-learning-contents";
 
 // The icon and colours the mockup's cards gave each kind of content.
 const TYPE_ICON: Record<ContentType, { Icon: ComponentType<{ className?: string }>; background: string; colour: string }> = {
-  video: { Icon: Video, background: "bg-purple-50", colour: "text-purple-500" },
-  audio: { Icon: Headphones, background: "bg-blue-50", colour: "text-blue-500" },
-  reading: { Icon: BookOpen, background: "bg-green-50", colour: "text-green-500" },
+  video: { Icon: Video, background: "bg-[#F2F1ED]", colour: "text-[#4A4F5C]" },
+  audio: { Icon: Headphones, background: "bg-[#F2F1ED]", colour: "text-[#4A4F5C]" },
+  reading: { Icon: BookOpen, background: "bg-[#F2F1ED]", colour: "text-[#4A4F5C]" },
 };
 
 type TypeFilter = ContentType | "all";
@@ -58,11 +58,11 @@ function TitleCell({ item }: { item: ContentLibraryItem }) {
   return (
     <div>
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-gray-800 text-sm font-medium">{item.title}</span>
+        <span className="text-[#1B1D26] text-[0.9375rem] font-medium">{item.title}</span>
         {item.is_own && <Pill tone="success">Mine</Pill>}
         <Pill tone="muted">{visibilityLabel(item.visibility)}</Pill>
       </div>
-      {!item.is_own && item.uploader_name && <div className="text-gray-400 text-xs mt-0.5">Uploaded by {item.uploader_name}</div>}
+      {!item.is_own && item.uploader_name && <div className="text-[#4A4F5C] text-[0.9375rem] mt-0.5">Uploaded by {item.uploader_name}</div>}
     </div>
   );
 }
@@ -71,10 +71,10 @@ function TypeCell({ type }: { type: ContentType }) {
   const { Icon, background, colour } = TYPE_ICON[type] ?? TYPE_ICON.reading;
   return (
     <div className="flex items-center gap-2 whitespace-nowrap">
-      <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${background}`}>
-        <Icon className={`w-3.5 h-3.5 ${colour}`} />
+      <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${background}`}>
+        <Icon className={`w-4 h-4 ${colour}`} />
       </span>
-      <span className="text-gray-600">{contentTypeLabel(type)}</span>
+      <span className="text-[#4A4F5C]">{contentTypeLabel(type)}</span>
     </div>
   );
 }
@@ -130,8 +130,8 @@ export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
       header: "Lesson",
       render: (item) => (
         <div>
-          <div className="text-gray-700">{item.lesson_title}</div>
-          <div className="text-gray-400 text-xs">{lessonContextText(item)}</div>
+          <div className="text-[#1B1D26]">{item.lesson_title}</div>
+          <div className="text-[#4A4F5C] text-[0.9375rem]">{lessonContextText(item)}</div>
         </div>
       ),
     },
@@ -218,7 +218,7 @@ export function FacilitatorContent({ navigate, user, onLogout }: PageProps) {
         />
       )}
 
-      <div className="p-5 space-y-5">
+      <div className="p-6 space-y-6">
         <PageHeader
           eyebrow="Content Management"
           title="Content Library"

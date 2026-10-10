@@ -253,11 +253,11 @@ export function ContentUploadDialog({ onClose, onUploaded, onOpenCurriculum }: C
                   checked={visibility === option}
                   onChange={() => setVisibility(option)}
                   disabled={running}
-                  className="mt-1 accent-orange-500"
+                  className="mt-1 accent-[#00538A]"
                 />
                 <span>
-                  <span className="block text-gray-800 text-sm font-medium">{visibilityLabel(option)}</span>
-                  <span className="block text-gray-500 text-xs">{VISIBILITY_EXPLANATION[option]}</span>
+                  <span className="block text-[#1B1D26] text-[0.9375rem] font-medium">{visibilityLabel(option)}</span>
+                  <span className="block text-[#4A4F5C] text-[0.9375rem]">{VISIBILITY_EXPLANATION[option]}</span>
                 </span>
               </label>
             ))}
@@ -265,16 +265,16 @@ export function ContentUploadDialog({ onClose, onUploaded, onOpenCurriculum }: C
         </Field>
 
         {(running || fileUploaded) && (
-          <div className="space-y-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+          <div className="space-y-3 p-4 bg-[#F2F1ED] border border-[#E2E0DA] rounded-xl">
             <Steps labels={UPLOAD_STEPS.map((step) => step.label)} active={steps.active} done={steps.done} />
             {phase === "uploading" &&
               (percent === null ? (
-                <p className="text-gray-500 text-xs" role="status">Uploading the file…</p>
+                <p className="text-[#4A4F5C] text-[0.9375rem]" role="status">Uploading the file…</p>
               ) : (
                 <ProgressBar value={percent} size="md" label="Upload progress" />
               ))}
             {phase === "form" && fileUploaded && (
-              <p className="text-gray-500 text-xs">The file is uploaded, but its details were not saved. Fix them and save again; the file will not be uploaded twice.</p>
+              <p className="text-[#4A4F5C] text-[0.9375rem]">The file is uploaded, but its details were not saved. Fix them and save again; the file will not be uploaded twice.</p>
             )}
           </div>
         )}

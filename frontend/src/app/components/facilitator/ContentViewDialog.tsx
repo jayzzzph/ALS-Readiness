@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { ExternalLink } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { getErrorCode, getErrorMessage, getErrorStatus } from "../../../lib/api/errors";
 import { getContent, updateContent } from "../../../lib/api/facilitatorContent";
 import type { ContentLibraryItem, ContentUpdate, ContentVisibility } from "../../../lib/api/types";
@@ -40,8 +40,8 @@ type Mode = "view" | "edit" | "confirm-archive";
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-gray-500 text-xs">{label}</dt>
-      <dd className="text-gray-800 text-sm mt-0.5">{children}</dd>
+      <dt className="text-[#4A4F5C] text-[0.9375rem]">{label}</dt>
+      <dd className="text-[#1B1D26] text-[0.9375rem] mt-0.5">{children}</dd>
     </div>
   );
 }
@@ -126,11 +126,11 @@ function EditForm({ item, saving, onSave, onCancel, onOpenCurriculum }: EditForm
                 checked={visibility === option}
                 onChange={() => setVisibility(option)}
                 disabled={saving}
-                className="mt-1 accent-orange-500"
+                className="mt-1 accent-[#00538A]"
               />
               <span>
-                <span className="block text-gray-800 text-sm font-medium">{visibilityLabel(option)}</span>
-                <span className="block text-gray-500 text-xs">{VISIBILITY_EXPLANATION[option]}</span>
+                <span className="block text-[#1B1D26] text-[0.9375rem] font-medium">{visibilityLabel(option)}</span>
+                <span className="block text-[#4A4F5C] text-[0.9375rem]">{VISIBILITY_EXPLANATION[option]}</span>
               </span>
             </label>
           ))}
@@ -195,8 +195,8 @@ export function ContentViewDialog({ item: listItem, onClose, onChanged, onOpenCu
   } else if (mode === "confirm-archive") {
     body = (
       <div className="space-y-4">
-        <p className="text-gray-800 text-sm font-semibold">Archive this content?</p>
-        <p className="text-gray-600 text-sm">{ARCHIVE_CONTENT_TEXT}</p>
+        <p className="text-[#1B1D26] text-[0.9375rem] font-semibold">Archive this content?</p>
+        <p className="text-[#4A4F5C] text-[0.9375rem]">{ARCHIVE_CONTENT_TEXT}</p>
         <div className="flex gap-3">
           <Button onClick={() => setMode("view")} disabled={saving} className="flex-1">Back</Button>
           <Button
@@ -225,19 +225,19 @@ export function ContentViewDialog({ item: listItem, onClose, onChanged, onOpenCu
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
           <DetailRow label="Lesson">
             {item.lesson_title}
-            <span className="block text-gray-400 text-xs">{lessonContextText(item)}</span>
+            <span className="block text-[#4A4F5C] text-[0.9375rem]">{lessonContextText(item)}</span>
           </DetailRow>
           <DetailRow label="Uploaded by">
             {orDash(item.uploader_name)}
-            <span className="block text-gray-400 text-xs">{uploadedAt ? `${uploadedAt} (Philippine time)` : "Date not recorded"}</span>
+            <span className="block text-[#4A4F5C] text-[0.9375rem]">{uploadedAt ? `${uploadedAt} (Philippine time)` : "Date not recorded"}</span>
           </DetailRow>
           <DetailRow label="Evaluation">
             {item.evaluation === null ? (
               <Pill tone="muted">{evaluationPillText(null)}</Pill>
             ) : (
               <>
-                <Pill tone="success">{evaluationPillText(item.evaluation)}</Pill>
-                <span className="block text-gray-400 text-xs mt-1">
+                <Pill tone="success"><Check className="w-3.5 h-3.5" aria-hidden="true" />{evaluationPillText(item.evaluation)}</Pill>
+                <span className="block text-[#4A4F5C] text-[0.9375rem] mt-1">
                   Cognitive sustainability rating: {item.evaluation.cognitive_sustainability_rating}
                 </span>
               </>
@@ -249,14 +249,14 @@ export function ContentViewDialog({ item: listItem, onClose, onChanged, onOpenCu
                 href={readUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-orange-500 hover:text-orange-700 font-medium"
+                className="inline-flex items-center gap-1.5 text-[#00538A] hover:text-[#004270] font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A] rounded-md"
               >
-                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" /> Open file
+                <ExternalLink className="w-4 h-4" aria-hidden="true" /> Open file
               </a>
             ) : detail.loading && !detail.error ? (
-              <span className="text-gray-400">Checking the file…</span>
+              <span className="text-[#4A4F5C]">Checking the file…</span>
             ) : (
-              <span className="text-gray-500">
+              <span className="text-[#4A4F5C]">
                 {fileUnavailableText(detail.errorStatus, detail.error !== null)}{" "}
                 {detail.error !== null && detail.errorStatus !== 404 && <Button variant="link" onClick={detail.reload}>Try again</Button>}
               </span>
@@ -269,7 +269,7 @@ export function ContentViewDialog({ item: listItem, onClose, onChanged, onOpenCu
             {item.description && item.description.trim() !== "" ? (
               <span className="whitespace-pre-wrap">{item.description}</span>
             ) : (
-              <span className="text-gray-400">No description</span>
+              <span className="text-[#4A4F5C]">No description</span>
             )}
           </DetailRow>
         </dl>
