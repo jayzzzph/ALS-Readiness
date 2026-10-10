@@ -27,13 +27,12 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  Notice,
   PageHeader,
   Pill,
   type DataTableColumn,
   type PillTone,
 } from "./shared";
-import { DISPLAY_FONT } from "./shared/tokens";
+import { MUTED } from "./shared/tokens";
 
 /** The query parameter that keeps the selected cohort across a reload. */
 const COHORT_PARAM = "cohort";
@@ -72,11 +71,12 @@ function CohortCard({ cohort, selected, onSelect }: CohortCardProps) {
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`w-full text-left bg-white rounded-2xl border-2 p-5 transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A] ${selected ? "border-[#00538A] bg-[#CFE4FF]" : "border-[#E2E0DA] hover:border-[#00538A]"}`}
+      // One background class per state: two competing bg classes left the selected card white.
+      className={`w-full text-left rounded-2xl border-2 p-5 transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00538A] ${selected ? "border-[#00538A] bg-[#CFE4FF]" : "bg-white border-[#E2E0DA] hover:border-[#00538A]"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[#1B1D26] text-base font-bold truncate">{cohort.name}</div>
+          <div className="text-[#1B1D26] text-base font-bold">{cohort.name}</div>
           {cohort.code && <div className="text-[#4A4F5C] text-[0.9375rem] tabular-nums truncate">{cohort.code}</div>}
         </div>
         <Pill tone={STATUS_TONE[cohort.status] ?? "muted"}>{cohortStatusLabel(cohort.status)}</Pill>
@@ -131,34 +131,36 @@ export function FacilitatorMyCohorts({ navigate, user, onLogout }: PageProps) {
     roster = <LoadingState label="Loading the roster…" />;
   } else {
     roster = (
-      <div className="space-y-3">
-        <Card>
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-[1.5rem] leading-[1.25] text-[#1B1D26]" style={DISPLAY_FONT}>{data.name}</h3>
-                <Pill tone={STATUS_TONE[data.status] ?? "muted"}>{cohortStatusLabel(data.status)}</Pill>
-              </div>
-              <div className="text-[#4A4F5C] text-[0.9375rem] mt-1">
-                SY {data.school_year} · {rosterCountsText(rosterCounts(data.roster))}
-              </div>
+      <section aria-labelledby="cohort-detail-title" className="space-y-4">
+        {/* The selected cohort's heading row sits straight on the page, above its roster: no card around it. */}
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 id="cohort-detail-title" className="text-[1.25rem] leading-snug font-bold text-[#1B1D26]">{data.name}</h3>
+              <Pill tone={STATUS_TONE[data.status] ?? "muted"}>{cohortStatusLabel(data.status)}</Pill>
             </div>
-            {listedCohort && (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Button size="sm" onClick={() => openWithCohort(DASHBOARD_PAGE)}>
-                  <LayoutDashboard className="w-3.5 h-3.5" /> Open dashboard
-                </Button>
-                <Button size="sm" onClick={() => openWithCohort(LEARNERS_PAGE)}>
-                  <Users className="w-3.5 h-3.5" /> View learners
-                </Button>
-              </div>
-            )}
+            <div className="mt-1 space-y-1">
+              <p className={`${MUTED} tabular-nums`}>
+                {/* Cohort names often carry the school year already; say it once. */}
+                {data.name.includes(data.school_year) ? "" : `SY ${data.school_year} · `}
+                {rosterCountsText(rosterCounts(data.roster))}
+              </p>
+              {cohortsReady && !listedCohort && (
+                <p className={MUTED}>This cohort is in school year {data.school_year}, not the school year selected in the top bar.</p>
+              )}
+            </div>
           </div>
-        </Card>
-
-        {cohortsReady && !listedCohort && (
-          <Notice>This cohort is in school year {data.school_year}, not the school year selected in the top bar.</Notice>
-        )}
+          {listedCohort && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button size="sm" onClick={() => openWithCohort(DASHBOARD_PAGE)}>
+                <LayoutDashboard className="w-4 h-4" aria-hidden="true" /> Open dashboard
+              </Button>
+              <Button size="sm" onClick={() => openWithCohort(LEARNERS_PAGE)}>
+                <Users className="w-4 h-4" aria-hidden="true" /> View learners
+              </Button>
+            </div>
+          )}
+        </div>
 
         <DataTable
           columns={ROSTER_COLUMNS}
@@ -167,7 +169,7 @@ export function FacilitatorMyCohorts({ navigate, user, onLogout }: PageProps) {
           onRowClick={(row) => navigate(learnerDetailPage(row.learner_id, data.id))}
           emptyMessage="No learners have been assigned to this cohort yet."
         />
-      </div>
+      </section>
     );
   }
 
@@ -208,11 +210,15 @@ export function FacilitatorMyCohorts({ navigate, user, onLogout }: PageProps) {
     <AppLayout navigate={navigate} user={user} onLogout={onLogout} currentPage="facilitator-cohorts">
       <div className="p-6 space-y-6">
         <PageHeader
-          eyebrow="My Cohorts"
           title="My Cohorts"
-          subtitle={cohortsReady ? cohortsSubtitle(cohorts.length, selection.schoolYear) : undefined}
+          subtitle={
+            // Who assigns cohorts is worth knowing but asks nothing of you: a quiet line, not a notice bar.
+            <span className="block space-y-1">
+              {cohortsReady && <span className="block">{cohortsSubtitle(cohorts.length, selection.schoolYear)}</span>}
+              <span className="block">{COHORTS_ASSIGNED_TEXT}</span>
+            </span>
+          }
         />
-        <Notice>{COHORTS_ASSIGNED_TEXT}</Notice>
         {body}
       </div>
     </AppLayout>
